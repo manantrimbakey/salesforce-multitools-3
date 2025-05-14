@@ -5,7 +5,7 @@ import { LogLevel } from './logger';
  * Configuration utilities for the extension
  */
 export class ConfigUtils {
-    private static readonly CONFIG_NAMESPACE = 'salesforceMultitool';
+    private static readonly CONFIG_NAMESPACE = 'salesforceMultitools-3';
 
     /**
      * Get the log level from configuration

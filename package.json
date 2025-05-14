@@ -41,12 +41,17 @@
                 "command": "salesforce-multitools-3.getLastModifiedInfo",
                 "title": "Get Last Modified Info",
                 "category": "Salesforce Multitool"
+            },
+            {
+                "command": "salesforce-multitools-3.refreshLastModifiedInfo",
+                "title": "Refresh Last Modified Info",
+                "category": "Salesforce Multitool"
             }
         ],
         "configuration": {
-            "title": "Salesforce Multitool",
+            "title": "Salesforce Multitools",
             "properties": {
-                "salesforceMultitools.logLevel": {
+                "salesforceMultitools-3.logLevel": {
                     "type": "string",
                     "enum": [
                         "debug",
@@ -58,7 +63,7 @@
                     "default": "info",
                     "description": "Log level for the extension. Debug shows the most information, none disables logging."
                 },
-                "salesforceMultitool.lastModifiedAutoRefreshInterval": {
+                "salesforceMultitools-3.lastModifiedAutoRefreshInterval": {
                     "type": "number",
                     "default": 15,
                     "minimum": 5,

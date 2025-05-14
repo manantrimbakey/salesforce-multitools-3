@@ -18,6 +18,8 @@ export function getMetadataInfoFromFilePath(filePath: string): MetadataInfo | nu
     const fileName = path.basename(filePath);
     const fileDir = path.dirname(filePath);
 
+    Logger.debug(`Extracting metadata info from: ${filePath}`);
+
     // Match Apex class: classes/MyClass.cls
     if (fileName.endsWith('.cls')) {
         return {
@@ -52,8 +54,10 @@ export function getMetadataInfoFromFilePath(filePath: string): MetadataInfo | nu
 
     // Match Lightning Web Component: lwc/myComponent/*
     // Use the folder name as the component name regardless of the file name
-    const lwcMatch = filePath.match(/lwc[\\/]([^\/\\]+)[\\/]/);
+    // More permissive regex to match any file within an LWC folder
+    const lwcMatch = filePath.match(/(?:\/|\\)lwc(?:\/|\\)([^\/\\]+)(?:\/|\\)/);
     if (lwcMatch) {
+        Logger.debug(`Matched LWC component: ${lwcMatch[1]}`);
         return {
             type: 'LightningComponentBundle',
             apiName: lwcMatch[1],
@@ -62,8 +66,10 @@ export function getMetadataInfoFromFilePath(filePath: string): MetadataInfo | nu
 
     // Match Aura Component: aura/myComponent/*
     // Use the folder name as the component name regardless of the file name
-    const auraMatch = filePath.match(/aura[\\/]([^\/\\]+)[\\/]/);
+    // More permissive regex to match any file within an Aura folder
+    const auraMatch = filePath.match(/(?:\/|\\)aura(?:\/|\\)([^\/\\]+)(?:\/|\\)/);
     if (auraMatch) {
+        Logger.debug(`Matched Aura component: ${auraMatch[1]}`);
         return {
             type: 'AuraDefinitionBundle',
             apiName: auraMatch[1],
@@ -79,8 +85,7 @@ export function getMetadataInfoFromFilePath(filePath: string): MetadataInfo | nu
         };
     }
 
-    // Add more metadata types as needed
-
+    Logger.debug(`No metadata type matched for ${filePath}`);
     return null;
 }
 

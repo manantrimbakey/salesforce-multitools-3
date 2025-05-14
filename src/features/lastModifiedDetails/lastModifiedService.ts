@@ -42,10 +42,14 @@ export async function getFileLastModifiedInfo(filePath: string): Promise<Formatt
                 query = `SELECT LastModifiedBy.Name, LastModifiedDate, LastModifiedById FROM ApexComponent WHERE Name = '${metadataInfo.apiName}'`;
                 break;
             case 'LightningComponentBundle':
+                // Use exact DeveloperName match for LWC
                 query = `SELECT LastModifiedBy.Name, LastModifiedDate, LastModifiedById FROM LightningComponentBundle WHERE DeveloperName = '${metadataInfo.apiName}'`;
+                Logger.debug(`LWC query: ${query}`);
                 break;
             case 'AuraDefinitionBundle':
+                // Use exact DeveloperName match for Aura
                 query = `SELECT LastModifiedBy.Name, LastModifiedDate, LastModifiedById FROM AuraDefinitionBundle WHERE DeveloperName = '${metadataInfo.apiName}'`;
+                Logger.debug(`Aura query: ${query}`);
                 break;
             case 'CustomObject':
                 query = `SELECT LastModifiedBy.Name, LastModifiedDate, LastModifiedById FROM CustomObject WHERE DeveloperName = '${metadataInfo.apiName}'`;
@@ -57,10 +61,13 @@ export async function getFileLastModifiedInfo(filePath: string): Promise<Formatt
 
         Logger.debug(`Executing query: ${query}`);
         result = await connection.tooling.query(query);
+        Logger.debug(`Query result: ${JSON.stringify(result)}`);
 
         if (result.records && result.records.length > 0) {
             const record = result.records[0];
-            Logger.debug(`Query returned ${result.records.length} records. Using first record.`);
+            Logger.debug(
+                `Query returned ${result.records.length} records. Using first record: ${JSON.stringify(record)}`,
+            );
 
             const formattedInfo = {
                 lastModifiedBy: record.LastModifiedBy.Name,

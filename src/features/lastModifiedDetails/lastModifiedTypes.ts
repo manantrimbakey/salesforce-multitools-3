@@ -1,3 +1,5 @@
+import * as vscode from 'vscode';
+
 /**
  * Last modified information for a Salesforce component
  */
@@ -15,4 +17,5 @@ export interface FormattedLastModifiedInfo {
     lastModifiedBy: string;
     lastModifiedDate: string;
     lastModifiedById: string;
+    cachedAt?: number; // Optional timestamp for when this was cached
 }

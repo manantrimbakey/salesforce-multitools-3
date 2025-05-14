@@ -4,12 +4,16 @@ import { getMetadataInfoFromFilePath } from '../../utils/metadataUtils';
 import { getFileLastModifiedInfo } from './lastModifiedService';
 import { getLastModifiedStoragePath } from './lastModifiedStorage';
 import { ConfigUtils } from '../../utils/config';
+import { FormattedLastModifiedInfo } from './lastModifiedTypes';
 
 // Status bar item to show last modified info
 let lastModifiedStatusBar: vscode.StatusBarItem;
 
 // Auto-refresh timer
 let autoRefreshTimer: NodeJS.Timeout | undefined;
+
+// CodeLens provider instance - made global so it can be accessed from commands
+let codeLensProvider: LastModifiedCodeLensProvider;
 
 /**
  * Register all commands related to the Last Modified Details feature
@@ -18,33 +22,46 @@ let autoRefreshTimer: NodeJS.Timeout | undefined;
 export function registerLastModifiedCommands(context: vscode.ExtensionContext): void {
     // Create status bar item
     lastModifiedStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
-    lastModifiedStatusBar.command = 'salesforce-multitool.refreshLastModifiedInfo';
+    lastModifiedStatusBar.command = 'salesforce-multitools-3.refreshLastModifiedInfo';
     context.subscriptions.push(lastModifiedStatusBar);
 
     // Register the command to get last modified info
     const getLastModifiedInfoCmd = vscode.commands.registerCommand(
-        'salesforce-multitool.getLastModifiedInfo',
+        'salesforce-multitools-3.getLastModifiedInfo',
         handleGetLastModifiedInfo,
     );
 
     // Register the command to refresh last modified info
     const refreshLastModifiedInfoCmd = vscode.commands.registerCommand(
-        'salesforce-multitool.refreshLastModifiedInfo',
+        'salesforce-multitools-3.refreshLastModifiedInfo',
         handleGetLastModifiedInfo,
     );
 
     // Register the code lens provider
-    const codeLensProvider = new LastModifiedCodeLensProvider();
+    codeLensProvider = new LastModifiedCodeLensProvider();
+
+    // Use a more permissive pattern for LWC and Aura file detection
     const codeLensRegistration = vscode.languages.registerCodeLensProvider(
         [
             { scheme: 'file', pattern: '**/*.cls' },
             { scheme: 'file', pattern: '**/*.trigger' },
             { scheme: 'file', pattern: '**/*.page' },
             { scheme: 'file', pattern: '**/*.component' },
-            { scheme: 'file', pattern: '**/*.lwc/**/*.js' },
-            { scheme: 'file', pattern: '**/*.lwc/**/*.html' },
-            { scheme: 'file', pattern: '**/*.aura/**/*.js' },
-            { scheme: 'file', pattern: '**/*.aura/**/*.cmp' },
+            // More specific LWC patterns to ensure all file types are covered
+            { scheme: 'file', pattern: '**/lwc/**/*.js' },
+            { scheme: 'file', pattern: '**/lwc/**/*.js-meta.xml' },
+            { scheme: 'file', pattern: '**/lwc/**/*.css' },
+            { scheme: 'file', pattern: '**/lwc/**/*.html' },
+            { scheme: 'file', pattern: '**/lwc/**/*.xml' },
+            // More specific Aura patterns
+            { scheme: 'file', pattern: '**/aura/**/*.js' },
+            { scheme: 'file', pattern: '**/aura/**/*.cmp' },
+            { scheme: 'file', pattern: '**/aura/**/*.css' },
+            { scheme: 'file', pattern: '**/aura/**/*.auradoc' },
+            { scheme: 'file', pattern: '**/aura/**/*.design' },
+            { scheme: 'file', pattern: '**/aura/**/*.svg' },
+            { scheme: 'file', pattern: '**/aura/**/*.tokens' },
+            // Object patterns
             { scheme: 'file', pattern: '**/*.object' },
             { scheme: 'file', pattern: '**/*.object-meta.xml' },
         ],
@@ -160,7 +177,24 @@ function startAutoRefreshTimer(): void {
 
             if (metadataInfo) {
                 Logger.debug(`Auto-refreshing last modified details for ${filePath}`);
-                await handleGetLastModifiedInfo();
+
+                // Always query the server directly for fresh data
+                try {
+                    // Get fresh data from Salesforce
+                    const info = await getFileLastModifiedInfo(filePath);
+                    if (info) {
+                        // Update status bar
+                        lastModifiedStatusBar.text = `$(history) Modified: ${info.lastModifiedDate} by ${info.lastModifiedBy}`;
+                        lastModifiedStatusBar.tooltip = `Last modified on ${info.lastModifiedDate} by ${info.lastModifiedBy}\nClick to refresh`;
+                        lastModifiedStatusBar.show();
+
+                        // Trigger CodeLens refresh with fresh server data
+                        codeLensProvider.refreshWithLatestInfo(editor.document.uri, info);
+                        Logger.debug('Auto-refresh completed successfully with fresh data from server');
+                    }
+                } catch (error) {
+                    Logger.error('Error during auto-refresh:', error);
+                }
             }
         }
     }, interval);
@@ -190,20 +224,8 @@ async function handleGetLastModifiedInfo(): Promise<void> {
             lastModifiedStatusBar.tooltip = `Last modified on ${info.lastModifiedDate} by ${info.lastModifiedBy}\nClick to refresh`;
             lastModifiedStatusBar.show();
 
-            // Refresh the CodeLens
-            vscode.commands.executeCommand(
-                'editor.action.showReferences',
-                editor.document.uri,
-                editor.selection.active,
-                [],
-            );
-            vscode.commands.executeCommand(
-                'editor.action.triggerEditorAction',
-                'editor.action.showReferences',
-                editor.document.uri,
-                editor.selection.active,
-                [],
-            );
+            // Refresh the CodeLens with latest info from server
+            codeLensProvider.refreshWithLatestInfo(editor.document.uri, info);
         } else {
             Logger.warn(`No Salesforce metadata found for file: ${filePath}`);
             lastModifiedStatusBar.text = `$(history) Not a recognized Salesforce file`;
@@ -222,18 +244,84 @@ async function handleGetLastModifiedInfo(): Promise<void> {
  * CodeLens provider for displaying last modified information
  */
 class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
-    async provideCodeLenses(document: vscode.TextDocument): Promise<vscode.CodeLens[]> {
+    // Event emitter for CodeLens changes
+    private _onDidChangeCodeLenses: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
+    public readonly onDidChangeCodeLenses: vscode.Event<void> = this._onDidChangeCodeLenses.event;
+
+    // Store the current document URI that needs to be refreshed
+    private _pendingRefresh: Map<string, FormattedLastModifiedInfo> = new Map();
+
+    /**
+     * Refresh CodeLens with latest info from server
+     * @param documentUri The document URI
+     * @param info The latest info from server
+     */
+    public refreshWithLatestInfo(documentUri: vscode.Uri, info: FormattedLastModifiedInfo): void {
+        const uriString = documentUri.toString();
+
+        // Store only temporarily to display the CodeLens until next server query
+        this._pendingRefresh.set(uriString, info);
+
+        // Trigger a refresh
+        this._onDidChangeCodeLenses.fire();
+        Logger.debug(`Triggered CodeLens refresh for ${uriString}`);
+    }
+
+    async provideCodeLenses(
+        document: vscode.TextDocument,
+        token: vscode.CancellationToken,
+    ): Promise<vscode.CodeLens[]> {
+        Logger.debug(`Providing CodeLenses for ${document.uri}`);
+
         const filePath = document.uri.fsPath;
+
+        // Check if it's an LWC or Aura file
+        const isLwc = filePath.includes('/lwc/');
+        const isAura = filePath.includes('/aura/');
+
+        Logger.debug(`File path: ${filePath}, isLwc: ${isLwc}, isAura: ${isAura}`);
+
         const metadataInfo = getMetadataInfoFromFilePath(filePath);
 
         if (!metadataInfo) {
+            Logger.debug(`No metadata info found for ${filePath}`);
             return [];
         }
 
+        Logger.debug(`Metadata type: ${metadataInfo.type}, API name: ${metadataInfo.apiName}`);
+
         try {
-            // Always fetch data from Salesforce
-            const info = await getFileLastModifiedInfo(filePath);
+            // Check if we have pending refresh info
+            const uriString = document.uri.toString();
+            const pendingInfo = this._pendingRefresh.get(uriString);
+
+            // Always try to query Salesforce first
+            let info: FormattedLastModifiedInfo | null;
+
+            try {
+                Logger.debug(`Fetching last modified info from Salesforce for ${filePath}`);
+                info = await getFileLastModifiedInfo(filePath);
+
+                if (info) {
+                    Logger.debug(`Got info from Salesforce: ${JSON.stringify(info)}`);
+                    // Update pending refresh with latest server data
+                    this._pendingRefresh.set(uriString, info);
+                } else {
+                    Logger.debug(`No info returned from Salesforce for ${filePath}`);
+                    // If server returns no data but we have pending refresh info, use that temporarily
+                    info = pendingInfo || null;
+                }
+            } catch (error) {
+                Logger.warn(`Error fetching from Salesforce: ${error}`);
+                // On error, use pending refresh info if available, otherwise show error
+                info = pendingInfo || null;
+                if (!info) {
+                    throw error; // Re-throw to show error CodeLens
+                }
+            }
+
             if (!info) {
+                Logger.debug(`No info available for ${filePath}, not showing CodeLens`);
                 return [];
             }
 
@@ -243,9 +331,10 @@ class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
             const codeLens = new vscode.CodeLens(range, {
                 title: `$(history) Last modified: ${info.lastModifiedDate} by ${info.lastModifiedBy}`,
                 tooltip: 'Click to refresh last modified information',
-                command: 'salesforce-multitool.refreshLastModifiedInfo',
+                command: 'salesforce-multitools-3.refreshLastModifiedInfo',
             });
 
+            Logger.debug(`Returning CodeLens for ${document.uri}`);
             return [codeLens];
         } catch (error) {
             Logger.error('Error getting code lens for last modified info:', error);
@@ -257,7 +346,7 @@ class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
             const codeLens = new vscode.CodeLens(range, {
                 title: `$(error) Error retrieving last modified details`,
                 tooltip: 'Click to try again',
-                command: 'salesforce-multitool.refreshLastModifiedInfo',
+                command: 'salesforce-multitools-3.refreshLastModifiedInfo',
             });
 
             return [codeLens];
