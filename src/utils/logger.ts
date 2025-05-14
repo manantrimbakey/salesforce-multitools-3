@@ -8,7 +8,7 @@ export enum LogLevel {
     INFO = 1,
     WARN = 2,
     ERROR = 3,
-    NONE = 4
+    NONE = 4,
 }
 
 /**
@@ -26,7 +26,7 @@ export class Logger {
         if (!this.outputChannel) {
             this.outputChannel = vscode.window.createOutputChannel(this.prefix);
         }
-        
+
         if (level !== undefined) {
             this.logLevel = level;
         }
@@ -94,10 +94,10 @@ export class Logger {
         }
 
         const formattedMessage = this.formatMessage(level, message);
-        
+
         // Add to output channel
         this.outputChannel.appendLine(formattedMessage);
-        
+
         // Format any additional arguments
         if (args && args.length > 0) {
             for (const arg of args) {
@@ -141,4 +141,4 @@ export class Logger {
     public static dispose() {
         this.outputChannel?.dispose();
     }
-} 
+}

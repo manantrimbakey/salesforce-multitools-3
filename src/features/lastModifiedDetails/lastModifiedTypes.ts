@@ -15,4 +15,4 @@ export interface FormattedLastModifiedInfo {
     lastModifiedBy: string;
     lastModifiedDate: string;
     lastModifiedById: string;
-} 
+}

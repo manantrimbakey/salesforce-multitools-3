@@ -17,7 +17,7 @@ export interface MetadataInfo {
 export function getMetadataInfoFromFilePath(filePath: string): MetadataInfo | null {
     const fileName = path.basename(filePath);
     const fileDir = path.dirname(filePath);
-    
+
     // Match Apex class: classes/MyClass.cls
     if (fileName.endsWith('.cls')) {
         return {
@@ -25,7 +25,7 @@ export function getMetadataInfoFromFilePath(filePath: string): MetadataInfo | nu
             apiName: path.basename(fileName, '.cls'),
         };
     }
-    
+
     // Match Apex trigger: triggers/MyTrigger.trigger
     if (fileName.endsWith('.trigger')) {
         return {
@@ -33,7 +33,7 @@ export function getMetadataInfoFromFilePath(filePath: string): MetadataInfo | nu
             apiName: path.basename(fileName, '.trigger'),
         };
     }
-    
+
     // Match Visualforce page: pages/MyPage.page
     if (fileName.endsWith('.page')) {
         return {
@@ -41,7 +41,7 @@ export function getMetadataInfoFromFilePath(filePath: string): MetadataInfo | nu
             apiName: path.basename(fileName, '.page'),
         };
     }
-    
+
     // Match Visualforce component: components/MyComponent.component
     if (fileName.endsWith('.component')) {
         return {
@@ -49,7 +49,7 @@ export function getMetadataInfoFromFilePath(filePath: string): MetadataInfo | nu
             apiName: path.basename(fileName, '.component'),
         };
     }
-    
+
     // Match Lightning Web Component: lwc/myComponent/*
     // Use the folder name as the component name regardless of the file name
     const lwcMatch = filePath.match(/lwc[\\/]([^\/\\]+)[\\/]/);
@@ -59,7 +59,7 @@ export function getMetadataInfoFromFilePath(filePath: string): MetadataInfo | nu
             apiName: lwcMatch[1],
         };
     }
-    
+
     // Match Aura Component: aura/myComponent/*
     // Use the folder name as the component name regardless of the file name
     const auraMatch = filePath.match(/aura[\\/]([^\/\\]+)[\\/]/);
@@ -69,7 +69,7 @@ export function getMetadataInfoFromFilePath(filePath: string): MetadataInfo | nu
             apiName: auraMatch[1],
         };
     }
-    
+
     // Match Custom Object: objects/MyObject__c/MyObject__c.object-meta.xml
     const objectMatch = filePath.match(/objects[\\/]([^\/\\]+)[\\/]/);
     if (objectMatch && fileName.endsWith('.object-meta.xml')) {
@@ -78,9 +78,9 @@ export function getMetadataInfoFromFilePath(filePath: string): MetadataInfo | nu
             apiName: objectMatch[1].replace('__c.object-meta.xml', ''),
         };
     }
-    
+
     // Add more metadata types as needed
-    
+
     return null;
 }
 
@@ -98,12 +98,5 @@ export function getMetadataStoragePath(
     apiName: string,
     subFolder: string = 'metadata',
 ): string {
-    return path.join(
-        rootPath,
-        '.sfdx',
-        '_multi-tool',
-        subFolder,
-        metadataType,
-        `${apiName}.json`,
-    );
-} 
+    return path.join(rootPath, '.sfdx', '_multi-tool', subFolder, metadataType, `${apiName}.json`);
+}

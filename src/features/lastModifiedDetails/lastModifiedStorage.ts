@@ -24,27 +24,27 @@ export async function storeLastModifiedInfo(
             Logger.warn('No workspace folder found to store last modified info');
             return;
         }
-        
+
         const rootPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
         const sfdxFolder = path.join(rootPath, '.sfdx');
         const multiToolFolder = path.join(sfdxFolder, MULTI_TOOL_FOLDER);
         const lastModifiedFolder = path.join(multiToolFolder, LAST_MODIFIED_SUBFOLDER);
-        
+
         // Create folders if they don't exist
         await ensureFolderExists(sfdxFolder);
         await ensureFolderExists(multiToolFolder);
         await ensureFolderExists(lastModifiedFolder);
-        
+
         // Store by metadata type to keep files organized
         const metadataTypeFolder = path.join(lastModifiedFolder, metadataType);
         await ensureFolderExists(metadataTypeFolder);
-        
+
         // Create or update the JSON file for this component
         const filePath = path.join(metadataTypeFolder, `${apiName}.json`);
-        
+
         Logger.debug(`Storing last modified info to: ${filePath}`);
         await writeJsonFile(filePath, modifiedInfo);
-        
+
         Logger.info(`Last modified info stored for ${metadataType}:${apiName}`);
     } catch (error) {
         Logger.error(`Error storing last modified info for ${metadataType}:${apiName}:`, error);
@@ -66,7 +66,7 @@ export async function getStoredLastModifiedInfo(
         if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
             return null;
         }
-        
+
         const rootPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
         const filePath = path.join(
             rootPath,
@@ -76,7 +76,7 @@ export async function getStoredLastModifiedInfo(
             metadataType,
             `${apiName}.json`,
         );
-        
+
         return await readJsonFile<LastModifiedInfo>(filePath);
     } catch (error) {
         Logger.error(`Error reading stored last modified info for ${metadataType}:${apiName}:`, error);
@@ -92,4 +92,4 @@ export async function getStoredLastModifiedInfo(
  */
 export function getLastModifiedStoragePath(metadataType: string, apiName: string): string {
     return `.sfdx/${MULTI_TOOL_FOLDER}/${LAST_MODIFIED_SUBFOLDER}/${metadataType}/${apiName}.json`;
-} 
+}

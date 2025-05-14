@@ -19,7 +19,7 @@ export class SFUtils {
         if (this.isInitialized && !forceRefresh) {
             return;
         }
-        
+
         // Reset cached data if forcing refresh
         if (forceRefresh) {
             Logger.debug('Force refreshing SFUtils static members');
@@ -27,7 +27,7 @@ export class SFUtils {
             this.authInfos = undefined as unknown as sfcore.OrgAuthorization[];
             this.connection = undefined;
         }
-        
+
         // Initialize logger to prevent transport target error
         try {
             // Set up the logger to use console instead of file transport
@@ -43,7 +43,7 @@ export class SFUtils {
 
     public static async getDefaultUsername() {
         await this.initialize();
-        
+
         if (vscode.workspace && vscode.workspace.workspaceFolders) {
             await this.initLocalConfig();
 
@@ -53,7 +53,7 @@ export class SFUtils {
             const authInfos = await this.listAllAuthorizations();
 
             const authInfo = authInfos.find((authInfo) => authInfo?.aliases?.includes(localValue as string));
-            
+
             if (!authInfo) {
                 Logger.warn(`No authentication info found for username: ${localValue}`);
             }
@@ -64,11 +64,11 @@ export class SFUtils {
 
     public static async getConnection(): Promise<any> {
         await this.initialize();
-        
+
         if (!this.connection) {
             const defaultusername = await this.getDefaultUsername();
             Logger.debug('Getting connection for username:', defaultusername);
-            
+
             this.connection = await sfcore.Connection.create({
                 authInfo: await sfcore.AuthInfo.create({ username: defaultusername }),
             });
@@ -81,7 +81,7 @@ export class SFUtils {
         if (!this.myLocalConfig && vscode.workspace && vscode.workspace.workspaceFolders) {
             const rootPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
             const configPath = path.join(rootPath, '.sfdx', 'sfdx-config.json');
-            
+
             Logger.debug(`Initializing config file from: ${configPath}`);
 
             try {

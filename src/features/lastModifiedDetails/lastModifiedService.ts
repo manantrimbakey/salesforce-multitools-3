@@ -10,9 +10,7 @@ import { storeLastModifiedInfo, getStoredLastModifiedInfo } from './lastModified
  * @param filePath The path to the Salesforce file
  * @returns Object containing last modified information or null if not a Salesforce file
  */
-export async function getFileLastModifiedInfo(
-    filePath: string,
-): Promise<FormattedLastModifiedInfo | null> {
+export async function getFileLastModifiedInfo(filePath: string): Promise<FormattedLastModifiedInfo | null> {
     try {
         // Extract the metadata type and API name from the file path
         const metadataInfo = getMetadataInfoFromFilePath(filePath);
@@ -20,16 +18,16 @@ export async function getFileLastModifiedInfo(
             Logger.warn(`Could not determine metadata type for file: ${filePath}`);
             return null;
         }
-        
+
         // Always query Salesforce for the latest data
         Logger.debug(`Querying last modified info for ${metadataInfo.type}:${metadataInfo.apiName}`);
-        
+
         await SFUtils.initialize();
         const connection = await SFUtils.getConnection();
-        
+
         let result;
         let query = '';
-        
+
         switch (metadataInfo.type) {
             case 'ApexClass':
                 query = `SELECT LastModifiedBy.Name, LastModifiedDate, LastModifiedById FROM ApexClass WHERE Name = '${metadataInfo.apiName}'`;
@@ -56,23 +54,23 @@ export async function getFileLastModifiedInfo(
                 Logger.warn(`Unsupported metadata type: ${metadataInfo.type}`);
                 return null;
         }
-        
+
         Logger.debug(`Executing query: ${query}`);
         result = await connection.tooling.query(query);
-        
+
         if (result.records && result.records.length > 0) {
             const record = result.records[0];
             Logger.debug(`Query returned ${result.records.length} records. Using first record.`);
-            
+
             const formattedInfo = {
                 lastModifiedBy: record.LastModifiedBy.Name,
                 lastModifiedDate: new Date(record.LastModifiedDate).toLocaleString(),
                 lastModifiedById: record.LastModifiedById,
             };
-            
+
             // Check if the file has been modified by someone else
             await checkForExternalModifications(metadataInfo.type, metadataInfo.apiName, record);
-            
+
             // Store the last modified info for future use (but don't use it as a source of truth)
             await storeLastModifiedInfo(metadataInfo.type, metadataInfo.apiName, {
                 lastModifiedBy: record.LastModifiedBy.Name,
@@ -80,7 +78,7 @@ export async function getFileLastModifiedInfo(
                 lastModifiedById: record.LastModifiedById,
                 retrievedAt: new Date().toISOString(),
             });
-            
+
             return formattedInfo;
         } else {
             Logger.warn(`No metadata found for ${metadataInfo.type}:${metadataInfo.apiName}`);
@@ -98,38 +96,36 @@ export async function getFileLastModifiedInfo(
  * @param apiName The API name of the component
  * @param currentData The current data from Salesforce
  */
-async function checkForExternalModifications(
-    metadataType: string,
-    apiName: string,
-    currentData: any
-): Promise<void> {
+async function checkForExternalModifications(metadataType: string, apiName: string, currentData: any): Promise<void> {
     try {
         // Get the stored last modified info
         const storedInfo = await getStoredLastModifiedInfo(metadataType, apiName);
-        
+
         // If we don't have stored info, there's nothing to compare
         if (!storedInfo) {
             return;
         }
-        
+
         // Check if the modification date is different
         const storedDate = new Date(storedInfo.lastModifiedDate).getTime();
         const currentDate = new Date(currentData.LastModifiedDate).getTime();
         const storedId = storedInfo.lastModifiedById;
         const currentId = currentData.LastModifiedById;
-        
+
         // If the date is newer and it's a different user, show a notification
         if (currentDate > storedDate && storedId !== currentId) {
             // Show notification that someone else has modified the file
             vscode.window.showInformationMessage(
                 `This file was modified on Salesforce by ${currentData.LastModifiedBy.Name} since your last check.`,
-                'OK'
+                'OK',
             );
-            
-            Logger.info(`External modification detected for ${metadataType}:${apiName} by ${currentData.LastModifiedBy.Name}`);
+
+            Logger.info(
+                `External modification detected for ${metadataType}:${apiName} by ${currentData.LastModifiedBy.Name}`,
+            );
         }
     } catch (error) {
         // Don't let errors in the check interrupt the main flow
         Logger.error('Error checking for external modifications:', error);
     }
-} 
+}

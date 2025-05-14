@@ -12,14 +12,14 @@ export class ConfigWatcher {
     public static register(context: vscode.ExtensionContext): void {
         // Watch for configuration changes
         context.subscriptions.push(
-            vscode.workspace.onDidChangeConfiguration(e => {
+            vscode.workspace.onDidChangeConfiguration((e) => {
                 this.handleConfigChange(e);
-            })
+            }),
         );
-        
+
         Logger.debug('Configuration watcher registered');
     }
-    
+
     /**
      * Handle configuration change events
      */
@@ -28,7 +28,7 @@ export class ConfigWatcher {
             this.updateLogLevel();
         }
     }
-    
+
     /**
      * Update the log level based on configuration
      */
@@ -39,4 +39,4 @@ export class ConfigWatcher {
             Logger.info(`Log level changed to: ${LogLevel[newLogLevel]}`);
         }
     }
-} 
+}
