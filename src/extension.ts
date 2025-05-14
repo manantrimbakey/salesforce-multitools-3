@@ -6,6 +6,7 @@ import { Logger, LogLevel } from './utils/logger';
 import { ConfigUtils } from './utils/config';
 import { CommandHandler } from './commands/commandHandler';
 import { ConfigWatcher } from './configWatcher';
+import { SidebarProvider } from './features/sidePanel/SidebarProvider';
 
 /**
  * This method is called when your extension is activated
@@ -19,6 +20,10 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register commands
     CommandHandler.register(context);
+
+    // Register the sidebar view
+    const sidebarRegistrations = SidebarProvider.register(context);
+    context.subscriptions.push(...sidebarRegistrations);
 
     // Initialize Salesforce connection in the background
     setTimeout(() => {

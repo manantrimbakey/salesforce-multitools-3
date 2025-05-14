@@ -26,6 +26,24 @@
     ],
     "main": "./dist/extension.js",
     "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "salesforce-multitools",
+                    "title": "Salesforce Multitools",
+                    "icon": "resources/salesforce-icon.svg"
+                }
+            ]
+        },
+        "views": {
+            "salesforce-multitools": [
+                {
+                    "id": "salesforceMultitools.sidebar",
+                    "name": "Explorer",
+                    "type": "webview"
+                }
+            ]
+        },
         "commands": [
             {
                 "command": "salesforce-multitools-3.helloWorld",
@@ -49,8 +67,9 @@
             },
             {
                 "command": "salesforce-multitools-3.openFileSwitcher",
-                "title": "Open File Switcher",
-                "category": "Salesforce Multitool"
+                "title": "Open Salesforce Explorer",
+                "category": "Salesforce Multitool",
+                "icon": "$(files)"
             }
         ],
         "configuration": {
@@ -91,8 +110,8 @@
         "check-types": "tsc --noEmit",
         "lint": "eslint src",
         "test": "vscode-test",
-        "build:client": "cd client && npm run build",
-        "postinstall": "cd client && npm install"
+        "build:client": "cd client && npm run build && node ../scripts/copy-webview.js",
+        "postinstall": "cd client && npm install && mkdir -p scripts"
     },
     "devDependencies": {
         "@types/mocha": "^10.0.10",

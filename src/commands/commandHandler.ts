@@ -2,7 +2,6 @@ import * as vscode from 'vscode';
 import { Logger } from '../utils/logger';
 import { SFUtils } from '../utils/sfutils';
 import { registerLastModifiedCommands } from '../features/lastModifiedDetails';
-import { FileSwitcherPanel } from '../features/fileSwitcher/webview/FileSwitcherPanel';
 
 /**
  * Handles registration and execution of commands
@@ -20,14 +19,17 @@ export class CommandHandler {
             'salesforce-multitools-3.refreshConnection',
             this.handleRefreshConnection,
         );
-
-        // Register the file switcher command
-        const fileSwitcherCmd = FileSwitcherPanel.registerCommand(context);
+        
+        // Command to open sidebar (redirects to focus the view)
+        const openSidebarCmd = vscode.commands.registerCommand(
+            'salesforce-multitools-3.openFileSwitcher',
+            this.handleOpenSidebar,
+        );
 
         // Register all commands from features
         registerLastModifiedCommands(context);
 
-        context.subscriptions.push(helloWorldCmd, refreshConnectionCmd, fileSwitcherCmd);
+        context.subscriptions.push(helloWorldCmd, refreshConnectionCmd, openSidebarCmd);
 
         Logger.debug('All commands registered');
     }
@@ -47,6 +49,15 @@ export class CommandHandler {
         Logger.info('Refreshing Salesforce connection');
         await this.initializeSalesforceConnection(true);
         vscode.window.showInformationMessage('Salesforce connection refreshed');
+    }
+    
+    /**
+     * Handle opening sidebar
+     */
+    private static handleOpenSidebar(): void {
+        // Focus the Salesforce Multitools sidebar view
+        vscode.commands.executeCommand('workbench.view.extension.salesforce-multitools');
+        Logger.info('Opened Salesforce Explorer sidebar');
     }
 
     /**

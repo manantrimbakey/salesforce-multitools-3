@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { Logger } from './logger';
 
 /**
  * Helper class for working with webviews in VS Code extensions
@@ -23,6 +24,22 @@ export class WebviewUtils {
         
         // Check if the webview resources exist
         if (!fs.existsSync(webviewResourcesPath)) {
+            // Try to use client/dist for dev mode
+            const clientDistPath = path.join(extensionPath, 'client', 'dist');
+            
+            if (fs.existsSync(clientDistPath)) {
+                Logger.debug(`Using client/dist for webview instead of dist/webview`);
+                return this.getHtmlFromPath(webview, extensionPath, clientDistPath, webviewPath);
+            }
+            
+            // Finally check for client/public
+            const clientPublicPath = path.join(extensionPath, 'client', 'public');
+            
+            if (fs.existsSync(clientPublicPath)) {
+                Logger.debug(`Using client/public for webview during development`);
+                return this.getHtmlFromPath(webview, extensionPath, clientPublicPath, webviewPath);
+            }
+            
             return `
                 <html>
                 <head>
@@ -38,8 +55,20 @@ export class WebviewUtils {
             `;
         }
 
-        // Find the main JS and CSS files
-        const htmlPath = path.join(webviewResourcesPath, webviewPath, 'index.html');
+        return this.getHtmlFromPath(webview, extensionPath, webviewResourcesPath, webviewPath);
+    }
+    
+    /**
+     * Get HTML content from a specific path
+     */
+    private static getHtmlFromPath(
+        webview: vscode.Webview,
+        extensionPath: string,
+        basePath: string,
+        webviewPath: string
+    ): string {
+        // Find the main HTML file
+        const htmlPath = path.join(basePath, webviewPath, 'index.html');
         
         if (!fs.existsSync(htmlPath)) {
             return `
@@ -61,7 +90,7 @@ export class WebviewUtils {
         let html = fs.readFileSync(htmlPath, 'utf8');
         
         // Get the base directory for assets
-        const baseDir = path.join(webviewResourcesPath, webviewPath);
+        const baseDir = path.join(basePath, webviewPath);
         
         // Replace links to assets with VS Code webview URIs
         html = this.replaceAssetPaths(html, webview, extensionPath, baseDir);
@@ -82,6 +111,11 @@ export class WebviewUtils {
         html = html.replace(
             /<script([^>]*) src="([^"]+)"/g,
             (match, attrs, src) => {
+                // Skip external URLs
+                if (src.startsWith('http://') || src.startsWith('https://')) {
+                    return match;
+                }
+                
                 const assetPath = path.join(baseDir, src);
                 const vscodeUri = webview.asWebviewUri(vscode.Uri.file(assetPath)).toString();
                 return `<script${attrs} src="${vscodeUri}"`;
