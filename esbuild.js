@@ -1,4 +1,6 @@
 const esbuild = require('esbuild');
+const fs = require('fs');
+const path = require('path');
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
@@ -23,6 +25,58 @@ const esbuildProblemMatcherPlugin = {
     },
 };
 
+/**
+ * @type {import('esbuild').Plugin}
+ */
+const copyWebviewsPlugin = {
+    name: 'copy-webviews',
+
+    setup(build) {
+        build.onEnd(() => {
+            // Ensure the webview-dist directory exists
+            const webviewDist = path.join(__dirname, 'dist', 'webview');
+            if (!fs.existsSync(webviewDist)) {
+                fs.mkdirSync(webviewDist, { recursive: true });
+            }
+            
+            // Copy the client build output to the webview-dist directory
+            const clientBuildDir = path.join(__dirname, 'client', 'dist');
+            if (fs.existsSync(clientBuildDir)) {
+                copyDirectory(clientBuildDir, webviewDist);
+                console.log('✓ Copied React webview files to dist/webview');
+            } else {
+                console.warn('! Client build directory not found. Have you run npm run build:client?');
+            }
+        });
+    },
+};
+
+/**
+ * Recursively copy a directory
+ */
+function copyDirectory(source, destination) {
+    // Create the destination directory if it doesn't exist
+    if (!fs.existsSync(destination)) {
+        fs.mkdirSync(destination, { recursive: true });
+    }
+
+    // Read all files/directories in the source
+    const entries = fs.readdirSync(source, { withFileTypes: true });
+
+    for (const entry of entries) {
+        const srcPath = path.join(source, entry.name);
+        const destPath = path.join(destination, entry.name);
+
+        if (entry.isDirectory()) {
+            // Recursively copy directories
+            copyDirectory(srcPath, destPath);
+        } else {
+            // Copy files
+            fs.copyFileSync(srcPath, destPath);
+        }
+    }
+}
+
 async function main() {
     const ctx = await esbuild.context({
         entryPoints: ['src/extension.ts'],
@@ -38,6 +92,7 @@ async function main() {
         plugins: [
             /* add to the end of plugins array */
             esbuildProblemMatcherPlugin,
+            copyWebviewsPlugin,
         ],
     });
     if (watch) {

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { Logger } from '../utils/logger';
 import { SFUtils } from '../utils/sfutils';
 import { registerLastModifiedCommands } from '../features/lastModifiedDetails';
+import { FileSwitcherPanel } from '../features/fileSwitcher/webview/FileSwitcherPanel';
 
 /**
  * Handles registration and execution of commands
@@ -12,18 +13,21 @@ export class CommandHandler {
      */
     public static register(context: vscode.ExtensionContext): void {
         // Hello World command
-        const helloWorldCmd = vscode.commands.registerCommand('salesforce-multitool.helloWorld', this.handleHelloWorld);
+        const helloWorldCmd = vscode.commands.registerCommand('salesforce-multitools-3.helloWorld', this.handleHelloWorld);
 
         // Refresh connection command
         const refreshConnectionCmd = vscode.commands.registerCommand(
-            'salesforce-multitool.refreshConnection',
+            'salesforce-multitools-3.refreshConnection',
             this.handleRefreshConnection,
         );
+
+        // Register the file switcher command
+        const fileSwitcherCmd = FileSwitcherPanel.registerCommand(context);
 
         // Register all commands from features
         registerLastModifiedCommands(context);
 
-        context.subscriptions.push(helloWorldCmd, refreshConnectionCmd);
+        context.subscriptions.push(helloWorldCmd, refreshConnectionCmd, fileSwitcherCmd);
 
         Logger.debug('All commands registered');
     }
