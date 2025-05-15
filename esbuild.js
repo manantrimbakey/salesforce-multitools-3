@@ -83,7 +83,7 @@ async function main() {
         bundle: true,
         format: 'cjs',
         minify: production,
-        sourcemap: !production,
+        sourcemap: production ? false : true,
         sourcesContent: false,
         platform: 'node',
         outfile: 'dist/extension.js',
@@ -100,6 +100,15 @@ async function main() {
     } else {
         await ctx.rebuild();
         await ctx.dispose();
+        
+        // Remove map files in production build
+        if (production) {
+            const mapFile = path.join(__dirname, 'dist', 'extension.js.map');
+            if (fs.existsSync(mapFile)) {
+                fs.unlinkSync(mapFile);
+                console.log('✓ Removed source map file for production build');
+            }
+        }
     }
 }
 

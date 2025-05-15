@@ -12,5 +12,33 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/.vscode-test.*
+# Documentation
+docs/**
+# Scripts
+scripts/**
+# Client source code (only include the built files)
+client/src/**
+client/scripts/**
+client/-p/**
+client/node_modules/**
+client/.gitignore
+client/eslint.config.js
+client/README.md
+client/tsconfig*.json
+client/index.html
+# Development files
+.eslintrc*
+.prettierrc*
+.prettier*
+**/.eslintrc*
+esbuild.js
+.vscode-test.mjs
+# Explicitly exclude map files
+dist/**/*.map
+client/dist/**/*.map
 # Make sure to include resources
 !resources/
+# Include built client files
+!client/dist/**
+# Only include dist files
+!dist/**
