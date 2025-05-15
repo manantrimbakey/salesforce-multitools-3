@@ -1,7 +1,7 @@
 import { Grid, Typography, Button } from '@mui/material';
 import { useState, useEffect } from 'react';
 import { useVSCodeApi } from '../../App';
-
+import ComponentFileSwitcher from '../componentFileSwitcher/componentFileSwitcher';
 function MainBody() {
     const vscode = useVSCodeApi();
     const [message, setMessage] = useState('');
@@ -10,7 +10,7 @@ function MainBody() {
         // Handle messages from VS Code
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
-            
+
             if (message.command === 'responseData') {
                 setMessage(message.data.message);
             }
@@ -35,7 +35,7 @@ function MainBody() {
     return (
         <Grid container direction="column" alignItems={'normal'} spacing={2}>
             <Grid>
-                <Typography variant="body1">Main Body 1</Typography>
+                <ComponentFileSwitcher />
             </Grid>
             <Grid>
                 <Typography variant="body1">Main Body 2</Typography>

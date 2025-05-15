@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { Logger } from '../utils/logger';
 import { SFUtils } from '../utils/sfutils';
 import { registerLastModifiedCommands } from '../features/lastModifiedDetails';
+import { registerComponentFileSwitcherCommands } from '../features/componentFileSwitcher';
 
 /**
  * Handles registration and execution of commands
@@ -11,9 +12,6 @@ export class CommandHandler {
      * Register all commands for the extension
      */
     public static register(context: vscode.ExtensionContext): void {
-        // Hello World command
-        const helloWorldCmd = vscode.commands.registerCommand('salesforce-multitools-3.helloWorld', this.handleHelloWorld);
-
         // Refresh connection command
         const refreshConnectionCmd = vscode.commands.registerCommand(
             'salesforce-multitools-3.refreshConnection',
@@ -28,18 +26,11 @@ export class CommandHandler {
 
         // Register all commands from features
         registerLastModifiedCommands(context);
+        registerComponentFileSwitcherCommands(context);
 
-        context.subscriptions.push(helloWorldCmd, refreshConnectionCmd, openSidebarCmd);
+        context.subscriptions.push(refreshConnectionCmd, openSidebarCmd);
 
         Logger.debug('All commands registered');
-    }
-
-    /**
-     * Handle hello world command
-     */
-    private static handleHelloWorld(): void {
-        vscode.window.showInformationMessage('Hello from Salesforce Multitool!');
-        Logger.info('Hello World command executed');
     }
 
     /**
