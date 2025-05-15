@@ -5,6 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Salesforce Multitools Extension Structure</title>
     <link rel="stylesheet" href="explanation.css">
+    <style>
+        .doc-links {
+            background: #f8f9fa;
+            border-left: 4px solid #0288d1;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 5px 5px 0;
+        }
+        .doc-links h3 {
+            margin-top: 0;
+        }
+        .doc-links ul {
+            list-style-type: none;
+            padding-left: 10px;
+        }
+        .doc-links ul li {
+            margin-bottom: 8px;
+        }
+        .doc-links ul li:before {
+            content: "→";
+            margin-right: 8px;
+            color: #0288d1;
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -22,6 +46,17 @@
                 The extension provides tools for tracking file modifications, switching between related files, 
                 and viewing Salesforce metadata directly within VS Code.
             </p>
+            
+            <div class="doc-links">
+                <h3>Documentation Links</h3>
+                <p>This is an interactive visual overview of the extension. For detailed documentation, see:</p>
+                <ul>
+                    <li><a href="index.md">Main Documentation Index</a></li>
+                    <li><a href="quick-start.md">Quick Start Guide</a></li>
+                    <li><a href="features/component-file-switcher.md">Component File Switcher Documentation</a></li>
+                    <li><a href="architecture/overview.md">Architecture Overview</a></li>
+                </ul>
+            </div>
         </div>
 
         <div class="section">
@@ -152,6 +187,7 @@ window.addEventListener('message', event => {
 
     <footer>
         <p>Salesforce Multitools Extension - Version 0.0.1</p>
+        <p><a href="index.md">Back to Documentation Index</a></p>
     </footer>
 
     <script src="explanation.js"></script>
