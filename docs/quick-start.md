@@ -1,3 +1,5 @@
+[← Back to Documentation Home](./index.md)
+
 # Salesforce Multitools - Quick Start Guide
 
 This guide will help you get up and running with the Salesforce Multitools extension quickly.
@@ -79,4 +81,8 @@ If you're not using SFDX, you can still activate the extension, but some feature
 
 - Check our [Troubleshooting Guide](./troubleshooting.md)
 - Review the [GitHub Issues](https://github.com/yourusername/salesforce-multitools-3/issues) for known problems
-- Submit a [new issue](https://github.com/yourusername/salesforce-multitools-3/issues/new) if you encounter problems 
+- Submit a [new issue](https://github.com/yourusername/salesforce-multitools-3/issues/new) if you encounter problems
+
+---
+
+[← Back to Documentation Home](./index.md) 

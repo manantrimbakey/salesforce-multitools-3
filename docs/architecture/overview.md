@@ -1,3 +1,5 @@
+[← Back to Documentation Home](../index.md)
+
 # Salesforce Multitools - Architecture Overview
 
 This document provides a high-level overview of the Salesforce Multitools extension architecture, explaining how the different components work together.
@@ -169,4 +171,8 @@ The extension implements robust error handling:
 
 ## Extension Settings
 
-The extension is configurable through VS Code settings, defined in `package.json`. 
+The extension is configurable through VS Code settings, defined in `package.json`.
+
+---
+
+[← Back to Documentation Home](../index.md) 

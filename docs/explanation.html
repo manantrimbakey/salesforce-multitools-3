@@ -28,6 +28,67 @@
             margin-right: 8px;
             color: #0288d1;
         }
+        
+        /* Navigation bar styles */
+        .nav-bar {
+            background-color: #01579b;
+            color: white;
+            padding: 10px 0;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .nav-title {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 20px;
+        }
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .nav-links a:hover {
+            background-color: rgba(255,255,255,0.1);
+            text-decoration: none;
+        }
+        .nav-links a.active {
+            background-color: rgba(255,255,255,0.2);
+        }
+        
+        /* Back to top button */
+        .back-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #0288d1;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-decoration: none;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+        .back-to-top:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -37,6 +98,20 @@
             <p>A VS Code extension for enhanced Salesforce development</p>
         </div>
     </header>
+    
+    <!-- Navigation Bar -->
+    <div class="nav-bar">
+        <div class="nav-container">
+            <div class="nav-title">Documentation</div>
+            <div class="nav-links">
+                <a href="index.md" class="active">Home</a>
+                <a href="quick-start.md">Quick Start</a>
+                <a href="features/component-file-switcher.md">Features</a>
+                <a href="architecture/overview.md">Architecture</a>
+                <a href="development/setup.md">Development</a>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <div class="section">
@@ -189,6 +264,9 @@ window.addEventListener('message', event => {
         <p>Salesforce Multitools Extension - Version 0.0.1</p>
         <p><a href="index.md">Back to Documentation Index</a></p>
     </footer>
+
+    <!-- Back to top button -->
+    <a href="#" class="back-to-top" title="Back to top">↑</a>
 
     <script src="explanation.js"></script>
 </body>

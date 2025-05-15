@@ -1,3 +1,5 @@
+[← Back to Documentation Home](../index.md)
+
 # Component File Switcher
 
 The Component File Switcher is a powerful feature that enables Salesforce developers to quickly navigate between related files within Lightning Web Component (LWC) and Aura bundles.
@@ -10,6 +12,12 @@ The Component File Switcher feature solves this problem by providing:
 
 1. A keyboard shortcut (Alt+O / Option+O on Mac) that displays a dropdown menu of related files
 2. A sidebar UI that shows all component files organized by type
+
+## Feature Navigation
+
+- **Component File Switcher** (current page)
+- [Last Modified Details](./last-modified-details.md)
+- [Salesforce Connection Management](./connection-management.md)
 
 ## How It Works
 
@@ -93,4 +101,8 @@ The sidebar UI is implemented using React:
 ## Related Features
 
 - [Last Modified Details](./last-modified-details.md): Shows who last modified each component file
-- [Salesforce Connection Management](./connection-management.md): Manages connection to your Salesforce org 
+- [Salesforce Connection Management](./connection-management.md): Manages connection to your Salesforce org
+
+---
+
+[← Back to Documentation Home](../index.md) 
