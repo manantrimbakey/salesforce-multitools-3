@@ -59,9 +59,9 @@ Communication between the extension and UI components follows a message-based pa
 ```
 Extension (Backend) <---> Webview (Frontend)
        │                        │
-       │  postMessage() ─────► │
+       │  postMessage() ─────►  │
        │                        │
-       │ ◄───── message event  │
+       │  ◄───── message event  │
 ```
 
 ## Extension Activation Flow

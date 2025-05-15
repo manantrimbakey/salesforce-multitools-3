@@ -8,9 +8,6 @@ This directory contains comprehensive documentation for the Salesforce Multitool
 docs/
 ├── index.md                # Main documentation index with links to all sections
 ├── quick-start.md          # Getting started guide for new users
-├── explanation.html        # Interactive visual documentation
-├── explanation.css         # Styles for the visual documentation
-├── explanation.js          # JavaScript for the interactive documentation
 │
 ├── features/               # Detailed documentation for each feature
 │   ├── component-file-switcher.md   # Component File Switcher feature
@@ -33,13 +30,11 @@ docs/
 
 1. Start with [index.md](./index.md) for an overview of all documentation
 2. New users should begin with the [Quick Start Guide](./quick-start.md)
-3. For visual learners, check out the [Interactive Documentation](./explanation.html)
-4. Developers can refer to the [architecture](./architecture/) and [development](./development/) sections
+3. Developers can refer to the [architecture](./architecture/) and [development](./development/) sections
 
-## Documentation Formats
+## Documentation Format
 
-- **Markdown (.md)**: Most documentation is in Markdown format for easy reading in VS Code or GitHub
-- **HTML/CSS/JS**: Interactive visual documentation is provided in HTML format
+All documentation is written in Markdown (.md) format for easy reading in VS Code or GitHub. This ensures consistent rendering across different platforms and makes it easy to contribute updates.
 
 ## Contributing to Documentation
 
@@ -58,8 +53,7 @@ Please follow these guidelines:
 
 ## Viewing Documentation
 
-- Markdown files can be viewed directly in VS Code or on GitHub
-- To view the HTML documentation, open `explanation.html` in a web browser
+Markdown files can be viewed directly in VS Code or on GitHub. VS Code provides a built-in Markdown preview that you can access by clicking the preview button in the top-right corner of the editor.
 
 ## Getting Help
 

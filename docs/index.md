@@ -35,10 +35,6 @@ Salesforce Multitools is a powerful VS Code extension designed to enhance Salesf
 - [Building and Testing](./development/building.md)
 - [Contributing](./development/contributing.md)
 
-## Web Documentation
-
-For interactive documentation with diagrams and visual explanations, see the [web documentation](./explanation.html).
-
 ## Useful Links
 
 - [GitHub Repository](https://github.com/yourusername/salesforce-multitools-3)
