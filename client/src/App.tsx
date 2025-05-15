@@ -28,6 +28,7 @@ interface VSCodeApi {
 const VSCodeApiContext = createContext<VSCodeApi | null>(null);
 
 // Custom hook to use VS Code API
+// eslint-disable-next-line react-refresh/only-export-components
 export const useVSCodeApi = () => {
     const context = useContext(VSCodeApiContext);
     if (!context) {
