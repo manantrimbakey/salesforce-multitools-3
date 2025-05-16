@@ -5,6 +5,7 @@ import { getFileLastModifiedInfo } from './lastModifiedService';
 import { getLastModifiedStoragePath } from './lastModifiedStorage';
 import { ConfigUtils } from '../../utils/config';
 import { FormattedLastModifiedInfo } from './lastModifiedTypes';
+import { SFUtils } from '../../utils/sfutils';
 
 // Status bar item to show last modified info
 let lastModifiedStatusBar: vscode.StatusBarItem;
@@ -61,6 +62,12 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
             { scheme: 'file', pattern: '**/aura/**/*.design' },
             { scheme: 'file', pattern: '**/aura/**/*.svg' },
             { scheme: 'file', pattern: '**/aura/**/*.tokens' },
+            // Aura meta files
+            { scheme: 'file', pattern: '**/aura/**/*.cmp-meta.xml' },
+            { scheme: 'file', pattern: '**/aura/**/*.app-meta.xml' },
+            { scheme: 'file', pattern: '**/aura/**/*.intf-meta.xml' },
+            { scheme: 'file', pattern: '**/aura/**/*.evt-meta.xml' },
+            { scheme: 'file', pattern: '**/aura/**/*.design-meta.xml' },
             // Object patterns
             { scheme: 'file', pattern: '**/*.object' },
             { scheme: 'file', pattern: '**/*.object-meta.xml' },
@@ -108,6 +115,13 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
     Logger.debug('Last Modified Details commands registered');
 }
 
+// Update statusbar display with org context
+function updateStatusBarText(info: FormattedLastModifiedInfo, connection: any): void {
+    const orgUsername = connection?.username || 'Unknown org';
+    lastModifiedStatusBar.text = `$(history) Modified: ${info.lastModifiedDate} by ${info.lastModifiedBy}`;
+    lastModifiedStatusBar.tooltip = `Last modified on ${info.lastModifiedDate} by ${info.lastModifiedBy}\nOrg: ${orgUsername}\nClick to refresh`;
+}
+
 /**
  * Update status bar based on current active editor
  */
@@ -127,9 +141,10 @@ async function updateStatusBarBasedOnEditor(editor?: vscode.TextEditor): Promise
         try {
             // Always fetch from Salesforce
             const info = await getFileLastModifiedInfo(filePath);
+            const connection = await SFUtils.getConnection();
+            
             if (info) {
-                lastModifiedStatusBar.text = `$(history) Modified: ${info.lastModifiedDate} by ${info.lastModifiedBy}`;
-                lastModifiedStatusBar.tooltip = `Last modified on ${info.lastModifiedDate} by ${info.lastModifiedBy}\nClick to refresh`;
+                updateStatusBarText(info, connection);
                 lastModifiedStatusBar.show();
             } else {
                 lastModifiedStatusBar.text = `$(history) Not a recognized Salesforce file`;
@@ -182,10 +197,11 @@ function startAutoRefreshTimer(): void {
                 try {
                     // Get fresh data from Salesforce
                     const info = await getFileLastModifiedInfo(filePath);
+                    const connection = await SFUtils.getConnection();
+                    
                     if (info) {
                         // Update status bar
-                        lastModifiedStatusBar.text = `$(history) Modified: ${info.lastModifiedDate} by ${info.lastModifiedBy}`;
-                        lastModifiedStatusBar.tooltip = `Last modified on ${info.lastModifiedDate} by ${info.lastModifiedBy}\nClick to refresh`;
+                        updateStatusBarText(info, connection);
                         lastModifiedStatusBar.show();
 
                         // Trigger CodeLens refresh with fresh server data
@@ -217,11 +233,11 @@ async function handleGetLastModifiedInfo(): Promise<void> {
 
     try {
         const info = await getFileLastModifiedInfo(filePath);
+        const connection = await SFUtils.getConnection();
 
         if (info) {
             Logger.info(`Last modified info retrieved: ${JSON.stringify(info)}`);
-            lastModifiedStatusBar.text = `$(history) Modified: ${info.lastModifiedDate} by ${info.lastModifiedBy}`;
-            lastModifiedStatusBar.tooltip = `Last modified on ${info.lastModifiedDate} by ${info.lastModifiedBy}\nClick to refresh`;
+            updateStatusBarText(info, connection);
             lastModifiedStatusBar.show();
 
             // Refresh the CodeLens with latest info from server
@@ -328,9 +344,14 @@ class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
             const position = new vscode.Position(0, 0);
             const range = new vscode.Range(position, position);
 
+            // Get org username to display in CodeLens
+            const connection = await SFUtils.getConnection();
+            const orgUsername = connection?.username || ''; 
+            
+            // Keep org info in tooltip but not in CodeLens title
             const codeLens = new vscode.CodeLens(range, {
                 title: `$(history) Last modified: ${info.lastModifiedDate} by ${info.lastModifiedBy}`,
-                tooltip: 'Click to refresh last modified information',
+                tooltip: `Last modified on ${info.lastModifiedDate} by ${info.lastModifiedBy}${orgUsername ? ` in org ${orgUsername}` : ''}\nClick to refresh`,
                 command: 'salesforce-multitools-3.refreshLastModifiedInfo',
             });
 

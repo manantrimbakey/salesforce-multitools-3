@@ -8,6 +8,8 @@ export interface LastModifiedInfo {
     lastModifiedDate: string;
     lastModifiedById: string;
     retrievedAt: string;
+    orgId?: string;        // The Salesforce org ID
+    orgUsername?: string;  // The Salesforce org username
 }
 
 /**

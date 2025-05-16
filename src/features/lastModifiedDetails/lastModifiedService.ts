@@ -84,6 +84,8 @@ export async function getFileLastModifiedInfo(filePath: string): Promise<Formatt
                 lastModifiedDate: record.LastModifiedDate,
                 lastModifiedById: record.LastModifiedById,
                 retrievedAt: new Date().toISOString(),
+                orgId: connection.instanceUrl || '',
+                orgUsername: await SFUtils.getDefaultUsername() || '',
             });
 
             return formattedInfo;
