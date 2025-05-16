@@ -9,6 +9,8 @@ export class SFUtils {
     private static myLocalConfig: sfcore.ConfigFile;
     private static configWatcher: fs.FSWatcher | undefined;
     private static connection: any;
+    private static currentOrgUrl: string = '';
+    private static currentUsername: string = '';
     private static isInitialized: boolean = false;
 
     /**
@@ -115,6 +117,9 @@ export class SFUtils {
                     this.myLocalConfig = undefined as unknown as sfcore.ConfigFile;
                     // Also reset the connection since it depends on config
                     this.connection = undefined;
+                    
+                    // Notify the extension that connection needs to be refreshed
+                    vscode.commands.executeCommand('salesforce-multitools-3.refreshConnection');
                 }
             });
             Logger.debug(`File watcher set up for: ${configPath}`);

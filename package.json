@@ -4,6 +4,7 @@
     "description": "A set of tools for Salesforce development in VS Code",
     "version": "0.0.1",
     "publisher": "salesforce-multitools",
+    "icon": "resources/salesforce-icon-colorful.png",
     "repository": {
         "type": "git",
         "url": "https://github.com/yourusername/salesforce-multitools-3"
@@ -26,12 +27,26 @@
     ],
     "main": "./dist/extension.js",
     "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "salesforce-multitools",
+                    "title": "Salesforce Multitools",
+                    "icon": "resources/salesforce-icon.svg"
+                }
+            ]
+        },
+        "views": {
+            "explorer": [
+                {
+                    "id": "salesforceMultitools.sidebar",
+                    "name": "Salesforce Component Files",
+                    "type": "webview"
+                }
+            ],
+            "salesforce-multitools": []
+        },
         "commands": [
-            {
-                "command": "salesforce-multitools-3.helloWorld",
-                "title": "Hello World",
-                "category": "Salesforce Multitool"
-            },
             {
                 "command": "salesforce-multitools-3.refreshConnection",
                 "title": "Refresh Salesforce Connection",
@@ -46,6 +61,42 @@
                 "command": "salesforce-multitools-3.refreshLastModifiedInfo",
                 "title": "Refresh Last Modified Info",
                 "category": "Salesforce Multitool"
+            },
+            {
+                "command": "salesforce-multitools-3.openFileSwitcher",
+                "title": "Open Salesforce Explorer",
+                "category": "Salesforce Multitool",
+                "icon": "$(files)"
+            },
+            {
+                "command": "salesforce-multitools-3.switchComponentFile",
+                "title": "Switch LWC/Aura Component File",
+                "category": "Salesforce Multitool",
+                "icon": "$(sync-ignored)"
+            },
+            {
+                "command": "salesforce-multitools-3.refreshComponentData",
+                "title": "Refresh Component Data",
+                "category": "Salesforce Multitool"
+            },
+            {
+                "command": "salesforce-multitools-3.showComponentFileSwitcher",
+                "title": "Show Component File Switcher",
+                "category": "Salesforce Multitool"
+            },
+            {
+                "command": "salesforce-multitools-3.openDebugLogs",
+                "title": "Open Debug Logs",
+                "category": "Salesforce Multitool",
+                "icon": "$(list-selection)"
+            }
+        ],
+        "keybindings": [
+            {
+                "command": "salesforce-multitools-3.switchComponentFile",
+                "key": "alt+o",
+                "mac": "alt+o",
+                "when": "editorTextFocus"
             }
         ],
         "configuration": {
@@ -74,17 +125,20 @@
     },
     "scripts": {
         "vscode:prepublish": "npm run package",
-        "compile": "npm run check-types && npm run lint && node esbuild.js",
+        "compile": "npm run check-types && npm run lint && npm run build:client && node esbuild.js",
         "watch": "npm-run-all -p watch:*",
         "watch:esbuild": "node esbuild.js --watch",
         "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-        "package": "npm run check-types && npm run lint && node esbuild.js --production",
+        "watch:client": "cd client && npm run dev",
+        "package": "npm run check-types && npm run lint && npm run build:client && node esbuild.js --production",
         "compile-tests": "tsc -p . --outDir out",
         "watch-tests": "tsc -p . -w --outDir out",
         "pretest": "npm run compile-tests && npm run compile && npm run lint",
         "check-types": "tsc --noEmit",
         "lint": "eslint src",
-        "test": "vscode-test"
+        "test": "vscode-test",
+        "build:client": "cd client && npm run build && node ../scripts/copy-webview.js",
+        "postinstall": "cd client && npm install && mkdir -p scripts"
     },
     "devDependencies": {
         "@types/mocha": "^10.0.10",

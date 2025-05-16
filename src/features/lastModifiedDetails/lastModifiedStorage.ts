@@ -3,10 +3,28 @@ import * as path from 'path';
 import { Logger } from '../../utils/logger';
 import { ensureFolderExists, writeJsonFile, readJsonFile } from '../../utils/fileUtils';
 import { LastModifiedInfo } from './lastModifiedTypes';
+import { SFUtils } from '../../utils/sfutils';
 
 // Constants
 const LAST_MODIFIED_SUBFOLDER = 'last-modified';
 const MULTI_TOOL_FOLDER = '_multi-tool';
+
+/**
+ * Get sanitized org identifier for file paths
+ * @param orgId The org identifier (usually the instance URL)
+ * @returns A sanitized string usable in file paths
+ */
+function getSanitizedOrgId(orgId: string): string {
+    if (!orgId) {
+        return 'unknown-org';
+    }
+
+    // Remove protocol and special characters
+    return orgId
+        .replace(/^https?:\/\//, '')
+        .replace(/[^a-zA-Z0-9.-]/g, '-')
+        .toLowerCase();
+}
 
 /**
  * Store last modified information for a Salesforce metadata component
@@ -35,8 +53,13 @@ export async function storeLastModifiedInfo(
         await ensureFolderExists(multiToolFolder);
         await ensureFolderExists(lastModifiedFolder);
 
+        // Get org identifier for organization-specific storage
+        const orgId = modifiedInfo.orgId ? getSanitizedOrgId(modifiedInfo.orgId) : 'unknown-org';
+        const orgFolder = path.join(lastModifiedFolder, orgId);
+        await ensureFolderExists(orgFolder);
+
         // Store by metadata type to keep files organized
-        const metadataTypeFolder = path.join(lastModifiedFolder, metadataType);
+        const metadataTypeFolder = path.join(orgFolder, metadataType);
         await ensureFolderExists(metadataTypeFolder);
 
         // Create or update the JSON file for this component
@@ -45,7 +68,7 @@ export async function storeLastModifiedInfo(
         Logger.debug(`Storing last modified info to: ${filePath}`);
         await writeJsonFile(filePath, modifiedInfo);
 
-        Logger.info(`Last modified info stored for ${metadataType}:${apiName}`);
+        Logger.info(`Last modified info stored for ${metadataType}:${apiName} in org ${orgId}`);
     } catch (error) {
         Logger.error(`Error storing last modified info for ${metadataType}:${apiName}:`, error);
         // Don't throw - storing info is non-critical
@@ -67,12 +90,17 @@ export async function getStoredLastModifiedInfo(
             return null;
         }
 
+        // Get current org info to find the right storage location
+        const connection = await SFUtils.getConnection();
+        const orgId = connection?.instanceUrl ? getSanitizedOrgId(connection.instanceUrl) : 'unknown-org';
+
         const rootPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
         const filePath = path.join(
             rootPath,
             '.sfdx',
             MULTI_TOOL_FOLDER,
             LAST_MODIFIED_SUBFOLDER,
+            orgId,
             metadataType,
             `${apiName}.json`,
         );
@@ -91,5 +119,7 @@ export async function getStoredLastModifiedInfo(
  * @returns The storage path relative to the workspace root
  */
 export function getLastModifiedStoragePath(metadataType: string, apiName: string): string {
-    return `.sfdx/${MULTI_TOOL_FOLDER}/${LAST_MODIFIED_SUBFOLDER}/${metadataType}/${apiName}.json`;
+    // This is a best-effort since we don't have connection info here
+    // The actual path used in storage/retrieval will include org ID
+    return `.sfdx/${MULTI_TOOL_FOLDER}/${LAST_MODIFIED_SUBFOLDER}/<org-id>/${metadataType}/${apiName}.json`;
 }

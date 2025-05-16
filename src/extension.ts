@@ -6,11 +6,34 @@ import { Logger, LogLevel } from './utils/logger';
 import { ConfigUtils } from './utils/config';
 import { CommandHandler } from './commands/commandHandler';
 import { ConfigWatcher } from './configWatcher';
+import { SidebarProvider } from './features/sidePanel/SidebarProvider';
 
 /**
  * This method is called when your extension is activated
  */
 export function activate(context: vscode.ExtensionContext) {
+    // Early return if .sfdx/sfdx-config.json does not exist in the workspace root
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+        Logger.warn('No workspace folder found. Extension will not activate.');
+        return;
+    }
+    const sfdxConfigPath = vscode.Uri.joinPath(workspaceFolders[0].uri, '.sfdx', 'sfdx-config.json');
+
+    vscode.workspace.fs.stat(sfdxConfigPath).then(
+        () => {
+            // File exists, continue activation
+            continueActivation(context);
+        },
+        () => {
+            // File does not exist, log and return
+            Logger.warn('.sfdx/sfdx-config.json not found in workspace root. Extension will not activate.');
+        }
+    );
+}
+
+// Move the rest of the activation logic to a new function
+function continueActivation(context: vscode.ExtensionContext) {
     // Initialize logger with proper log level
     initializeLogger(context);
 
@@ -20,9 +43,14 @@ export function activate(context: vscode.ExtensionContext) {
     // Register commands
     CommandHandler.register(context);
 
+    // Register the sidebar view
+    const sidebarRegistrations = SidebarProvider.register(context);
+    context.subscriptions.push(...sidebarRegistrations);
+
     // Initialize Salesforce connection in the background
     setTimeout(() => {
-        CommandHandler.initializeSalesforceConnection().catch((error) => {
+        // Initialize SFUtils directly rather than using CommandHandler
+        SFUtils.initialize(true).catch((error: Error) => {
             Logger.error('Error during initialization:', error);
         });
     }, 1000);
