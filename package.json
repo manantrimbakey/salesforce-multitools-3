@@ -37,13 +37,14 @@
             ]
         },
         "views": {
-            "salesforce-multitools": [
+            "explorer": [
                 {
                     "id": "salesforceMultitools.sidebar",
-                    "name": "Explorer",
+                    "name": "Salesforce Component Files",
                     "type": "webview"
                 }
-            ]
+            ],
+            "salesforce-multitools": []
         },
         "commands": [
             {
