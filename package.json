@@ -78,6 +78,17 @@
                 "command": "salesforce-multitools-3.refreshComponentData",
                 "title": "Refresh Component Data",
                 "category": "Salesforce Multitool"
+            },
+            {
+                "command": "salesforce-multitools-3.showComponentFileSwitcher",
+                "title": "Show Component File Switcher",
+                "category": "Salesforce Multitool"
+            },
+            {
+                "command": "salesforce-multitools-3.openDebugLogs",
+                "title": "Open Debug Logs",
+                "category": "Salesforce Multitool",
+                "icon": "$(list-selection)"
             }
         ],
         "keybindings": [

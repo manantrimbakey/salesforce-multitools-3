@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { WebviewUtils } from '../../utils/webview';
 import { Logger } from '../../utils/logger';
+import { handleDebugLogWebviewCommand } from '../debugLogs/commands';
 
 /**
  * Provider for the Salesforce Multitools sidebar
@@ -10,6 +11,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     private _view?: vscode.WebviewView;
     private _extensionUri: vscode.Uri;
+    private _activeComponent: string = 'componentFileSwitcher'; // Default component
 
     constructor(private context: vscode.ExtensionContext) {
         this._extensionUri = context.extensionUri;
@@ -33,6 +35,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             vscode.commands.registerCommand('salesforceMultitools.sidebar.sendMessage', (message: any) => {
                 provider._sendMessage(message);
             }),
+
+            // Register command to set the active component
+            vscode.commands.registerCommand('salesforceMultitools.sidebar.setComponent', (componentName: string) => {
+                provider.setActiveComponent(componentName);
+            }),
         ];
 
         vscode.window.onDidChangeActiveColorTheme((theme) => {
@@ -50,6 +57,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         });
 
         return registrations;
+    }
+
+    /**
+     * Set the active component
+     */
+    public setActiveComponent(componentName: string): void {
+        this._activeComponent = componentName;
+        this._sendMessage({
+            command: 'setActiveComponent',
+            component: componentName
+        });
+        Logger.debug(`Set active component to: ${componentName}`);
     }
 
     /**
@@ -80,6 +99,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
      */
     private _setWebviewMessageListener(webview: vscode.Webview) {
         webview.onDidReceiveMessage(async (message) => {
+            // Try to handle debug log commands first
+            if (this._activeComponent === 'debugLogFetcher') {
+                const handled = await handleDebugLogWebviewCommand(message, (response) => {
+                    this._sendMessage(response);
+                });
+                
+                if (handled) {
+                    return;
+                }
+            }
+            
             switch (message.command) {
                 case 'alert': {
                     vscode.window.showInformationMessage(message.text);
@@ -88,8 +118,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 case 'ready': {
                     // Webview is ready, send initial data
                     this._sendInitialData();
-                    // Refresh component data for current file
-                    vscode.commands.executeCommand('salesforce-multitools-3.refreshComponentData');
+                    
+                    // Send the active component
+                    this._sendMessage({
+                        command: 'setActiveComponent',
+                        component: this._activeComponent
+                    });
+                    
+                    // Refresh component data for current file if we're using the component file switcher
+                    if (this._activeComponent === 'componentFileSwitcher') {
+                        vscode.commands.executeCommand('salesforce-multitools-3.refreshComponentData');
+                    }
                     return;
                 }
                 case 'requestData': {
@@ -121,6 +160,21 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                     }
                     return;
                 }
+                case 'exampleRequest': {
+                    // Handle example component requests
+                    if (message.data && message.data.text) {
+                        Logger.debug(`Received message from example component: ${message.data.text}`);
+                        
+                        // Echo back the message with some processing
+                        this._sendMessage({
+                            command: 'exampleResponse',
+                            data: {
+                                message: `Extension received: "${message.data.text}" (processed at ${new Date().toLocaleTimeString()})`
+                            }
+                        });
+                    }
+                    return;
+                }
             }
         });
     }
@@ -144,6 +198,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             data: {
                 extensionPath: this._extensionUri.fsPath,
                 workspaceFolder: workspaceFolder || '',
+                activeComponent: this._activeComponent
             },
         });
     }
@@ -164,5 +219,6 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
 export interface Message {
     command: string;
-    data: any;
+    data?: any;
+    component?: string;
 }

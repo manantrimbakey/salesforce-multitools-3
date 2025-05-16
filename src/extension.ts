@@ -49,7 +49,8 @@ function continueActivation(context: vscode.ExtensionContext) {
 
     // Initialize Salesforce connection in the background
     setTimeout(() => {
-        CommandHandler.initializeSalesforceConnection().catch((error) => {
+        // Initialize SFUtils directly rather than using CommandHandler
+        SFUtils.initialize(true).catch((error: Error) => {
             Logger.error('Error during initialization:', error);
         });
     }, 1000);

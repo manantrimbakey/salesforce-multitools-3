@@ -3,14 +3,14 @@ import {
     Card,
     CardContent,
     Typography,
-    Chip,
+    // Chip,
     List,
     ListItem,
     ListItemText,
     ListItemIcon,
     Divider,
     Paper,
-    Box,
+    // Box,
 } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
 import CssIcon from '@mui/icons-material/Css';
@@ -44,7 +44,7 @@ interface ComponentData {
 export default function ComponentFileSwitcher() {
     // Get VS Code API from context
     const vscode = useVSCodeApi();
-    
+
     const [componentData, setComponentData] = useState<ComponentData>({
         componentName: null,
         componentType: 'UNKNOWN',
@@ -55,7 +55,7 @@ export default function ComponentFileSwitcher() {
     useEffect(() => {
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
-            
+
             // Handle component file switcher refresh
             if (message.command === 'componentFileSwitcherRefresh') {
                 console.log('Component data refresh:', message.data);
@@ -114,7 +114,7 @@ export default function ComponentFileSwitcher() {
     // If no component detected, show empty state
     if (componentData.componentType === 'UNKNOWN' || !componentData.componentName) {
         return (
-            <Card sx={{ borderRadius: '0.25rem', mb: 2 }}>
+            <Card sx={{ borderRadius: '0.25rem' }}>
                 <CardContent>
                     <Typography variant="h6">Component File Switcher</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -128,47 +128,47 @@ export default function ComponentFileSwitcher() {
 
     // Display the component info and files
     return (
-        <Card sx={{ borderRadius: '0.25rem', mb: 2 }}>
+        <Card sx={{ borderRadius: '0.25rem' }}>
             <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                {/* <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h6">Component Files</Typography>
                     <Chip 
                         label={componentData.componentType} 
                         size="small" 
                         color={componentData.componentType === 'LWC' ? 'primary' : 'secondary'} 
                     />
-                </Box>
-                
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
+                </Box> */}
+
+                {/* <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
                     {componentData.componentName}
-                </Typography>
-                
+                </Typography> */}
+
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     Current: {componentData.fileName}
                 </Typography>
 
-                <Paper variant="outlined" sx={{ maxHeight: 300, overflow: 'auto' }}>
+                <Paper variant="outlined">
                     <List dense disablePadding>
                         {Object.entries(filesByType).map(([type, files]) => (
                             <div key={type}>
                                 <ListItem sx={{ bgcolor: 'action.hover' }}>
-                                    <ListItemText 
-                                        primary={type} 
-                                        primaryTypographyProps={{
-                                            variant: 'caption',
-                                            sx: { fontWeight: 'bold' },
-                                        }}
+                                    <ListItemText
+                                        primary={
+                                            <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                                                {type}
+                                            </Typography>
+                                        }
                                     />
                                 </ListItem>
                                 <Divider />
-                                
+
                                 {files.map((file) => {
                                     const isCurrentFile = file.name === componentData.fileName;
                                     return (
-                                        <ListItem 
+                                        <ListItem
                                             key={file.path}
                                             onClick={() => handleFileClick(file.path)}
-                                            sx={{ 
+                                            sx={{
                                                 pl: 2,
                                                 cursor: 'pointer',
                                                 bgcolor: isCurrentFile ? 'primary.main' : 'transparent',
@@ -178,22 +178,32 @@ export default function ComponentFileSwitcher() {
                                                 },
                                             }}
                                         >
-                                            <ListItemIcon sx={{ minWidth: 36, color: isCurrentFile ? 'primary.contrastText' : 'inherit' }}>{getFileIcon(file.type)}</ListItemIcon>
-                                            <ListItemText 
-                                                primary={file.name}
-                                                primaryTypographyProps={{
-                                                    variant: 'body2',
-                                                    sx: { 
-                                                        fontWeight: file.isBaseFile ? 'bold' : 'normal',
-                                                        color: 'inherit'
-                                                    },
+                                            <ListItemIcon
+                                                sx={{
+                                                    minWidth: 36,
+                                                    color: isCurrentFile ? 'primary.contrastText' : 'inherit',
                                                 }}
+                                            >
+                                                {getFileIcon(file.type)}
+                                            </ListItemIcon>
+                                            <ListItemText
+                                                primary={
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            fontWeight: file.isBaseFile ? 'bold' : 'normal',
+                                                            color: 'inherit',
+                                                        }}
+                                                    >
+                                                        {file.name}
+                                                    </Typography>
+                                                }
                                             />
                                             {file.isUnsaved && (
-                                                <FiberManualRecordIcon 
-                                                    fontSize="small" 
-                                                    color="warning" 
-                                                    sx={{ width: 10, height: 10 }} 
+                                                <FiberManualRecordIcon
+                                                    fontSize="small"
+                                                    color="warning"
+                                                    sx={{ width: 10, height: 10 }}
                                                 />
                                             )}
                                         </ListItem>
@@ -203,7 +213,7 @@ export default function ComponentFileSwitcher() {
                         ))}
                     </List>
                 </Paper>
-                
+
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
                     Press Alt+O (Option+O on Mac) to switch files
                 </Typography>

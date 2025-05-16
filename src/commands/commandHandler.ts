@@ -3,6 +3,7 @@ import { Logger } from '../utils/logger';
 import { SFUtils } from '../utils/sfutils';
 import { registerLastModifiedCommands } from '../features/lastModifiedDetails';
 import { registerComponentFileSwitcherCommands } from '../features/componentFileSwitcher';
+import { registerDebugLogCommands } from '../features/debugLogs/commands';
 
 /**
  * Handles registration and execution of commands
@@ -24,93 +25,54 @@ export class CommandHandler {
             this.handleOpenSidebar,
         );
 
+        // Commands to switch to different components
+        const showComponentFileSwitcherCmd = vscode.commands.registerCommand(
+            'salesforce-multitools-3.showComponentFileSwitcher',
+            () => this.handleSwitchComponent('componentFileSwitcher')
+        );
+
         // Register all commands from features
         registerLastModifiedCommands(context);
         registerComponentFileSwitcherCommands(context);
+        registerDebugLogCommands(context);
 
-        context.subscriptions.push(refreshConnectionCmd, openSidebarCmd);
+        context.subscriptions.push(
+            refreshConnectionCmd, 
+            openSidebarCmd,
+            showComponentFileSwitcherCmd
+        );
 
         Logger.debug('All commands registered');
     }
 
     /**
-     * Handle refresh connection command
+     * Handle refreshing the Salesforce connection
      */
     private static async handleRefreshConnection(): Promise<void> {
-        Logger.info('Refreshing Salesforce connection');
-        await this.initializeSalesforceConnection(true);
-        vscode.window.showInformationMessage('Salesforce connection refreshed');
+        try {
+            // Force re-initialization of the Salesforce connection
+            await SFUtils.initialize(true);
+            vscode.window.showInformationMessage('Salesforce connection refreshed');
+        } catch (error) {
+            Logger.error('Error refreshing connection:', error);
+            vscode.window.showErrorMessage(`Failed to refresh connection: ${error}`);
+        }
+    }
+
+    /**
+     * Handle opening the sidebar
+     */
+    private static handleOpenSidebar(): void {
+        vscode.commands.executeCommand('workbench.view.explorer');
+        vscode.commands.executeCommand('salesforceMultitools.sidebar.focus');
     }
     
     /**
-     * Handle opening sidebar
+     * Handle switching to a different component in the sidebar
      */
-    private static handleOpenSidebar(): void {
-        // Focus the Salesforce Multitools sidebar view
-        vscode.commands.executeCommand('workbench.view.extension.salesforce-multitools');
-        Logger.info('Opened Salesforce Explorer sidebar');
-    }
-
-    /**
-     * Initialize the Salesforce connection
-     */
-    public static async initializeSalesforceConnection(forceRefresh = false): Promise<void> {
-        // Show status bar item during initialization
-        const statusItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left);
-        statusItem.text = '$(sync~spin) Connecting to Salesforce...';
-        statusItem.show();
-
-        try {
-            Logger.info('Initializing Salesforce connection' + (forceRefresh ? ' (force refresh)' : ''));
-
-            if (forceRefresh) {
-                // Force re-initialization of SFUtils static members
-                await SFUtils.initialize(true);
-            }
-
-            const username = await SFUtils.getDefaultUsername();
-            const connection = await SFUtils.getConnection();
-
-            if (username) {
-                Logger.info(`Connected to Salesforce as: ${username}`);
-                statusItem.text = `$(check) Connected to Salesforce: ${username}`;
-                statusItem.tooltip = `Connected to Salesforce organization`;
-
-                // Hide status after 5 seconds
-                setTimeout(() => {
-                    statusItem.hide();
-                    statusItem.dispose();
-                }, 5000);
-            } else {
-                Logger.warn('No default Salesforce username found');
-                statusItem.text = `$(warning) No Salesforce org found`;
-                statusItem.tooltip = `No default Salesforce username found`;
-
-                // Keep visible so user knows there's an issue
-                setTimeout(() => {
-                    statusItem.hide();
-                    statusItem.dispose();
-                }, 10000);
-
-                vscode.window.showWarningMessage(
-                    'No default Salesforce username found. Please authorize an org first.',
-                );
-            }
-        } catch (error) {
-            Logger.error('Failed to initialize Salesforce connection:', error);
-
-            statusItem.text = `$(error) Salesforce connection failed`;
-            statusItem.tooltip = `Error: ${error instanceof Error ? error.message : String(error)}`;
-
-            // Keep visible so user knows there's an issue
-            setTimeout(() => {
-                statusItem.hide();
-                statusItem.dispose();
-            }, 10000);
-
-            vscode.window.showErrorMessage(
-                `Failed to connect to Salesforce: ${error instanceof Error ? error.message : String(error)}`,
-            );
-        }
+    private static handleSwitchComponent(componentName: string): void {
+        vscode.commands.executeCommand('workbench.view.explorer');
+        vscode.commands.executeCommand('salesforceMultitools.sidebar.focus');
+        vscode.commands.executeCommand('salesforceMultitools.sidebar.setComponent', componentName);
     }
 }
