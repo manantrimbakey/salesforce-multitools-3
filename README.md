@@ -1,60 +1,62 @@
 # ✨ Salesforce Multitools - Level Up Your SF Dev Game! ✨
 
-No cap, this VS Code extension is BUSSIN' for Salesforce devs! Totally boosts your productivity and saves you from the struggle bus. 😎
+This VS Code extension boosts your productivity and streamlines your Salesforce development workflow. 😎
 
-## 🔥 What's The Vibe? 🔥
+## 🔥 Features Overview 🔥
 
-### 🚀 Component File Switcher - The Main Character
+### 🚀 Component File Switcher - The Main Feature
 
-Sick of clicking through folders to find your Lightning component files? We fixed that!
+Tired of clicking through folders to find your Lightning component files? We fixed that!
 
-- **Keyboard Shortcut**: Smash `Alt+O` (or `Option+O` on Mac) - it's giving productivity
-- **Sidebar UI**: Peep all your component files in one spot, no scrolling needed
+- **Keyboard Shortcut**: Use `Alt+O` (or `Option+O` on Mac) for quick access
+- **Sidebar UI**: View all your component files in one spot, no scrolling needed
 
-#### How it slays:
+#### How it works:
 
-When you're in your Lightning coding era:
+When you're working with Lightning components:
 
-1. Hit `Alt+O` (or `Option+O` on Mac) for the vibes
-2. Files show up based on the hierarchy (we prioritize the important ones FR):
-   - For LWC: JS file is the blueprint (main character energy), followed by HTML & CSS
-   - For Aura: Controller.js is the GOAT, then the component file & CSS
+1. Press `Alt+O` (or `Option+O` on Mac) to activate
+2. Files appear based on the hierarchy (prioritizing the important ones):
+    - For LWC: JS file is the primary file, followed by HTML & CSS
+    - For Aura: Controller.js takes priority, then the component file & CSS
 
-#### The UI is *chef's kiss*
+#### User Interface
 
-The sidebar be looking clean with:
-- Component name & type with that LWC/Aura glow-up
-- Files grouped by type 'cause we're organized queens 👑
-- Unsaved files get that ✨special indicator✨
-- Current file is highlighted so you know where you're at, no cap
+The sidebar provides a clean interface with:
 
-## 👾 Other Cool Stuff 👾
+- Component name & type with LWC/Aura indicators
+- Files grouped by type for better organization
+- Unsaved files get a special indicator
+- Current file is highlighted for easy reference
 
-- **Last Modified Details** - See who messed with your code last (receipts always ready)
-- **Salesforce Connection Management** - Handles the boring auth stuff so you don't have to
+## 👾 Additional Features 👾
 
-## 🔮 More Features Coming Soon! 🔮
+- **Last Modified Details** - See who modified your code last and when, get notified and blame them!
 
-Stay tuned bestie, we're gonna add more features to this extension. The glow-up never stops!
+## 🔮 Coming Soon! 🔮
 
-## 💯 Requirements (Not Gatekeeping, Just Facts)
+Stay tuned for more features we're adding to this extension!
+   - Salesforce Constantinator - to turn your hardcoded strings into constants
+   - Debugs Log Fetcher - to fetch the logs from your Salesforce org and filter them by any selected user
 
-- VS Code 1.90.0+ (update your stuff bestie)
-- Salesforce CLI (period.)
+## 💯 Requirements
 
-## 🤓 How To Get This Energy 🤓
+- VS Code 1.90.0+
+- Salesforce CLI
 
-Grab it from the VS Code Marketplace or download the VSIX file from releases (it's giving options).
+## 🤓 Installation 🤓
 
-## 🛠️ Wanna Contribute? (We Stan a Coder) 🛠️
+Available from the VS Code Marketplace or download the VSIX file from releases.
 
-### Build Your Own:
+## 🛠️ Want to Contribute? 🛠️
 
-1. Yoink the repo
-2. `npm install` (gotta get those dependencies)
-3. `npm run compile` (make it real)
-4. Press F5 to start debugging (it's alive!)
+### Build from source:
+
+1. Clone the repo
+2. `npm install` to get dependencies
+3. `npm run compile` to build
+4. Press F5 to start debugging
 
 ---
 
-*This extension was made with blood, sweat, and energy drinks. No printers, just fax. Appreciate you fr fr!*
+_This extension was built to make Salesforce development more efficient and enjoyable. Thanks for checking it out!_
