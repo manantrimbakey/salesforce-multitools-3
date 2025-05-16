@@ -5,7 +5,7 @@ import { Logger } from '../../utils/logger';
 import { getMetadataInfoFromFilePath } from '../../utils/metadataUtils';
 
 /**
- * File types for LWC and Aura components 
+ * File types for LWC and Aura components
  */
 export enum ComponentFileType {
     JS = 'JavaScript',
@@ -18,7 +18,7 @@ export enum ComponentFileType {
     RENDERER = 'Renderer',
     DESIGN = 'Design',
     DOCUMENTATION = 'Documentation',
-    OTHER = 'Other'
+    OTHER = 'Other',
 }
 
 /**
@@ -39,7 +39,7 @@ export interface ComponentFile {
 export enum ComponentType {
     LWC = 'LWC',
     AURA = 'AURA',
-    UNKNOWN = 'UNKNOWN'
+    UNKNOWN = 'UNKNOWN',
 }
 
 /**
@@ -47,19 +47,19 @@ export enum ComponentType {
  */
 export function getComponentType(filePath: string): ComponentType {
     const metadataInfo = getMetadataInfoFromFilePath(filePath);
-    
+
     if (!metadataInfo) {
         return ComponentType.UNKNOWN;
     }
-    
+
     if (metadataInfo.type === 'LightningComponentBundle') {
         return ComponentType.LWC;
     }
-    
+
     if (metadataInfo.type === 'AuraDefinitionBundle') {
         return ComponentType.AURA;
     }
-    
+
     return ComponentType.UNKNOWN;
 }
 
@@ -68,25 +68,25 @@ export function getComponentType(filePath: string): ComponentType {
  */
 export function getComponentFolder(filePath: string): string | null {
     const metadataInfo = getMetadataInfoFromFilePath(filePath);
-    
+
     if (!metadataInfo) {
         return null;
     }
-    
+
     // For LWC, the pattern is lwc/componentName/
     const lwcMatch = filePath.match(/(?:\/|\\)lwc(?:\/|\\)([^\/\\]+)(?:\/|\\)/);
     if (lwcMatch) {
         const componentName = lwcMatch[1];
         return path.dirname(filePath);
     }
-    
+
     // For Aura, the pattern is aura/componentName/
     const auraMatch = filePath.match(/(?:\/|\\)aura(?:\/|\\)([^\/\\]+)(?:\/|\\)/);
     if (auraMatch) {
         const componentName = auraMatch[1];
         return path.dirname(filePath);
     }
-    
+
     return null;
 }
 
@@ -95,11 +95,11 @@ export function getComponentFolder(filePath: string): string | null {
  */
 export function getComponentName(filePath: string): string | null {
     const metadataInfo = getMetadataInfoFromFilePath(filePath);
-    
+
     if (!metadataInfo) {
         return null;
     }
-    
+
     return metadataInfo.apiName;
 }
 
@@ -109,28 +109,28 @@ export function getComponentName(filePath: string): string | null {
 export async function getComponentFiles(filePath: string): Promise<ComponentFile[]> {
     const componentFolder = getComponentFolder(filePath);
     const componentName = getComponentName(filePath);
-    
+
     if (!componentFolder || !componentName) {
         Logger.warn(`Could not determine component folder or name for ${filePath}`);
         return [];
     }
-    
+
     const componentType = getComponentType(filePath);
-    
+
     try {
         const files = await fs.promises.readdir(componentFolder);
-        
+
         // Get open document URIs to check for unsaved files
         const openDocuments = vscode.workspace.textDocuments;
-        const openDocumentPaths = new Set(openDocuments.map(doc => doc.uri.fsPath));
-        const unsavedDocuments = new Set(openDocuments.filter(doc => doc.isDirty).map(doc => doc.uri.fsPath));
-        
+        const openDocumentPaths = new Set(openDocuments.map((doc) => doc.uri.fsPath));
+        const unsavedDocuments = new Set(openDocuments.filter((doc) => doc.isDirty).map((doc) => doc.uri.fsPath));
+
         const componentFiles: ComponentFile[] = [];
-        
+
         for (const file of files) {
             const filePath = path.join(componentFolder, file);
             const isUnsaved = unsavedDocuments.has(filePath);
-            
+
             // Create component file based on component type
             if (componentType === ComponentType.LWC) {
                 const lwcFile = createLwcComponentFile(componentName, filePath, file, isUnsaved);
@@ -144,7 +144,7 @@ export async function getComponentFiles(filePath: string): Promise<ComponentFile
                 }
             }
         }
-        
+
         // Sort by priority
         return componentFiles.sort((a, b) => a.priority - b.priority);
     } catch (error) {
@@ -156,11 +156,16 @@ export async function getComponentFiles(filePath: string): Promise<ComponentFile
 /**
  * Create a component file object for an LWC file
  */
-function createLwcComponentFile(componentName: string, filePath: string, fileName: string, isUnsaved: boolean): ComponentFile | null {
+function createLwcComponentFile(
+    componentName: string,
+    filePath: string,
+    fileName: string,
+    isUnsaved: boolean,
+): ComponentFile | null {
     let type: ComponentFileType;
     let priority: number;
     let isBaseFile = false;
-    
+
     // JavaScript file with same name as component has highest priority
     if (fileName === `${componentName}.js`) {
         type = ComponentFileType.JS;
@@ -189,12 +194,10 @@ function createLwcComponentFile(componentName: string, filePath: string, fileNam
     else if (fileName.endsWith('.html')) {
         type = ComponentFileType.HTML;
         priority = 5;
-    }
-    else if (fileName.endsWith('.css')) {
+    } else if (fileName.endsWith('.css')) {
         type = ComponentFileType.CSS;
         priority = 6;
-    }
-    else if (fileName.endsWith('.svg')) {
+    } else if (fileName.endsWith('.svg')) {
         type = ComponentFileType.SVG;
         priority = 7;
     }
@@ -202,30 +205,34 @@ function createLwcComponentFile(componentName: string, filePath: string, fileNam
     else if (fileName.endsWith('-meta.xml')) {
         type = ComponentFileType.XML;
         priority = 10;
-    }
-    else {
+    } else {
         type = ComponentFileType.OTHER;
         priority = 9;
     }
-    
+
     return {
         path: filePath,
         name: fileName,
         type,
         priority,
         isBaseFile,
-        isUnsaved
+        isUnsaved,
     };
 }
 
 /**
  * Create a component file object for an Aura file
  */
-function createAuraComponentFile(componentName: string, filePath: string, fileName: string, isUnsaved: boolean): ComponentFile | null {
+function createAuraComponentFile(
+    componentName: string,
+    filePath: string,
+    fileName: string,
+    isUnsaved: boolean,
+): ComponentFile | null {
     let type: ComponentFileType;
     let priority: number;
     let isBaseFile = false;
-    
+
     // Controller.js has highest priority
     if (fileName === `${componentName}Controller.js`) {
         type = ComponentFileType.CONTROLLER;
@@ -233,7 +240,12 @@ function createAuraComponentFile(componentName: string, filePath: string, fileNa
         isBaseFile = true;
     }
     // Main component file is second
-    else if (fileName === `${componentName}.cmp` || fileName === `${componentName}.app` || fileName === `${componentName}.intf` || fileName === `${componentName}.evt`) {
+    else if (
+        fileName === `${componentName}.cmp` ||
+        fileName === `${componentName}.app` ||
+        fileName === `${componentName}.intf` ||
+        fileName === `${componentName}.evt`
+    ) {
         type = ComponentFileType.HTML;
         priority = 2;
         isBaseFile = true;
@@ -257,33 +269,34 @@ function createAuraComponentFile(componentName: string, filePath: string, fileNa
     else if (fileName.endsWith('.svg')) {
         type = ComponentFileType.SVG;
         priority = 6;
-    }
-    else if (fileName.endsWith('.design')) {
+    } else if (fileName.endsWith('.design')) {
         type = ComponentFileType.DESIGN;
         priority = 7;
-    }
-    else if (fileName.endsWith('.auradoc')) {
+    } else if (fileName.endsWith('.auradoc')) {
         type = ComponentFileType.DOCUMENTATION;
         priority = 8;
     }
     // Meta XML has lowest priority
-    else if (fileName.endsWith('.cmp-meta.xml') || fileName.endsWith('.app-meta.xml') || 
-             fileName.endsWith('.intf-meta.xml') || fileName.endsWith('.evt-meta.xml')) {
+    else if (
+        fileName.endsWith('.cmp-meta.xml') ||
+        fileName.endsWith('.app-meta.xml') ||
+        fileName.endsWith('.intf-meta.xml') ||
+        fileName.endsWith('.evt-meta.xml')
+    ) {
         type = ComponentFileType.XML;
         priority = 10;
-    }
-    else {
+    } else {
         type = ComponentFileType.OTHER;
         priority = 9;
     }
-    
+
     return {
         path: filePath,
         name: fileName,
         type,
         priority,
         isBaseFile,
-        isUnsaved
+        isUnsaved,
     };
 }
 
@@ -291,7 +304,7 @@ function createAuraComponentFile(componentName: string, filePath: string, fileNa
  * Format component files for display in the QuickPick
  */
 export function formatComponentFilesForQuickPick(files: ComponentFile[]): vscode.QuickPickItem[] {
-    return files.map(file => {
+    return files.map((file) => {
         // Icons based on file type
         let icon = '';
         switch (file.type) {
@@ -316,16 +329,16 @@ export function formatComponentFilesForQuickPick(files: ComponentFile[]): vscode
             default:
                 icon = '$(file) ';
         }
-        
+
         // Add unsaved indicator
         const unsavedIndicator = file.isUnsaved ? '$(circle-filled) ' : '';
-        
+
         return {
             label: `${icon}${unsavedIndicator}${file.name}`,
             description: file.type,
             detail: file.isBaseFile ? '(Main component file)' : undefined,
             alwaysShow: file.isBaseFile, // Always show the main files
-            picked: file.isBaseFile // Pre-select the main file
+            picked: file.isBaseFile, // Pre-select the main file
         };
     });
 }
@@ -340,18 +353,18 @@ export function isLightningComponentFile(filePath: string): boolean {
 /**
  * Get file details for UI display
  */
-export function getComponentDetails(filePath: string): { 
-    componentName: string | null; 
-    componentType: ComponentType; 
+export function getComponentDetails(filePath: string): {
+    componentName: string | null;
+    componentType: ComponentType;
     fileName: string;
 } {
     const componentName = getComponentName(filePath);
     const componentType = getComponentType(filePath);
     const fileName = path.basename(filePath);
-    
+
     return {
         componentName,
         componentType,
-        fileName
+        fileName,
     };
-} 
+}

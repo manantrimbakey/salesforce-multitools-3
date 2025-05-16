@@ -4,6 +4,7 @@
     "description": "A set of tools for Salesforce development in VS Code",
     "version": "0.0.1",
     "publisher": "salesforce-multitools",
+    "icon": "resources/salesforce-icon-colorful.png",
     "repository": {
         "type": "git",
         "url": "https://github.com/yourusername/salesforce-multitools-3"

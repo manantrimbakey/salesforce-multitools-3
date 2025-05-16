@@ -68,11 +68,23 @@ export function getMetadataInfoFromFilePath(filePath: string): MetadataInfo | nu
     // Use the folder name as the component name regardless of the file name
     // More permissive regex to match any file within an Aura folder
     const auraMatch = filePath.match(/(?:\/|\\)aura(?:\/|\\)([^\/\\]+)(?:\/|\\)/);
+    
+    // Also handle Aura meta files that might be directly under the aura component folder
+    // Pattern: aura/MyComponent/MyComponent.cmp-meta.xml
+    const auraMetaMatch = filePath.match(/(?:\/|\\)aura(?:\/|\\)([^\/\\]+)(?:\/|\\)[^\/\\]*\.(cmp|app|intf|evt|design)-meta\.xml$/);
+    
     if (auraMatch) {
         Logger.debug(`Matched Aura component: ${auraMatch[1]}`);
         return {
             type: 'AuraDefinitionBundle',
             apiName: auraMatch[1],
+        };
+    } else if (auraMetaMatch) {
+        // Handle the case of meta files specifically
+        Logger.debug(`Matched Aura meta file for component: ${auraMetaMatch[1]}`);
+        return {
+            type: 'AuraDefinitionBundle',
+            apiName: auraMetaMatch[1],
         };
     }
 

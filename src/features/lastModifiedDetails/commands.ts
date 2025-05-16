@@ -62,6 +62,12 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
             { scheme: 'file', pattern: '**/aura/**/*.design' },
             { scheme: 'file', pattern: '**/aura/**/*.svg' },
             { scheme: 'file', pattern: '**/aura/**/*.tokens' },
+            // Aura meta files
+            { scheme: 'file', pattern: '**/aura/**/*.cmp-meta.xml' },
+            { scheme: 'file', pattern: '**/aura/**/*.app-meta.xml' },
+            { scheme: 'file', pattern: '**/aura/**/*.intf-meta.xml' },
+            { scheme: 'file', pattern: '**/aura/**/*.evt-meta.xml' },
+            { scheme: 'file', pattern: '**/aura/**/*.design-meta.xml' },
             // Object patterns
             { scheme: 'file', pattern: '**/*.object' },
             { scheme: 'file', pattern: '**/*.object-meta.xml' },
