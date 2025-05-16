@@ -18,7 +18,7 @@ function getSanitizedOrgId(orgId: string): string {
     if (!orgId) {
         return 'unknown-org';
     }
-    
+
     // Remove protocol and special characters
     return orgId
         .replace(/^https?:\/\//, '')
