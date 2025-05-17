@@ -159,8 +159,8 @@ export class WebviewUtils {
                 content="default-src 'none';
                         img-src ${webview.cspSource} https: data:;
                         script-src ${webview.cspSource} 'unsafe-inline' 'unsafe-eval';
-                        style-src ${webview.cspSource} 'unsafe-inline';
-                        font-src ${webview.cspSource};
+                        style-src ${webview.cspSource} https://fonts.googleapis.com 'unsafe-inline';
+                        font-src ${webview.cspSource} https://fonts.gstatic.com;
                         connect-src ${webview.cspSource} https:;"
             />
         `;
