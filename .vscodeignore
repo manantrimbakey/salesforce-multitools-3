@@ -17,15 +17,7 @@ docs/**
 # Scripts
 scripts/**
 # Client source code (only include the built files)
-client/src/**
-client/scripts/**
-client/-p/**
-client/node_modules/**
-client/.gitignore
-client/eslint.config.js
-client/README.md
-client/tsconfig*.json
-client/index.html
+client/**
 # Development files
 .eslintrc*
 .prettierrc*

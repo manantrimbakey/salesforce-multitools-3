@@ -9,6 +9,9 @@ export default defineConfig({
     assetsDir: 'assets',
     emptyOutDir: true,
     sourcemap: false,
+    // minify: 'terser',
+    // cssMinify: `esbuild`,
+
     rollupOptions: {
       output: {
         entryFileNames: 'assets/[name].js',
