@@ -138,7 +138,7 @@
         "lint": "eslint src",
         "test": "vscode-test",
         "build:client": "cd client && npm run build",
-        "postinstall": "cd client && npm install"
+        "postinstall": "cd client && yarn"
     },
     "devDependencies": {
         "@types/mocha": "^10.0.10",
