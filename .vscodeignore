@@ -34,3 +34,6 @@ client/dist/**/*.map
 !client/dist/**
 # Only include dist files
 !dist/**
+
+pnpm-workspace.yaml
+pnpm-lock.yaml
