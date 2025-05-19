@@ -34,7 +34,16 @@ export class SFUtils {
         try {
             // Set up the logger to use console instead of file transport
             process.env.SF_DISABLE_LOG_FILE = 'true';
+            process.env.SF_LOG_LEVEL = 'warn'; // Minimize logging from @salesforce/core
+            
+            // Explicitly set log paths to avoid transport target error
+            process.env.SF_LOG_DIR = '.';
+            process.env.SF_LOG_FILE = 'false';
+            
             const logger = await sfcore.Logger.root();
+            
+            // Just initialize without trying to modify transports directly
+            // Let environment variables handle the configuration
 
             this.isInitialized = true;
             Logger.debug('SFUtils initialized successfully');

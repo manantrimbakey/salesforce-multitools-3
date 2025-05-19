@@ -124,22 +124,22 @@
         }
     },
     "scripts": {
-        "vscode:prepublish": "pnpm run package",
-        "compile": "pnpm run check-types && pnpm run lint && pnpm run build:client && node esbuild.js",
+        "vscode:prepublish": "npm run package",
+        "compile": "npm run check-types && npm run lint && npm run build:client && node esbuild.js",
         "watch": "npm-run-all -p watch:*",
         "watch:esbuild": "node esbuild.js --watch",
         "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-        "watch:client": "cd client && pnpm run dev",
-        "package": "pnpm run check-types && pnpm run lint && pnpm run build:client && node esbuild.js --production",
+        "watch:client": "cd client && npm run dev",
+        "package": "npm run check-types && npm run lint && npm run build:client && node esbuild.js --production",
         "compile-tests": "tsc -p . --outDir out",
         "watch-tests": "tsc -p . -w --outDir out",
-        "pretest": "pnpm run compile-tests && pnpm run compile && pnpm run lint",
+        "pretest": "npm run compile-tests && npm run compile && npm run lint",
         "check-types": "tsc --noEmit",
         "lint": "eslint src",
         "test": "vscode-test",
-        "build:client": "cd client && pnpm run build",
-        "postinstall": "cd client && pnpm install",
-        "vscode:package": "pnpm vsce package --no-dependencies -o salesforce-multitools.vsix"
+        "build:client": "cd client && npm run build",
+        "postinstall": "cd client && npm install",
+        "vscode:package": "vsce package --no-dependencies -o salesforce-multitools.vsix"
     },
     "devDependencies": {
         "@types/mocha": "^10.0.10",

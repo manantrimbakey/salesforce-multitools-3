@@ -34,6 +34,12 @@ export function activate(context: vscode.ExtensionContext) {
 
 // Move the rest of the activation logic to a new function
 function continueActivation(context: vscode.ExtensionContext) {
+    // Set up environment variables for Salesforce Core logger early
+    process.env.SF_DISABLE_LOG_FILE = 'true';
+    process.env.SF_LOG_LEVEL = 'warn';
+    process.env.SF_LOG_DIR = '.';
+    process.env.SF_LOG_FILE = 'false';
+    
     // Initialize logger with proper log level
     initializeLogger(context);
 
