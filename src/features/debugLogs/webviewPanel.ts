@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { WebviewUtils } from '../../utils/webview';
 import { Logger } from '../../utils/logger';
 import { handleDebugLogWebviewCommand } from './commands';
+import { configureWebviewForServer } from '../../utils/webviewUtils';
 
 /**
  * Provider for the Debug Logs webview panel
@@ -38,6 +39,9 @@ export class DebugLogWebviewPanel {
                 localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist', 'webview')],
             }
         );
+
+        // Configure webview to connect to Express server
+        configureWebviewForServer(this._panel.webview);
 
         // Set the webview's initial html content
         this._panel.webview.html = WebviewUtils.getWebviewContent(this._panel.webview, extensionUri.fsPath);

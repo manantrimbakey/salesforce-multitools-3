@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { 
-    Card, 
-    CardContent, 
-    Typography, 
-    TextField, 
-    Button, 
+import {
+    Card,
+    CardContent,
+    Typography,
+    TextField,
+    Button,
     Box,
     Table,
     TableBody,
@@ -21,13 +21,25 @@ import {
     FormControl,
     InputLabel,
     Chip,
-    Grid
+    Grid,
+    Alert,
+    AlertTitle,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DownloadIcon from '@mui/icons-material/Download';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import SignalWifiStatusbar4BarIcon from '@mui/icons-material/SignalWifiStatusbar4Bar';
+import SignalWifiOffIcon from '@mui/icons-material/SignalWifiOff';
 import { useVSCodeApi } from '../../App';
+
+// Extend window interface to include server properties
+declare global {
+    interface Window {
+        serverBaseUrl?: string;
+        callServerApi?: <T>(endpoint: string, method?: string, data?: unknown) => Promise<T>;
+    }
+}
 
 // Interface for debug log data
 interface DebugLog {
@@ -41,6 +53,31 @@ interface DebugLog {
     requestId: string;
 }
 
+// Interface for server status
+interface ServerStatus {
+    status: 'connected' | 'disconnected' | 'checking';
+    url?: string;
+    uptime?: number;
+    timestamp?: string;
+    error?: string;
+}
+
+// Interface for server status response
+interface ServerStatusResponse {
+    status: string;
+    uptime: number;
+    port: number;
+    timestamp: string;
+}
+
+// Interface for debug logs response
+interface DebugLogsResponse {
+    success: boolean;
+    logs: DebugLog[];
+    message?: string;
+    error?: string;
+}
+
 export default function DebugLogFetcher() {
     const vscode = useVSCodeApi();
     const [logs, setLogs] = useState<DebugLog[]>([]);
@@ -49,27 +86,42 @@ export default function DebugLogFetcher() {
     const [selectedUser, setSelectedUser] = useState('ALL');
     const [users, setUsers] = useState<string[]>(['ALL']);
     const [selectedLog, setSelectedLog] = useState<string | null>(null);
+    const [serverStatus, setServerStatus] = useState<ServerStatus>({
+        status: 'checking',
+    });
 
     useEffect(() => {
+        // Check server connection
+        checkServerConnection();
+
         // Handle messages from VS Code
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
 
             if (message.command === 'debugLogsLoaded') {
                 setLogs(message.data.logs || []);
-                
+
                 // Extract unique users from logs
                 if (message.data.logs && message.data.logs.length) {
                     const uniqueUsers = Array.from(
-                        new Set(message.data.logs.map((log: DebugLog) => log.logUser))
+                        new Set(message.data.logs.map((log: DebugLog) => log.logUser)),
                     ) as string[];
                     setUsers(['ALL', ...uniqueUsers]);
                 }
-                
+
                 setLoading(false);
             } else if (message.command === 'debugLogDeleted') {
                 // Refresh logs after deletion
                 fetchLogs();
+            } else if (message.command === 'serverStatus') {
+                // Update server status
+                setServerStatus({
+                    status: message.data.connected ? 'connected' : 'disconnected',
+                    url: message.data.url,
+                    uptime: message.data.uptime,
+                    timestamp: message.data.timestamp,
+                    error: message.data.error,
+                });
             }
         };
 
@@ -79,16 +131,90 @@ export default function DebugLogFetcher() {
         // Initial fetch of logs
         fetchLogs();
 
+        // Check server status every 30 seconds
+        const intervalId = setInterval(checkServerConnection, 30000);
+
         // Clean up
         return () => {
             window.removeEventListener('message', handleMessage);
+            clearInterval(intervalId);
         };
     }, []);
 
+    const checkServerConnection = () => {
+        // Check if we have a serverBaseUrl from the global window object
+        // This is injected by the webviewUtils.ts script
+        if (window.serverBaseUrl && window.callServerApi) {
+            setServerStatus({ status: 'checking' });
+
+            // Try to ping the server using callServerApi to include the extension token
+            window.callServerApi<ServerStatusResponse>('/api/status')
+                .then((data) => {
+                    setServerStatus({
+                        status: 'connected',
+                        url: window.serverBaseUrl,
+                        uptime: data.uptime,
+                        timestamp: data.timestamp,
+                    });
+                })
+                .catch(() => {
+                    // Don't log error details to console for security
+                    // Fall back to VS Code message
+                    fallbackToVSCodeAPI();
+                });
+        } else {
+            setServerStatus({
+                status: 'disconnected',
+                error: 'Server URL not found',
+            });
+        }
+    };
+
     const fetchLogs = () => {
         setLoading(true);
-        vscode.postMessage({ 
-            command: 'fetchDebugLogs'
+
+        // If server is connected, try to fetch logs from server
+        if (serverStatus.status === 'connected' && window.serverBaseUrl && window.callServerApi) {
+            // Use callServerApi to include the extension token
+            window.callServerApi<DebugLogsResponse>('/api/debugLogs')
+                .then((data) => {
+                    if (data.success) {
+                        // Check if we got placeholder data (empty logs with a message)
+                        if (data.logs && data.logs.length === 0 && data.message) {
+                            // This is just a placeholder, fall back to VS Code API
+                            fallbackToVSCodeAPI();
+                            return;
+                        }
+
+                        setLogs(data.logs || []);
+
+                        // Extract unique users from logs
+                        if (data.logs && data.logs.length) {
+                            const uniqueUsers = Array.from(
+                                new Set(data.logs.map((log: DebugLog) => log.logUser)),
+                            ) as string[];
+                            setUsers(['ALL', ...uniqueUsers]);
+                        }
+
+                        setLoading(false);
+                    } else {
+                        throw new Error(data.error || 'Unknown error');
+                    }
+                })
+                .catch(() => {
+                    // Don't log error details to console for security
+                    // Fall back to VS Code message
+                    fallbackToVSCodeAPI();
+                });
+        } else {
+            // Fall back to VS Code message
+            fallbackToVSCodeAPI();
+        }
+    };
+
+    const fallbackToVSCodeAPI = () => {
+        vscode.postMessage({
+            command: 'fetchDebugLogs',
         });
     };
 
@@ -96,32 +222,67 @@ export default function DebugLogFetcher() {
         setSelectedLog(logId);
         vscode.postMessage({
             command: 'viewDebugLog',
-            data: { logId }
+            data: { logId },
         });
     };
 
     const handleDeleteLog = (logId: string) => {
         vscode.postMessage({
             command: 'deleteDebugLog',
-            data: { logId }
+            data: { logId },
         });
     };
 
     const handleDownloadLog = (logId: string) => {
         vscode.postMessage({
             command: 'downloadDebugLog',
-            data: { logId }
+            data: { logId },
         });
     };
 
+    // Server status indicator component - hide server URL details
+    const ServerStatusIndicator = () => {
+        if (serverStatus.status === 'checking') {
+            return (
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <CircularProgress size={16} sx={{ mr: 1 }} />
+                    <Typography variant="body2" color="text.secondary">
+                        Checking server connection...
+                    </Typography>
+                </Box>
+            );
+        } else if (serverStatus.status === 'connected') {
+            return (
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <SignalWifiStatusbar4BarIcon color="success" fontSize="small" sx={{ mr: 1 }} />
+                    <Typography variant="body2" color="success.main">
+                        Server connected
+                    </Typography>
+                </Box>
+            );
+        } else {
+            return (
+                <Alert severity="warning" sx={{ mb: 1 }}>
+                    <AlertTitle>Server Connection Issue</AlertTitle>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <SignalWifiOffIcon fontSize="small" sx={{ mr: 1 }} />
+                        <Typography variant="body2">Cannot connect to server</Typography>
+                    </Box>
+                    <Typography variant="caption">Falling back to VS Code API for log retrieval</Typography>
+                </Alert>
+            );
+        }
+    };
+
     // Filter logs based on user selection and text filter
-    const filteredLogs = logs.filter(log => {
+    const filteredLogs = logs.filter((log) => {
         const matchesUser = selectedUser === 'ALL' || log.logUser === selectedUser;
-        const matchesFilter = filter === '' || 
+        const matchesFilter =
+            filter === '' ||
             log.operation.toLowerCase().includes(filter.toLowerCase()) ||
             log.application.toLowerCase().includes(filter.toLowerCase()) ||
             log.status.toLowerCase().includes(filter.toLowerCase());
-        
+
         return matchesUser && matchesFilter;
     });
 
@@ -139,15 +300,21 @@ export default function DebugLogFetcher() {
     return (
         <Card sx={{ borderRadius: '0.25rem', mb: 2 }}>
             <CardContent>
+                {/* Server Status Indicator */}
+                <ServerStatusIndicator />
+
                 <Grid container spacing={2} sx={{ mb: 3 }}>
                     <Grid size={6} display="flex" alignItems="center">
                         <Typography variant="h6">Salesforce Debug Logs</Typography>
                     </Grid>
                     <Grid size={6} display="flex" justifyContent="flex-end">
-                        <Button 
-                            variant="contained" 
+                        <Button
+                            variant="contained"
                             startIcon={<RefreshIcon />}
-                            onClick={fetchLogs}
+                            onClick={() => {
+                                fetchLogs();
+                                checkServerConnection();
+                            }}
                             disabled={loading}
                         >
                             {loading ? <CircularProgress size={24} /> : 'Refresh Logs'}
@@ -165,7 +332,7 @@ export default function DebugLogFetcher() {
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
                             InputProps={{
-                                startAdornment: <FilterListIcon sx={{ mr: 1, color: 'action.active' }} />
+                                startAdornment: <FilterListIcon sx={{ mr: 1, color: 'action.active' }} />,
                             }}
                         />
                     </Grid>
@@ -178,8 +345,10 @@ export default function DebugLogFetcher() {
                                 label="User"
                                 onChange={(e) => setSelectedUser(e.target.value)}
                             >
-                                {users.map(user => (
-                                    <MenuItem key={user} value={user}>{user}</MenuItem>
+                                {users.map((user) => (
+                                    <MenuItem key={user} value={user}>
+                                        {user}
+                                    </MenuItem>
                                 ))}
                             </Select>
                         </FormControl>
@@ -214,7 +383,7 @@ export default function DebugLogFetcher() {
                                         </TableRow>
                                     ) : (
                                         filteredLogs.map((log) => (
-                                            <TableRow 
+                                            <TableRow
                                                 key={log.id}
                                                 hover
                                                 onClick={() => handleViewLog(log.id)}
@@ -225,8 +394,8 @@ export default function DebugLogFetcher() {
                                                 <TableCell>{log.operation}</TableCell>
                                                 <TableCell>{log.application}</TableCell>
                                                 <TableCell>
-                                                    <Chip 
-                                                        label={log.status} 
+                                                    <Chip
+                                                        label={log.status}
                                                         size="small"
                                                         color={log.status === 'Success' ? 'success' : 'default'}
                                                     />
@@ -235,8 +404,8 @@ export default function DebugLogFetcher() {
                                                 <TableCell>{formatSize(log.logLength)}</TableCell>
                                                 <TableCell align="right">
                                                     <Tooltip title="Download Log">
-                                                        <IconButton 
-                                                            size="small" 
+                                                        <IconButton
+                                                            size="small"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
                                                                 handleDownloadLog(log.id);
@@ -246,8 +415,8 @@ export default function DebugLogFetcher() {
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="Delete Log">
-                                                        <IconButton 
-                                                            size="small" 
+                                                        <IconButton
+                                                            size="small"
                                                             color="error"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -272,4 +441,4 @@ export default function DebugLogFetcher() {
             </CardContent>
         </Card>
     );
-} 
+}

@@ -10,6 +10,7 @@ import { ConfigUtils } from './utils/config';
 import { CommandHandler } from './commands/commandHandler';
 import { ConfigWatcher } from './configWatcher';
 import { SidebarProvider } from './features/sidePanel/SidebarProvider';
+import { ExpressServer, disposeExpressServer } from './utils/expressServer';
 
 /**
  * This method is called when your extension is activated
@@ -36,9 +37,19 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 // Move the rest of the activation logic to a new function
-function continueActivation(context: vscode.ExtensionContext) {
+async function continueActivation(context: vscode.ExtensionContext) {
     // Initialize logger with proper log level
     initializeLogger(context);
+    
+    // Start the Express server first before any other initialization
+    try {
+        const expressServer = ExpressServer.getInstance();
+        await expressServer.start();
+        Logger.info(`Express server started successfully`);
+    } catch (error) {
+        Logger.error('Failed to start Express server');
+        // Continue activation even if server fails to start
+    }
 
     // Register configuration watchers
     ConfigWatcher.register(context);
@@ -88,6 +99,9 @@ function initializeLogger(context: vscode.ExtensionContext): void {
 function registerCleanup(context: vscode.ExtensionContext): void {
     context.subscriptions.push({
         dispose: () => {
+            // Clean up the Express server first
+            disposeExpressServer();
+            // Then clean up other resources
             SFUtils.dispose();
             Logger.dispose();
         },

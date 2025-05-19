@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { WebviewUtils } from '../../utils/webview';
 import { Logger } from '../../utils/logger';
 import { handleDebugLogWebviewCommand } from '../debugLogs/commands';
+import { configureWebviewForServer } from '../../utils/webviewUtils';
 
 /**
  * Provider for the Salesforce Multitools sidebar
@@ -86,6 +87,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             enableScripts: true,
             localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview')],
         };
+
+        // Configure webview to connect to Express server
+        configureWebviewForServer(webviewView.webview);
 
         // Set initial HTML content
         webviewView.webview.html = WebviewUtils.getWebviewContent(webviewView.webview, this._extensionUri.fsPath);

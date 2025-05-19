@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Logger } from './logger';
+import { ExpressServer } from './expressServer';
 
 /**
  * Helper class for working with webviews in VS Code extensions
@@ -95,6 +96,9 @@ export class WebviewUtils {
         // Replace links to assets with VS Code webview URIs
         html = this.replaceAssetPaths(html, webview, extensionPath, baseDir);
         
+        // Add the server connection script
+        html = this.addServerConnectionScript(html);
+        
         return html;
     }
     
@@ -152,8 +156,41 @@ export class WebviewUtils {
             }
         );
         
-        // Add CSP meta tag to allow VS Code webview URIs
-        const csp = `
+        // Add CSP meta tag to allow VS Code webview URIs and Express server
+        const csp = this.getCSPMetaTag(webview);
+        
+        // Add the CSP meta tag to the head
+        html = html.replace('</head>', `${csp}</head>`);
+        
+        return html;
+    }
+    
+    /**
+     * Add server connection script to the HTML content
+     */
+    private static addServerConnectionScript(html: string): string {
+        // Generate the server connection script
+        const script = this.getServerConnectionScript();
+        
+        // Add the script right before the closing body tag
+        return html.replace('</body>', `${script}</body>`);
+    }
+    
+    /**
+     * Get the Content Security Policy meta tag with proper server permissions
+     */
+    private static getCSPMetaTag(webview: vscode.Webview): string {
+        let connectSrc = `${webview.cspSource} https:`;
+        
+        // Add the Express server origin to connect-src if server is running
+        const server = ExpressServer.getInstance();
+        if (server.isRunning()) {
+            const url = new URL(server.getBaseUrl());
+            connectSrc = `${webview.cspSource} ${url.origin} https: wss: data:`;
+            Logger.debug(`Added Express server origin ${url.origin} to CSP`);
+        }
+        
+        return `
             <meta
                 http-equiv="Content-Security-Policy"
                 content="default-src 'none';
@@ -161,13 +198,60 @@ export class WebviewUtils {
                         script-src ${webview.cspSource} 'unsafe-inline' 'unsafe-eval';
                         style-src ${webview.cspSource} https://fonts.googleapis.com 'unsafe-inline';
                         font-src ${webview.cspSource} https://fonts.gstatic.com;
-                        connect-src ${webview.cspSource} https:;"
+                        connect-src ${connectSrc};"
             />
         `;
+    }
+    
+    /**
+     * Generate script to connect to the Express server
+     */
+    private static getServerConnectionScript(): string {
+        const server = ExpressServer.getInstance();
+        if (!server.isRunning()) {
+            return `
+            <script>
+            // Server not available
+            </script>
+            `;
+        }
         
-        // Add the CSP meta tag to the head
-        html = html.replace('</head>', `${csp}</head>`);
+        const serverUrl = server.getBaseUrl();
+        const extensionToken = 'vscode-salesforce-multitools-' + process.pid;
         
-        return html;
+        return `
+        <script>
+        // Server connection info
+        window.serverBaseUrl = "${serverUrl}";
+        window.extensionToken = "${extensionToken}";
+
+        // Utility function to make API calls to the Express server
+        window.callServerApi = async (endpoint, method = 'GET', data = null) => {
+            const url = window.serverBaseUrl + endpoint;
+            try {
+                const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-VSCode-Extension-Token': window.extensionToken
+                    }
+                };
+                
+                if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+                    options.body = JSON.stringify(data);
+                }
+                
+                const response = await fetch(url, options);
+                if (!response.ok) {
+                    throw new Error('API call failed: ' + response.status);
+                }
+                return await response.json();
+            } catch (error) {
+                // Error handled silently for security
+                throw error;
+            }
+        };
+        </script>
+        `;
     }
 } 

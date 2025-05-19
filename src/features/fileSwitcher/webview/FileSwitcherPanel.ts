@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { WebviewUtils } from '../../../utils/webview';
 import { Logger } from '../../../utils/logger';
+import { configureWebviewForServer } from '../../../utils/webviewUtils';
 
 /**
  * Interface for file system entries
@@ -68,6 +69,9 @@ export class FileSwitcherPanel {
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
         this._panel = panel;
         this._extensionUri = extensionUri;
+        
+        // Configure webview to connect to Express server
+        configureWebviewForServer(this._panel.webview);
         
         // Set the webview's initial HTML content
         this._update();
