@@ -37,6 +37,8 @@ client/dist/**/*.map
 pnpm-workspace.yaml
 pnpm-lock.yaml
 
-node_modules/**/*.md
-node_modules/**/LICENSE
-node_modules/**/License
+# node_modules/**/*.md
+# node_modules/**/LICENSE
+# node_modules/**/License
+
+node_modules/**

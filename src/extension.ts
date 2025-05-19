@@ -1,3 +1,6 @@
+// Import SF Core config first to configure environment variables
+import './utils/sfcoreConfig';
+
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
@@ -34,12 +37,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 // Move the rest of the activation logic to a new function
 function continueActivation(context: vscode.ExtensionContext) {
-    // Set up environment variables for Salesforce Core logger early
-    process.env.SF_DISABLE_LOG_FILE = 'true';
-    process.env.SF_LOG_LEVEL = 'warn';
-    process.env.SF_LOG_DIR = '.';
-    process.env.SF_LOG_FILE = 'false';
-    
     // Initialize logger with proper log level
     initializeLogger(context);
 

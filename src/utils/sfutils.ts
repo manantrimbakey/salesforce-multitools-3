@@ -1,3 +1,6 @@
+// Import SF Core config first to configure environment variables
+import './sfcoreConfig';
+
 import * as sfcore from '@salesforce/core';
 import * as vscode from 'vscode';
 import * as path from 'path';
@@ -32,18 +35,13 @@ export class SFUtils {
 
         // Initialize logger to prevent transport target error
         try {
-            // Set up the logger to use console instead of file transport
-            process.env.SF_DISABLE_LOG_FILE = 'true';
-            process.env.SF_LOG_LEVEL = 'warn'; // Minimize logging from @salesforce/core
-            
-            // Explicitly set log paths to avoid transport target error
-            process.env.SF_LOG_DIR = '.';
-            process.env.SF_LOG_FILE = 'false';
-            
-            const logger = await sfcore.Logger.root();
-            
-            // Just initialize without trying to modify transports directly
-            // Let environment variables handle the configuration
+            // Initialize the logger with memory logging
+            const logger = new sfcore.Logger({
+                level: 50, // 50 = ERROR level
+                useMemoryLogger: true,
+                name: 'salesforce-multitools',
+                fields: {}
+            } as sfcore.LoggerOptions);
 
             this.isInitialized = true;
             Logger.debug('SFUtils initialized successfully');
@@ -126,7 +124,7 @@ export class SFUtils {
                     this.myLocalConfig = undefined as unknown as sfcore.ConfigFile;
                     // Also reset the connection since it depends on config
                     this.connection = undefined;
-                    
+
                     // Notify the extension that connection needs to be refreshed
                     vscode.commands.executeCommand('salesforce-multitools-3.refreshConnection');
                 }

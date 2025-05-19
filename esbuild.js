@@ -139,8 +139,9 @@ async function main() {
         sourcesContent: false,
         platform: 'node',
         outfile: 'dist/extension.js',
-        external: ['vscode', '@salesforce/core'],
+        external: ['vscode'],
         logLevel: 'silent',
+        mainFields: ['module', 'main'],
         plugins: [
             /* add to the end of plugins array */
             esbuildProblemMatcherPlugin,
