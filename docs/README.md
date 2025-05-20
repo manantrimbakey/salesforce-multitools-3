@@ -64,4 +64,4 @@ If you have questions or issues with the documentation:
 
 ---
 
-Salesforce Multitools Extension - Documentation 
+Salesforce Multitools Extension - Documentation

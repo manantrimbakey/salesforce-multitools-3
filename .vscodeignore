@@ -1,7 +1,6 @@
 .vscode/**
 .vscode-test/**
 out/**
-node_modules/**
 src/**
 .gitignore
 .yarnrc
@@ -17,15 +16,7 @@ docs/**
 # Scripts
 scripts/**
 # Client source code (only include the built files)
-client/src/**
-client/scripts/**
-client/-p/**
-client/node_modules/**
-client/.gitignore
-client/eslint.config.js
-client/README.md
-client/tsconfig*.json
-client/index.html
+client/**
 # Development files
 .eslintrc*
 .prettierrc*
@@ -42,3 +33,12 @@ client/dist/**/*.map
 !client/dist/**
 # Only include dist files
 !dist/**
+
+pnpm-workspace.yaml
+pnpm-lock.yaml
+
+# node_modules/**/*.md
+# node_modules/**/LICENSE
+# node_modules/**/License
+
+node_modules/**

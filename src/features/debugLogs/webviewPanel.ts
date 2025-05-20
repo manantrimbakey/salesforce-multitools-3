@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { WebviewUtils } from '../../utils/webview';
 import { Logger } from '../../utils/logger';
 import { handleDebugLogWebviewCommand } from './commands';
+import { configureWebviewForServer } from '../../utils/webviewUtils';
 
 /**
  * Provider for the Debug Logs webview panel
@@ -17,9 +18,7 @@ export class DebugLogWebviewPanel {
     public static createOrShow(extensionUri: vscode.Uri): void {
         this._extensionUri = extensionUri;
 
-        const column = vscode.window.activeTextEditor
-            ? vscode.window.activeTextEditor.viewColumn
-            : undefined;
+        const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
 
         // If we already have a panel, show it
         if (this._panel) {
@@ -36,8 +35,11 @@ export class DebugLogWebviewPanel {
                 enableScripts: true,
                 retainContextWhenHidden: true,
                 localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist', 'webview')],
-            }
+            },
         );
+
+        // Configure webview to connect to Express server
+        configureWebviewForServer(this._panel.webview);
 
         // Set the webview's initial html content
         this._panel.webview.html = WebviewUtils.getWebviewContent(this._panel.webview, extensionUri.fsPath);
@@ -46,10 +48,14 @@ export class DebugLogWebviewPanel {
         this._setWebviewMessageListener(this._panel.webview);
 
         // Reset when the panel is closed
-        this._panel.onDidDispose(() => {
-            this._panel = undefined;
-        }, null, []);
-        
+        this._panel.onDidDispose(
+            () => {
+                this._panel = undefined;
+            },
+            null,
+            [],
+        );
+
         // Handle theme changes
         vscode.window.onDidChangeActiveColorTheme((theme) => {
             if (this._panel) {
@@ -80,21 +86,21 @@ export class DebugLogWebviewPanel {
             if (message.command === 'ready') {
                 // Send initial data
                 this._sendInitialData(webview);
-                
+
                 // Set to use the debug log fetcher component
                 webview.postMessage({
                     command: 'setActiveComponent',
-                    component: 'debugLogFetcher'
+                    component: 'debugLogFetcher',
                 });
-                
+
                 return;
             }
-            
+
             // Handle debug log commands
             const handled = await handleDebugLogWebviewCommand(message, (response) => {
                 this._sendMessage(webview, response);
             });
-            
+
             if (!handled) {
                 // Handle other commands if needed
                 switch (message.command) {
@@ -105,10 +111,11 @@ export class DebugLogWebviewPanel {
                     case 'refreshTheme': {
                         this._sendMessage(webview, {
                             command: 'refreshTheme',
-                            data: { 
-                                theme: vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark 
-                                    ? 'dark' 
-                                    : 'light' 
+                            data: {
+                                theme:
+                                    vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark
+                                        ? 'dark'
+                                        : 'light',
                             },
                         });
                         return;
@@ -133,7 +140,7 @@ export class DebugLogWebviewPanel {
             data: {
                 extensionPath: this._extensionUri.fsPath,
                 workspaceFolder: workspaceFolder || '',
-                activeComponent: 'debugLogFetcher'
+                activeComponent: 'debugLogFetcher',
             },
         });
     }
@@ -148,4 +155,4 @@ export class DebugLogWebviewPanel {
             Logger.error('Error sending message to debug logs webview panel:', error);
         }
     }
-} 
+}

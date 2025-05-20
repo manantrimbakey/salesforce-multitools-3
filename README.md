@@ -36,8 +36,9 @@ The sidebar provides a clean interface with:
 ## 🔮 Coming Soon! 🔮
 
 Stay tuned for more features we're adding to this extension!
-   - Salesforce Constantinator - to turn your hardcoded strings into constants
-   - Debugs Log Fetcher - to fetch the logs from your Salesforce org and filter them by any selected user
+
+- Salesforce Constantinator - to turn your hardcoded strings into constants
+- Debugs Log Fetcher - to fetch the logs from your Salesforce org and filter them by any selected user
 
 ## 💯 Requirements
 

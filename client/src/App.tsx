@@ -92,13 +92,28 @@ function App() {
     }, []);
 
     return (
-        <VSCodeApiProvider>
-            <ThemeProvider theme={theme === 'dark' ? darkTheme : lightTheme}>
-                <CssBaseline />
-                <MainBody />
-            </ThemeProvider>
-        </VSCodeApiProvider>
+        <ThemeProvider theme={theme === 'dark' ? darkTheme : lightTheme}>
+            <CssBaseline />
+            <MainBody />
+        </ThemeProvider>
     );
 }
 
-export default App;
+function AppWithVSCodeApi() {
+    const vscodeApi = useVSCodeApi();
+
+    // Request theme on mount
+    useEffect(() => {
+        vscodeApi.postMessage({ command: 'refreshTheme' });
+    }, [vscodeApi]);
+
+    return <App />;
+}
+
+export default function AppRoot() {
+    return (
+        <VSCodeApiProvider>
+            <AppWithVSCodeApi />
+        </VSCodeApiProvider>
+    );
+}

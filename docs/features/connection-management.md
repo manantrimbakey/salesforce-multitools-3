@@ -42,4 +42,4 @@ The Salesforce Connection Management feature handles authentication and connecti
 
 ---
 
-[← Back to Documentation Home](../index.md) 
+[← Back to Documentation Home](../index.md)
