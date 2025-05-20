@@ -53,7 +53,7 @@ export class SFUtils {
     public static async getDefaultUsername() {
         await this.initialize();
 
-        if (vscode.workspace && vscode.workspace.workspaceFolders) {
+        if (vscode?.workspace?.workspaceFolders) {
             await this.initLocalConfig();
 
             const localValue = this.myLocalConfig.get('defaultusername');
@@ -64,14 +64,14 @@ export class SFUtils {
             const authInfo = authInfos.find((authInfo) => authInfo?.aliases?.includes(localValue as string));
 
             if (!authInfo) {
-                Logger.warn(`No authentication info found for username: ${localValue}`);
+                Logger.warn(`No authentication info found for username: ${JSON.stringify(localValue)}`);
             }
 
             return authInfo?.username ?? '';
         }
     }
 
-    public static async getConnection(): Promise<any> {
+    public static async getConnection(): Promise<sfcore.Connection> {
         await this.initialize();
 
         if (!this.connection) {
@@ -87,7 +87,7 @@ export class SFUtils {
     }
 
     private static async initLocalConfig() {
-        if (!this.myLocalConfig && vscode.workspace && vscode.workspace.workspaceFolders) {
+        if (!this.myLocalConfig && vscode?.workspace?.workspaceFolders) {
             const rootPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
             const configPath = path.join(rootPath, '.sfdx', 'sfdx-config.json');
 

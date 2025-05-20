@@ -83,7 +83,17 @@ function initializeLogger(context: vscode.ExtensionContext): void {
     const configLogLevel = ConfigUtils.getLogLevel();
 
     // Use config level if set, otherwise use development mode to determine level
-    const logLevel = configLogLevel !== undefined ? configLogLevel : isDevelopment ? LogLevel.DEBUG : LogLevel.INFO;
+    // const logLevel = configLogLevel !== undefined ? configLogLevel : isDevelopment ? LogLevel.DEBUG : LogLevel.INFO;
+
+    let logLevel: LogLevel;
+
+    if (isDevelopment) {
+        logLevel = LogLevel.DEBUG;
+    } else if (configLogLevel !== undefined && configLogLevel !== null) {
+        logLevel = configLogLevel;
+    } else {
+        logLevel = LogLevel.INFO;
+    }
 
     Logger.initialize(logLevel);
     Logger.info(`Salesforce Multitool extension is now active (${isDevelopment ? 'development' : 'production'} mode)`);

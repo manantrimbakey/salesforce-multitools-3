@@ -24,7 +24,7 @@ export class DebugLogProvider {
             // Format the logs for the UI
             const logs = result.records.map((log: any) => ({
                 id: log.Id,
-                logUser: log.LogUser?.Name || 'Unknown User',
+                logUser: log.LogUser?.Name ?? 'Unknown User',
                 logLength: log.LogLength,
                 operation: log.Operation,
                 application: log.Application,
@@ -49,7 +49,7 @@ export class DebugLogProvider {
             const connection = await SFUtils.getConnection();
 
             // Get the log body using the REST API
-            const logBody = await connection.request({
+            const logBody: string = await connection.request({
                 url: `/services/data/v56.0/sobjects/ApexLog/${logId}/Body`,
                 method: 'GET',
             });
@@ -90,7 +90,7 @@ export class DebugLogProvider {
             const logContent = await this.getDebugLogContent(logId);
 
             // Create logs directory if it doesn't exist
-            const logsDir = path.join(vscode.workspace.workspaceFolders?.[0].uri.fsPath || '', 'logs');
+            const logsDir = path.join(vscode.workspace.workspaceFolders?.[0].uri.fsPath ?? '', 'logs');
             if (!fs.existsSync(logsDir)) {
                 fs.mkdirSync(logsDir, { recursive: true });
             }

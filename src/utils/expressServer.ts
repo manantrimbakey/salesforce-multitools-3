@@ -4,7 +4,7 @@ import { AddressInfo } from 'net';
 import * as vscode from 'vscode';
 import cors from 'cors';
 import { Logger } from './logger';
-
+import { SFUtils } from './sfutils';
 /**
  * ExpressServer class for handling HTTP requests within the extension
  * Implemented as a singleton to ensure only one server instance
@@ -127,7 +127,7 @@ export class ExpressServer {
 
         // Secure routes - require specific headers/user agent
         this.app.use((req, res, next) => {
-            const userAgent = req.headers['user-agent'] || '';
+            const userAgent = req.headers['user-agent'] ?? '';
             const extensionToken = req.headers['x-vscode-extension-token'];
 
             // Only allow requests from Electron/VS Code or with our extension token
@@ -200,11 +200,39 @@ export class ExpressServer {
                 // and define a simple handler for this API endpoint
                 Logger.debug('API request received for /api/debugLogs');
 
+                const sfconnection = await SFUtils.getConnection();
+
+                // Get the user filter if provided
+                const userFilter = req.query.user as string;
+
+                // Construct the query with optional user filter
+                let query =
+                    'SELECT Id, LogUser.Name, LogLength, Operation, Application, Status, StartTime, RequestIdentifier FROM ApexLog';
+
+                // Add WHERE clause if user filter is provided
+                if (userFilter && userFilter !== 'all') {
+                    query += ` WHERE LogUser.Name = '${userFilter}'`;
+                }
+
+                // Add ORDER BY and LIMIT
+                query += ' ORDER BY StartTime DESC LIMIT 200';
+
+                const logs = await sfconnection.query(query);
+
+                Logger.debug(`Retrieved ${logs.totalSize} debug logs`);
+
+                let logRecords: any;
+
+                if (logs.totalSize > 0) {
+                    logRecords = logs;
+                } else {
+                    logRecords = {};
+                }
+
                 // Return an empty array for now - actual implementation would come from your DebugLogProvider
                 res.json({
                     success: true,
-                    logs: [],
-                    message: 'This is a placeholder. Debug logs fetching is not implemented in the server API yet.',
+                    logs: logRecords,
                 });
             } catch (error: unknown) {
                 Logger.error('Error fetching debug logs via API:', error);
@@ -215,19 +243,140 @@ export class ExpressServer {
             }
         });
 
-        // Get a specific debug log
-        this.app.get('/api/debugLogs/:id', async (req, res) => {
+        // Get Salesforce users for autocomplete
+        this.app.get('/api/users', async (req, res) => {
             try {
-                const logId = req.params.id;
-                Logger.debug(`API request received for debug log: ${logId}`);
+                Logger.debug('API request received for Salesforce users');
 
-                // Return a placeholder response
+                const sfconnection = await SFUtils.getConnection();
+
+                // Get the search term if provided
+                const searchTerm = req.query.search as string;
+
+                // Construct the query with optional search filter
+                let query = 'SELECT Id, Name FROM User WHERE IsActive = true';
+
+                // Add search term if provided
+                if (searchTerm && searchTerm.length > 0) {
+                    query += ` AND Name LIKE '%${searchTerm}%'`;
+                }
+
+                // Add ORDER BY and LIMIT
+                query += ' ORDER BY Name LIMIT 50';
+
+                const users = await sfconnection.query(query);
+
+                Logger.debug(`Retrieved ${users.totalSize} Salesforce users`);
+
+                // Get the current user's info
+                const currentUserInfo = await sfconnection.identity();
+
                 res.json({
                     success: true,
-                    logContent: `This is a placeholder for log ID: ${logId}. Debug log content fetching is not implemented in the server API yet.`,
+                    users: users.records,
+                    currentUser: currentUserInfo,
                 });
             } catch (error: unknown) {
+                Logger.error('Error fetching Salesforce users via API:', error);
+                res.status(500).json({
+                    success: false,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        });
+
+        // Get a specific debug log
+        this.app.get('/api/debugLogs/:id/download', async (req, res) => {
+            try {
+                const logId = req.params.id;
+                Logger.debug(`API request received for full debug log: ${logId}`);
+
+                try {
+                    // Get the connection to Salesforce
+                    const connection = await SFUtils.getConnection();
+
+                    // Get the instance URL and access token from the connection
+                    const instanceUrl = connection.instanceUrl;
+                    const accessToken = connection.accessToken;
+
+                    // Make sure we have a valid access token
+                    if (!accessToken) {
+                        throw new Error('No valid access token available');
+                    }
+
+                    // Get the full log content
+                    const logContent = await this.getLogBody(logId, instanceUrl, accessToken, false);
+
+                    // If this is the full log, we'll open it in VSCode
+                    const tempFilePath = await this.saveTempLogFile(logId, logContent);
+
+                    // Open the file in VS Code
+                    vscode.commands.executeCommand('vscode.open', vscode.Uri.file(tempFilePath));
+
+                    res.json({
+                        success: true,
+                        message: 'Log opened in VS Code editor',
+                        size: Buffer.from(logContent).length,
+                    });
+                } catch (sfError) {
+                    Logger.error(`Error fetching log content from Salesforce:`, sfError);
+
+                    res.status(500).json({
+                        success: false,
+                        error: sfError instanceof Error ? sfError.message : String(sfError),
+                    });
+                }
+            } catch (error: unknown) {
                 Logger.error(`Error fetching debug log via API:`, error);
+                res.status(500).json({
+                    success: false,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        });
+
+        // Get method name from log
+        this.app.get('/api/debugLogs/:id/methodName', async (req, res) => {
+            try {
+                const logId = req.params.id;
+                Logger.debug(`API request received for debug log method name: ${logId}`);
+
+                try {
+                    // Get the connection to Salesforce
+                    const connection = await SFUtils.getConnection();
+
+                    // Get the instance URL and access token from the connection
+                    const instanceUrl = connection.instanceUrl;
+                    const accessToken = connection.accessToken;
+
+                    // Make sure we have a valid access token
+                    if (!accessToken) {
+                        throw new Error('No valid access token available');
+                    }
+
+                    // Use the getLogBody method to get log content - limit to 1KB
+                    const logBody = await this.getLogBody(logId, instanceUrl, accessToken, true);
+
+                    // Extract method name using regex
+                    const logEntryRegex = /\d+:\d+:\d+\.\d+ \(\d+\)\|CODE_UNIT_STARTED\|\[EXTERNAL\]\|\w+\|(.+)/;
+                    const logEntry = logBody?.match(logEntryRegex);
+                    const methodName = logEntry?.[1] || 'NO_METHOD_NAME_FOUND';
+
+                    res.json({
+                        success: true,
+                        methodName,
+                        logId,
+                    });
+                } catch (sfError) {
+                    Logger.error(`Error extracting method name from log:`, sfError);
+                    res.status(500).json({
+                        success: false,
+                        error: sfError instanceof Error ? sfError.message : String(sfError),
+                        methodName: 'ERROR_EXTRACTING_METHOD_NAME',
+                    });
+                }
+            } catch (error: unknown) {
+                Logger.error(`Error in method name API:`, error);
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -253,6 +402,90 @@ export class ExpressServer {
                     error: error instanceof Error ? error.message : String(error),
                 });
             }
+        });
+    }
+
+    /**
+     * Save log content to a temporary file
+     * @param logId The ID of the log
+     * @param content The log content to save
+     * @returns Path to the temporary file
+     */
+    private async saveTempLogFile(logId: string, content: string): Promise<string> {
+        const fs = require('fs');
+        const path = require('path');
+        const os = require('os');
+
+        // Create a temporary file
+        const tempDir = os.tmpdir();
+        const tempFilePath = path.join(tempDir, `salesforce_log_${logId}.log`);
+
+        // Write the content to the file
+        await fs.promises.writeFile(tempFilePath, content, 'utf8');
+
+        Logger.debug(`Saved log content to temporary file: ${tempFilePath}`);
+        return tempFilePath;
+    }
+
+    /**
+     * Retrieves the body of an Apex log from the Salesforce REST API.
+     *
+     * This method constructs a URL to access the log body for a given log ID,
+     * makes an HTTPS GET request to the Salesforce API, and returns the log body
+     * as a string. The method handles the response by accumulating data chunks
+     * and resolving the promise with the complete log body once the response ends.
+     * If limitToOneKb is true, it will stop receiving data after 1KB to limit
+     * network usage for method name extraction.
+     *
+     * @param {string} logId - The ID of the log whose body is to be retrieved.
+     * @param {string} instanceUrl - The Salesforce instance URL
+     * @param {string} authToken - The access token for authentication
+     * @param {boolean} limitToOneKb - Whether to limit download to 1KB
+     * @returns {Promise<string>} A promise that resolves to the log body as a string.
+     * @throws {Error} If there is an error during the HTTPS request.
+     */
+    private getLogBody(
+        logId: string,
+        instanceUrl: string,
+        authToken: string,
+        limitToOneKb: boolean = false,
+    ): Promise<string> {
+        const https = require('https');
+        const { IncomingMessage } = require('http');
+        const restApiUrl = `${instanceUrl}/services/data/v59.0/sobjects/ApexLog/${logId}/Body`;
+
+        Logger.debug(`Fetching ${limitToOneKb ? '1KB of' : 'full'} log body for ID: ${logId}`);
+
+        return new Promise((resolve, reject) => {
+            let buff = Buffer.alloc(0);
+            https
+                .get(
+                    restApiUrl,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${authToken}`,
+                        },
+                    },
+                    (response: typeof IncomingMessage) => {
+                        response.on('data', (chunk: Uint8Array) => {
+                            buff = Buffer.concat([buff, chunk]);
+                            if (limitToOneKb && buff.length > 1024) {
+                                // If we're limiting to 1KB and we've got enough data, stop receiving
+                                response.destroy();
+                                return resolve(buff.toString().substring(0, 1024));
+                            }
+                        });
+                        response.on('end', () => {
+                            resolve(buff.toString());
+                        });
+                        response.on('error', (error: Error) => {
+                            reject(error);
+                        });
+                    },
+                )
+                .on('error', (error: Error) => {
+                    reject(error);
+                });
         });
     }
 

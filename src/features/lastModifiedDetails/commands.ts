@@ -346,7 +346,7 @@ class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
 
             // Get org username to display in CodeLens
             const connection = await SFUtils.getConnection();
-            const orgUsername = connection?.username || '';
+            const orgUsername = connection?.getUsername() || '';
 
             // Keep org info in tooltip but not in CodeLens title
             const codeLens = new vscode.CodeLens(range, {
