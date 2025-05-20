@@ -148,7 +148,8 @@ export default function DebugLogFetcher() {
             setServerStatus({ status: 'checking' });
 
             // Try to ping the server using callServerApi to include the extension token
-            window.callServerApi<ServerStatusResponse>('/api/status')
+            window
+                .callServerApi<ServerStatusResponse>('/api/status')
                 .then((data) => {
                     setServerStatus({
                         status: 'connected',
@@ -176,7 +177,8 @@ export default function DebugLogFetcher() {
         // If server is connected, try to fetch logs from server
         if (serverStatus.status === 'connected' && window.serverBaseUrl && window.callServerApi) {
             // Use callServerApi to include the extension token
-            window.callServerApi<DebugLogsResponse>('/api/debugLogs')
+            window
+                .callServerApi<DebugLogsResponse>('/api/debugLogs')
                 .then((data) => {
                     if (data.success) {
                         // Check if we got placeholder data (empty logs with a message)

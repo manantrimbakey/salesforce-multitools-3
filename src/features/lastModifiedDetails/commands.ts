@@ -142,7 +142,7 @@ async function updateStatusBarBasedOnEditor(editor?: vscode.TextEditor): Promise
             // Always fetch from Salesforce
             const info = await getFileLastModifiedInfo(filePath);
             const connection = await SFUtils.getConnection();
-            
+
             if (info) {
                 updateStatusBarText(info, connection);
                 lastModifiedStatusBar.show();
@@ -198,7 +198,7 @@ function startAutoRefreshTimer(): void {
                     // Get fresh data from Salesforce
                     const info = await getFileLastModifiedInfo(filePath);
                     const connection = await SFUtils.getConnection();
-                    
+
                     if (info) {
                         // Update status bar
                         updateStatusBarText(info, connection);
@@ -346,8 +346,8 @@ class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
 
             // Get org username to display in CodeLens
             const connection = await SFUtils.getConnection();
-            const orgUsername = connection?.username || ''; 
-            
+            const orgUsername = connection?.username || '';
+
             // Keep org info in tooltip but not in CodeLens title
             const codeLens = new vscode.CodeLens(range, {
                 title: `$(history) Last modified: ${info.lastModifiedDate} by ${info.lastModifiedBy}`,

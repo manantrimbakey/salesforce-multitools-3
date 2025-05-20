@@ -36,9 +36,7 @@ const clientBuilder = {
                 console.log('[watch] client build started');
 
                 const watcher = chokidar.watch(`./client`, {
-                    ignored: [
-                        'client/node_modules'
-                    ],
+                    ignored: ['client/node_modules'],
                 });
 
                 console.log(`path ${path.join(__dirname, 'client', 'src', '**', '*')}`);
@@ -61,7 +59,7 @@ const clientBuilder = {
                 // watcher.on('addDir', handleFilesChange);
                 // watcher.on('', handleFilesChange);
                 watcher.on('ready', handleFilesChange);
-                
+
                 watcher.on('change', handleFilesChange);
             }
         });

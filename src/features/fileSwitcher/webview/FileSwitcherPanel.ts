@@ -21,23 +21,21 @@ interface FileSystemEntry {
  */
 export class FileSwitcherPanel {
     public static readonly viewType = 'salesforceMultitools.fileSwitcher';
-    
+
     private static instance: FileSwitcherPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
     private readonly _extensionUri: vscode.Uri;
     private _disposables: vscode.Disposable[] = [];
-    
+
     public static createOrShow(extensionUri: vscode.Uri): FileSwitcherPanel {
-        const column = vscode.window.activeTextEditor
-            ? vscode.window.activeTextEditor.viewColumn
-            : undefined;
-            
+        const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
+
         // If we already have a panel, show it
         if (FileSwitcherPanel.instance) {
             FileSwitcherPanel.instance._panel.reveal(column);
             return FileSwitcherPanel.instance;
         }
-        
+
         // Otherwise, create a new panel
         const panel = vscode.window.createWebviewPanel(
             FileSwitcherPanel.viewType,
@@ -46,54 +44,52 @@ export class FileSwitcherPanel {
             {
                 // Enable JavaScript in the webview
                 enableScripts: true,
-                
+
                 // Restrict the webview to only load resources from the extension's directory
-                localResourceRoots: [
-                    vscode.Uri.joinPath(extensionUri, 'dist', 'webview')
-                ],
-                
+                localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist', 'webview')],
+
                 // Retain the webview panel when hidden
                 retainContextWhenHidden: true,
-            }
+            },
         );
-        
+
         FileSwitcherPanel.instance = new FileSwitcherPanel(panel, extensionUri);
         return FileSwitcherPanel.instance;
     }
-    
+
     public static revive(panel: vscode.WebviewPanel, extensionUri: vscode.Uri): FileSwitcherPanel {
         FileSwitcherPanel.instance = new FileSwitcherPanel(panel, extensionUri);
         return FileSwitcherPanel.instance;
     }
-    
+
     private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
         this._panel = panel;
         this._extensionUri = extensionUri;
-        
+
         // Configure webview to connect to Express server
         configureWebviewForServer(this._panel.webview);
-        
+
         // Set the webview's initial HTML content
         this._update();
-        
+
         // Listen for when the panel is disposed
         // This happens when the user closes the panel or when the panel is closed programmatically
         this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
-        
+
         // Update the content based on view changes
         this._panel.onDidChangeViewState(
-            e => {
+            (e) => {
                 if (this._panel.visible) {
                     this._update();
                 }
             },
             null,
-            this._disposables
+            this._disposables,
         );
-        
+
         // Handle messages from the webview
         this._panel.webview.onDidReceiveMessage(
-            message => {
+            (message) => {
                 switch (message.command) {
                     case 'alert':
                         vscode.window.showInformationMessage(message.text);
@@ -111,16 +107,16 @@ export class FileSwitcherPanel {
                 }
             },
             null,
-            this._disposables
+            this._disposables,
         );
     }
-    
+
     public dispose() {
         FileSwitcherPanel.instance = undefined;
-        
+
         // Clean up our resources
         this._panel.dispose();
-        
+
         while (this._disposables.length) {
             const x = this._disposables.pop();
             if (x) {
@@ -128,47 +124,44 @@ export class FileSwitcherPanel {
             }
         }
     }
-    
+
     private _update() {
         const webview = this._panel.webview;
-        
+
         // Get HTML content for the webview
-        this._panel.webview.html = WebviewUtils.getWebviewContent(
-            webview,
-            this._extensionUri.fsPath
-        );
+        this._panel.webview.html = WebviewUtils.getWebviewContent(webview, this._extensionUri.fsPath);
     }
-    
+
     /**
      * Send initial data to the webview
      */
     private _sendInitialData() {
         Logger.debug('Sending initial data to file switcher webview');
-        
+
         // Get the workspace folder
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-        
+
         // Send initial data
         this._sendMessage({
             command: 'init',
             data: {
                 extensionPath: this._extensionUri.fsPath,
-                workspaceFolder: workspaceFolder || ''
-            }
+                workspaceFolder: workspaceFolder || '',
+            },
         });
-        
+
         // If we have a workspace folder, also list its contents
         if (workspaceFolder) {
             this._listDirectoryContents(workspaceFolder);
         }
     }
-    
+
     /**
      * List the contents of a directory
      */
     private async _listDirectoryContents(directoryPath: string) {
         Logger.debug(`Listing directory contents: ${directoryPath}`);
-        
+
         try {
             // Make sure the directory exists
             if (!fs.existsSync(directoryPath)) {
@@ -177,29 +170,29 @@ export class FileSwitcherPanel {
                     command: 'fileList',
                     currentDirectory: directoryPath,
                     files: [],
-                    error: 'Directory not found'
+                    error: 'Directory not found',
                 });
                 return;
             }
-            
+
             // Get files in the directory
             const entries = fs.readdirSync(directoryPath, { withFileTypes: true });
-            
+
             // Convert to FileSystemEntry objects
             const fileEntries: FileSystemEntry[] = entries
-                .filter(entry => {
+                .filter((entry) => {
                     // Skip hidden files starting with .
                     return !entry.name.startsWith('.');
                 })
-                .map(entry => {
+                .map((entry) => {
                     const entryPath = path.join(directoryPath, entry.name);
                     return {
                         name: entry.name,
                         path: entryPath,
-                        isDirectory: entry.isDirectory()
+                        isDirectory: entry.isDirectory(),
                     };
                 });
-            
+
             // Sort directories first, then files, both alphabetically
             fileEntries.sort((a, b) => {
                 if (a.isDirectory && !b.isDirectory) {
@@ -210,14 +203,14 @@ export class FileSwitcherPanel {
                 }
                 return a.name.localeCompare(b.name);
             });
-            
+
             // Send the file list to the webview
             this._sendMessage({
                 command: 'fileList',
                 currentDirectory: directoryPath,
-                files: fileEntries
+                files: fileEntries,
             });
-            
+
             Logger.debug(`Sent ${fileEntries.length} files to webview`);
         } catch (error) {
             Logger.error('Error listing directory contents:', error);
@@ -225,11 +218,11 @@ export class FileSwitcherPanel {
                 command: 'fileList',
                 currentDirectory: directoryPath,
                 files: [],
-                error: error instanceof Error ? error.message : String(error)
+                error: error instanceof Error ? error.message : String(error),
             });
         }
     }
-    
+
     private _sendMessage(message: any) {
         // Send a message to the webview
         try {
@@ -238,28 +231,31 @@ export class FileSwitcherPanel {
             Logger.error('Error sending message to webview:', error);
         }
     }
-    
+
     private _openFile(filePath: string) {
         // Open a file in VS Code
         Logger.debug(`Opening file: ${filePath}`);
-        
+
         // Make sure the file exists
         if (!fs.existsSync(filePath)) {
             vscode.window.showErrorMessage(`File not found: ${filePath}`);
             return;
         }
-        
+
         // Open the file
-        vscode.workspace.openTextDocument(filePath)
-            .then(doc => {
+        vscode.workspace
+            .openTextDocument(filePath)
+            .then((doc) => {
                 return vscode.window.showTextDocument(doc);
             })
-            .then(undefined, error => {
+            .then(undefined, (error) => {
                 Logger.error('Error opening file:', error);
-                vscode.window.showErrorMessage(`Error opening file: ${error instanceof Error ? error.message : String(error)}`);
+                vscode.window.showErrorMessage(
+                    `Error opening file: ${error instanceof Error ? error.message : String(error)}`,
+                );
             });
     }
-    
+
     /**
      * Register a command to open the file switcher panel
      */
@@ -268,4 +264,4 @@ export class FileSwitcherPanel {
             FileSwitcherPanel.createOrShow(context.extensionUri);
         });
     }
-} 
+}

@@ -15,32 +15,28 @@ export class WebviewUtils {
      * @param webviewPath Path to the webview relative to the extension's dist/webview folder
      * @returns HTML content for the webview
      */
-    public static getWebviewContent(
-        webview: vscode.Webview,
-        extensionPath: string,
-        webviewPath: string = ''
-    ): string {
+    public static getWebviewContent(webview: vscode.Webview, extensionPath: string, webviewPath: string = ''): string {
         // Path to the webview resources
         const webviewResourcesPath = path.join(extensionPath, 'dist', 'webview');
-        
+
         // Check if the webview resources exist
         if (!fs.existsSync(webviewResourcesPath)) {
             // Try to use client/dist for dev mode
             const clientDistPath = path.join(extensionPath, 'client', 'dist');
-            
+
             if (fs.existsSync(clientDistPath)) {
                 Logger.debug(`Using client/dist for webview instead of dist/webview`);
                 return this.getHtmlFromPath(webview, extensionPath, clientDistPath, webviewPath);
             }
-            
+
             // Finally check for client/public
             const clientPublicPath = path.join(extensionPath, 'client', 'public');
-            
+
             if (fs.existsSync(clientPublicPath)) {
                 Logger.debug(`Using client/public for webview during development`);
                 return this.getHtmlFromPath(webview, extensionPath, clientPublicPath, webviewPath);
             }
-            
+
             return `
                 <html>
                 <head>
@@ -58,7 +54,7 @@ export class WebviewUtils {
 
         return this.getHtmlFromPath(webview, extensionPath, webviewResourcesPath, webviewPath);
     }
-    
+
     /**
      * Get HTML content from a specific path
      */
@@ -66,11 +62,11 @@ export class WebviewUtils {
         webview: vscode.Webview,
         extensionPath: string,
         basePath: string,
-        webviewPath: string
+        webviewPath: string,
     ): string {
         // Find the main HTML file
         const htmlPath = path.join(basePath, webviewPath, 'index.html');
-        
+
         if (!fs.existsSync(htmlPath)) {
             return `
                 <html>
@@ -86,102 +82,93 @@ export class WebviewUtils {
                 </html>
             `;
         }
-        
+
         // Read the HTML file
         let html = fs.readFileSync(htmlPath, 'utf8');
-        
+
         // Get the base directory for assets
         const baseDir = path.join(basePath, webviewPath);
-        
+
         // Replace links to assets with VS Code webview URIs
         html = this.replaceAssetPaths(html, webview, extensionPath, baseDir);
-        
+
         // Add the server connection script
         html = this.addServerConnectionScript(html);
-        
+
         return html;
     }
-    
+
     /**
      * Replace asset paths in HTML with VS Code webview URIs
      */
     private static replaceAssetPaths(
-        html: string, 
-        webview: vscode.Webview, 
+        html: string,
+        webview: vscode.Webview,
         extensionPath: string,
-        baseDir: string
+        baseDir: string,
     ): string {
         // Replace paths in script tags
-        html = html.replace(
-            /<script([^>]*) src="([^"]+)"/g,
-            (match, attrs, src) => {
-                // Skip external URLs
-                if (src.startsWith('http://') || src.startsWith('https://')) {
-                    return match;
-                }
-                
-                const assetPath = path.join(baseDir, src);
-                const vscodeUri = webview.asWebviewUri(vscode.Uri.file(assetPath)).toString();
-                return `<script${attrs} src="${vscodeUri}"`;
+        html = html.replace(/<script([^>]*) src="([^"]+)"/g, (match, attrs, src) => {
+            // Skip external URLs
+            if (src.startsWith('http://') || src.startsWith('https://')) {
+                return match;
             }
-        );
-        
+
+            const assetPath = path.join(baseDir, src);
+            const vscodeUri = webview.asWebviewUri(vscode.Uri.file(assetPath)).toString();
+            return `<script${attrs} src="${vscodeUri}"`;
+        });
+
         // Replace paths in link tags
-        html = html.replace(
-            /<link([^>]*) href="([^"]+)"/g,
-            (match, attrs, href) => {
-                // Skip external URLs
-                if (href.startsWith('http://') || href.startsWith('https://')) {
-                    return match;
-                }
-                
-                const assetPath = path.join(baseDir, href);
-                const vscodeUri = webview.asWebviewUri(vscode.Uri.file(assetPath)).toString();
-                return `<link${attrs} href="${vscodeUri}"`;
+        html = html.replace(/<link([^>]*) href="([^"]+)"/g, (match, attrs, href) => {
+            // Skip external URLs
+            if (href.startsWith('http://') || href.startsWith('https://')) {
+                return match;
             }
-        );
-        
+
+            const assetPath = path.join(baseDir, href);
+            const vscodeUri = webview.asWebviewUri(vscode.Uri.file(assetPath)).toString();
+            return `<link${attrs} href="${vscodeUri}"`;
+        });
+
         // Replace paths in image tags
-        html = html.replace(
-            /<img([^>]*) src="([^"]+)"/g,
-            (match, attrs, src) => {
-                // Skip data URLs and external URLs
-                if (src.startsWith('data:') || src.startsWith('http://') || src.startsWith('https://')) {
-                    return match;
-                }
-                
-                const assetPath = path.join(baseDir, src);
-                const vscodeUri = webview.asWebviewUri(vscode.Uri.file(assetPath)).toString();
-                return `<img${attrs} src="${vscodeUri}"`;
+        html = html.replace(/<img([^>]*) src="([^"]+)"/g, (match, attrs, src) => {
+            // Skip data URLs and external URLs
+            if (src.startsWith('data:') || src.startsWith('http://') || src.startsWith('https://')) {
+                return match;
             }
-        );
-        
+
+            const assetPath = path.join(baseDir, src);
+            const vscodeUri = webview.asWebviewUri(vscode.Uri.file(assetPath)).toString();
+            return `<img${attrs} src="${vscodeUri}"`;
+        });
+
         // Add CSP meta tag to allow VS Code webview URIs and Express server
         const csp = this.getCSPMetaTag(webview);
-        
+
         // Add the CSP meta tag to the head
         html = html.replace('</head>', `${csp}</head>`);
-        
+
         return html;
     }
-    
+
     /**
      * Add server connection script to the HTML content
      */
     private static addServerConnectionScript(html: string): string {
         // Generate the server connection script
         const script = this.getServerConnectionScript();
-        
+
         // Add the script right before the closing body tag
         return html.replace('</body>', `${script}</body>`);
     }
-    
+
     /**
      * Get the Content Security Policy meta tag with proper server permissions
      */
     private static getCSPMetaTag(webview: vscode.Webview): string {
         let connectSrc = `${webview.cspSource} https:`;
-        
+
         // Add the Express server origin to connect-src if server is running
         const server = ExpressServer.getInstance();
         if (server.isRunning()) {
@@ -189,7 +176,7 @@ export class WebviewUtils {
             connectSrc = `${webview.cspSource} ${url.origin} https: wss: data:`;
             Logger.debug(`Added Express server origin ${url.origin} to CSP`);
         }
-        
+
         return `
             <meta
                 http-equiv="Content-Security-Policy"
@@ -202,7 +189,7 @@ export class WebviewUtils {
             />
         `;
     }
-    
+
     /**
      * Generate script to connect to the Express server
      */
@@ -215,10 +202,10 @@ export class WebviewUtils {
             </script>
             `;
         }
-        
+
         const serverUrl = server.getBaseUrl();
         const extensionToken = 'vscode-salesforce-multitools-' + process.pid;
-        
+
         return `
         <script>
         // Server connection info
@@ -254,4 +241,4 @@ export class WebviewUtils {
         </script>
         `;
     }
-} 
+}

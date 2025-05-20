@@ -15,15 +15,15 @@
 //     if (!fs.existsSync(destDir)) {
 //         fs.mkdirSync(destDir, { recursive: true });
 //     }
-    
+
 //     // Get all files in the directory
 //     const files = fs.readdirSync(dir);
-    
+
 //     // Copy each file or directory
 //     for (const file of files) {
 //         const srcPath = path.join(dir, file);
 //         const destPath = path.join(destDir, file);
-        
+
 //         // Check if it's a directory or a file
 //         const stat = fs.statSync(srcPath);
 //         if (stat.isDirectory()) {
@@ -43,7 +43,7 @@
 //         console.log('Copied webview files from', src, 'to', dest);
 //     } else {
 //         console.warn('Source directory does not exist:', src);
-        
+
 //         // Fallback to copying from public (for development)
 //         const publicSrc = path.join(__dirname, '..', 'client', 'public');
 //         if (fs.existsSync(publicSrc)) {
@@ -55,4 +55,4 @@
 //     }
 // } catch (error) {
 //     console.error('Error copying webview files:', error);
-// } 
+// }

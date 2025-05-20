@@ -32,7 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
         () => {
             // File does not exist, log and return
             Logger.warn('.sfdx/sfdx-config.json not found in workspace root. Extension will not activate.');
-        }
+        },
     );
 }
 
@@ -40,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
 async function continueActivation(context: vscode.ExtensionContext) {
     // Initialize logger with proper log level
     initializeLogger(context);
-    
+
     // Start the Express server first before any other initialization
     try {
         const expressServer = ExpressServer.getInstance();

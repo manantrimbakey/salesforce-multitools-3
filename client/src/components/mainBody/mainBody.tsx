@@ -33,9 +33,9 @@ function MainBody() {
         window.addEventListener('message', handleMessage);
 
         // Let VS Code know we're ready and request the active component
-        vscode.postMessage({ 
+        vscode.postMessage({
             command: 'ready',
-            data: { currentComponent: activeComponent }
+            data: { currentComponent: activeComponent },
         });
 
         // Clean up
@@ -47,21 +47,19 @@ function MainBody() {
     // Dynamically render the component based on the active component name
     const renderComponent = () => {
         const ComponentToRender = COMPONENTS[activeComponent as keyof typeof COMPONENTS];
-        
+
         // If the component doesn't exist in our registry, use the default
         if (!ComponentToRender) {
             const DefaultComponent = COMPONENTS[DEFAULT_COMPONENT];
             return <DefaultComponent />;
         }
-        
+
         return <ComponentToRender />;
     };
 
     return (
         <Grid container direction="column" alignItems={'normal'} spacing={2}>
-            <Grid>
-                {renderComponent()}
-            </Grid>
+            <Grid>{renderComponent()}</Grid>
         </Grid>
     );
 }

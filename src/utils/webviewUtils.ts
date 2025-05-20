@@ -4,7 +4,7 @@ import { Logger } from './logger';
 
 /**
  * Create a webview panel with the Express server CSP configured
- * 
+ *
  * @param viewType Unique identifier for this webview type
  * @param title Title of the webview panel
  * @param column The column to show the webview panel in
@@ -15,33 +15,28 @@ export function createWebviewPanel(
     viewType: string,
     title: string,
     column: vscode.ViewColumn,
-    options: vscode.WebviewPanelOptions & vscode.WebviewOptions
+    options: vscode.WebviewPanelOptions & vscode.WebviewOptions,
 ): vscode.WebviewPanel {
-    const panel = vscode.window.createWebviewPanel(
-        viewType,
-        title,
-        column,
-        {
-            enableScripts: true,
-            retainContextWhenHidden: true,
-            ...options
-        }
-    );
-    
+    const panel = vscode.window.createWebviewPanel(viewType, title, column, {
+        enableScripts: true,
+        retainContextWhenHidden: true,
+        ...options,
+    });
+
     panel.webview.options = {
         ...panel.webview.options,
-        enableScripts: true
+        enableScripts: true,
     };
-    
+
     // Configure CSP to allow access to Express server
     configureWebviewForServer(panel.webview);
-    
+
     return panel;
 }
 
 /**
  * Configure a webview to access the Express server
- * 
+ *
  * @param webview The webview to configure
  */
 export function configureWebviewForServer(webview: vscode.Webview): void {
@@ -52,7 +47,7 @@ export function configureWebviewForServer(webview: vscode.Webview): void {
 
 /**
  * Get the appropriate CSP headers for connecting to the Express server
- * 
+ *
  * @param webview The webview to configure
  */
 export function getWebviewCsp(webview: vscode.Webview): string {
@@ -66,9 +61,9 @@ export function getWebviewCsp(webview: vscode.Webview): string {
         `connect-src ${webview.cspSource} https:`,
         `frame-src ${webview.cspSource}`,
         `media-src ${webview.cspSource}`,
-        `worker-src ${webview.cspSource} blob:`
+        `worker-src ${webview.cspSource} blob:`,
     ];
-    
+
     // Add the Express server origin to connect-src if server is running
     const server = ExpressServer.getInstance();
     if (server.isRunning()) {
@@ -76,13 +71,13 @@ export function getWebviewCsp(webview: vscode.Webview): string {
         csp[5] = `connect-src ${webview.cspSource} ${url.origin} https: wss: data:`;
         Logger.debug(`Express server origin added to CSP`);
     }
-    
+
     return csp.join('; ');
 }
 
 /**
  * Add CSP meta tag to HTML content
- * 
+ *
  * @param html Original HTML content
  * @param csp CSP content
  * @returns HTML with CSP meta tag
@@ -104,26 +99,26 @@ function getHtmlWithCsp(html: string, csp: string): string {
 </body>
 </html>`;
     }
-    
+
     // If HTML already exists, add or update the CSP meta tag
     if (html.includes('<meta http-equiv="Content-Security-Policy"')) {
         // Replace existing CSP
         return html.replace(
             /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]*)"/i,
-            `<meta http-equiv="Content-Security-Policy" content="${csp}"`
+            `<meta http-equiv="Content-Security-Policy" content="${csp}"`,
         );
     } else {
         // Add CSP after other meta tags
         return html.replace(
             /<head>([\s\S]*?)(<\/head>)/i,
-            `<head>$1<meta http-equiv="Content-Security-Policy" content="${csp}">\n$2`
+            `<head>$1<meta http-equiv="Content-Security-Policy" content="${csp}">\n$2`,
         );
     }
 }
 
 /**
  * Generate script to connect to the Express server
- * 
+ *
  * @returns Script element as string
  */
 function getServerConnectionScript(): string {
@@ -131,10 +126,10 @@ function getServerConnectionScript(): string {
     if (!server.isRunning()) {
         return '';
     }
-    
+
     const serverUrl = server.getBaseUrl();
     const extensionToken = server instanceof ExpressServer ? 'vscode-salesforce-multitools-' + process.pid : '';
-    
+
     return `<script>
 // Server connection info
 window.serverBaseUrl = "${serverUrl}";
@@ -171,14 +166,14 @@ window.callServerApi = async (endpoint, method = 'GET', data = null) => {
 
 /**
  * Get HTML for a webview with server connection script
- * 
+ *
  * @param webview The webview to generate HTML for
  * @param mainContent The main content for the webview
  * @returns Complete HTML for the webview
  */
 export function getWebviewHtml(webview: vscode.Webview, mainContent: string): string {
     const csp = getWebviewCsp(webview);
-    
+
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -201,4 +196,4 @@ export function getWebviewHtml(webview: vscode.Webview, mainContent: string): st
     ${getServerConnectionScript()}
 </body>
 </html>`;
-} 
+}

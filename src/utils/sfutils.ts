@@ -40,7 +40,7 @@ export class SFUtils {
                 level: 50, // 50 = ERROR level
                 useMemoryLogger: true,
                 name: 'salesforce-multitools',
-                fields: {}
+                fields: {},
             } as sfcore.LoggerOptions);
 
             this.isInitialized = true;
