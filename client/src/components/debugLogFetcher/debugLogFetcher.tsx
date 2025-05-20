@@ -401,7 +401,6 @@ export default function DebugLogFetcher() {
                             <TableCell>Application</TableCell>
                             <TableCell>Status</TableCell>
                             <TableCell>Method Name</TableCell>
-                            <TableCell>Request Identifier</TableCell>
                             <TableCell align="center">Actions</TableCell>
                         </TableRow>
                     </TableHead>
@@ -445,17 +444,6 @@ export default function DebugLogFetcher() {
                                     </TableCell>
                                     <TableCell>
                                         <MethodName logId={log.Id} />
-                                    </TableCell>
-                                    <TableCell
-                                        sx={{
-                                            maxWidth: '180px',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap',
-                                        }}
-                                        title={log.RequestIdentifier}
-                                    >
-                                        {log.RequestIdentifier}
                                     </TableCell>
                                     <TableCell align="center">
                                         <Tooltip title="Download and open in VS Code">
