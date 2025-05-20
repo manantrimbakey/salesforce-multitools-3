@@ -42,4 +42,4 @@ The Last Modified Details feature provides important metadata about when Salesfo
 
 ---
 
-[← Back to Documentation Home](../index.md) 
+[← Back to Documentation Home](../index.md)

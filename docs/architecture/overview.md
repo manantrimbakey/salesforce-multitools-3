@@ -175,4 +175,4 @@ The extension is configurable through VS Code settings, defined in `package.json
 
 ---
 
-[← Back to Documentation Home](../index.md) 
+[← Back to Documentation Home](../index.md)

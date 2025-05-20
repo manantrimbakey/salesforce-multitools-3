@@ -9,5 +9,5 @@ export {
     ComponentType,
     ComponentFileType,
     ComponentFile,
-    isLightningComponentFile
-} from './componentFileSwitcherUtils'; 
+    isLightningComponentFile,
+} from './componentFileSwitcherUtils';

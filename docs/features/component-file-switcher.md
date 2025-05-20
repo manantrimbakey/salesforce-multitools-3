@@ -105,4 +105,4 @@ The sidebar UI is implemented using React:
 
 ---
 
-[← Back to Documentation Home](../index.md) 
+[← Back to Documentation Home](../index.md)

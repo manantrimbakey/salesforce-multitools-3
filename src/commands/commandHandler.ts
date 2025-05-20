@@ -18,7 +18,7 @@ export class CommandHandler {
             'salesforce-multitools-3.refreshConnection',
             this.handleRefreshConnection,
         );
-        
+
         // Command to open sidebar (redirects to focus the view)
         const openSidebarCmd = vscode.commands.registerCommand(
             'salesforce-multitools-3.openFileSwitcher',
@@ -28,7 +28,7 @@ export class CommandHandler {
         // Commands to switch to different components
         const showComponentFileSwitcherCmd = vscode.commands.registerCommand(
             'salesforce-multitools-3.showComponentFileSwitcher',
-            () => this.handleSwitchComponent('componentFileSwitcher')
+            () => this.handleSwitchComponent('componentFileSwitcher'),
         );
 
         // Register all commands from features
@@ -36,11 +36,7 @@ export class CommandHandler {
         registerComponentFileSwitcherCommands(context);
         registerDebugLogCommands(context);
 
-        context.subscriptions.push(
-            refreshConnectionCmd, 
-            openSidebarCmd,
-            showComponentFileSwitcherCmd
-        );
+        context.subscriptions.push(refreshConnectionCmd, openSidebarCmd, showComponentFileSwitcherCmd);
 
         Logger.debug('All commands registered');
     }
@@ -66,7 +62,7 @@ export class CommandHandler {
         vscode.commands.executeCommand('workbench.view.explorer');
         vscode.commands.executeCommand('salesforceMultitools.sidebar.focus');
     }
-    
+
     /**
      * Handle switching to a different component in the sidebar
      */

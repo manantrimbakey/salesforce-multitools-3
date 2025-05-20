@@ -85,4 +85,4 @@ If you're not using SFDX, you can still activate the extension, but some feature
 
 ---
 
-[← Back to Documentation Home](./index.md) 
+[← Back to Documentation Home](./index.md)
