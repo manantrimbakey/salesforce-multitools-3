@@ -3,7 +3,7 @@
     "displayName": "Salesforce Multitools",
     "description": "A set of tools for Salesforce development in VS Code",
     "version": "0.0.1",
-    "publisher": "salesforce-multitools",
+    "publisher": "manantrimbakey",
     "icon": "resources/salesforce-icon-colorful.png",
     "repository": {
         "type": "git",
@@ -13,23 +13,6 @@
         "vscode": "^1.90.0"
     },
     "categories": [
-        "salesforce",
-        "lwc",
-        "aura",
-        "debug",
-        "logs",
-        "Lightning Web Components",
-        "Apex",
-        "Salesforce",
-        "Salesforce Multitools",
-        "Languages",
-        "Salesforce Development",
-        "Salesforce CLI",
-        "Salesforce DX",
-        "Salesforce Extensions",
-        "Salesforce Tools",
-        "Salesforce Debug",
-        "Salesforce Logs",
         "Other"
     ],
     "keywords": [
