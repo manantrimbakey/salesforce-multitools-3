@@ -4,14 +4,12 @@ This VS Code extension boosts your productivity and streamlines your Salesforce 
 
 ## 🔥 Features Overview 🔥
 
-### 🚀 Component File Switcher - The Main Feature
+### 🚀 Component File Switcher
 
 Tired of clicking through folders to find your Lightning component files? We fixed that!
 
 - **Keyboard Shortcut**: Use `Alt+O` (or `Option+O` on Mac) for quick access
 - **Sidebar UI**: View all your component files in one spot, no scrolling needed
-
-#### How it works:
 
 When you're working with Lightning components:
 
@@ -20,25 +18,32 @@ When you're working with Lightning components:
     - For LWC: JS file is the primary file, followed by HTML & CSS
     - For Aura: Controller.js takes priority, then the component file & CSS
 
-#### User Interface
-
 The sidebar provides a clean interface with:
-
 - Component name & type with LWC/Aura indicators
 - Files grouped by type for better organization
 - Unsaved files get a special indicator
 - Current file is highlighted for easy reference
 
-## 👾 Additional Features 👾
+### 👀 Last Modified Details
 
-- **Last Modified Details** - See who modified your code last and when, get notified and blame them!
+See who modified your code last and when, get notified and blame them!
+- Track who last modified each Salesforce component 
+- Displays timestamps of when changes were made
+- Integrates with CodeLens for in-line visibility
+- Automatic refresh at configurable intervals
+
+### 🔍 Debug Log Fetcher
+
+Fetch and analyze Salesforce debug logs with enhanced filtering and UI:
+- **Command**: Use `Salesforce Multitool: Open Debug Logs` or from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
+- User-specific log filtering with typeahead search
+- Interactive log viewer with method name tracking
+- Responsive table with tooltips and optimized layout
+- One-click download and open in VS Code
 
 ## 🔮 Coming Soon! 🔮
 
-Stay tuned for more features we're adding to this extension!
-
-- Salesforce Constantinator - to turn your hardcoded strings into constants
-- Debugs Log Fetcher - to fetch the logs from your Salesforce org and filter them by any selected user
+- **Salesforce Constantinator** - Convert hardcoded strings into constants
 
 ## 💯 Requirements
 
