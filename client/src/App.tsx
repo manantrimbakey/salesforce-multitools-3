@@ -80,7 +80,20 @@ function App() {
         const handleMessage = (event: MessageEvent) => {
             const message = event.data;
             if (message.command === 'refreshTheme') {
-                setTheme(message.data.theme);
+                // Handle both string values and numeric enum values from VSCode
+                let themeValue: 'light' | 'dark' = 'dark';
+
+                if (typeof message.data.theme === 'string') {
+                    // If theme is provided as a string ('dark' or 'light')
+                    themeValue = message.data.theme as 'light' | 'dark';
+                } else if (typeof message.data.theme === 'number') {
+                    // If theme is provided as a ColorThemeKind enum value
+                    // VSCode enum: 1 = Light, 2 = Dark, 3 = High Contrast, 4 = High Contrast Light
+                    themeValue = message.data.theme === 1 || message.data.theme === 4 ? 'light' : 'dark';
+                }
+
+                console.log('Theme update received:', message.data.theme, '→', themeValue);
+                setTheme(themeValue);
             }
         };
 
