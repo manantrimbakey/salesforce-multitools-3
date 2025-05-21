@@ -7,12 +7,29 @@
     "icon": "resources/salesforce-icon-colorful.png",
     "repository": {
         "type": "git",
-        "url": "https://github.com/yourusername/salesforce-multitools-3"
+        "url": "https://github.com/manantrimbakey/salesforce-multitools-3"
     },
     "engines": {
         "vscode": "^1.90.0"
     },
     "categories": [
+        "salesforce",
+        "lwc",
+        "aura",
+        "debug",
+        "logs",
+        "Lightning Web Components",
+        "Apex",
+        "Salesforce",
+        "Salesforce Multitools",
+        "Languages",
+        "Salesforce Development",
+        "Salesforce CLI",
+        "Salesforce DX",
+        "Salesforce Extensions",
+        "Salesforce Tools",
+        "Salesforce Debug",
+        "Salesforce Logs",
         "Other"
     ],
     "keywords": [
