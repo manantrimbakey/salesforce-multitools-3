@@ -330,6 +330,7 @@ export default function DebugLogFetcher() {
                 height: 'calc(100% - 1rem)',
                 display: 'flex',
                 flexDirection: 'column',
+                width: 'calc(100% - 0px)',
             }}
         >
             <Box
@@ -340,6 +341,8 @@ export default function DebugLogFetcher() {
                     justifyContent: 'space-between',
                     borderBottom: 1,
                     borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    zIndex: 2, // Ensure it stays above the scrolling content
                 }}
             >
                 <Typography variant="h6" component="div">
@@ -425,94 +428,114 @@ export default function DebugLogFetcher() {
 
             {loading && <LinearProgress />}
 
-            <TableContainer sx={{ flexGrow: 1 }} component={Paper}>
-                <Table stickyHeader size="small" aria-label="debug logs table">
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Log Id</TableCell>
-                            <TableCell>Logged By User</TableCell>
-                            <TableCell>Log Length</TableCell>
-                            <TableCell>Start Time</TableCell>
-                            <TableCell>Operation</TableCell>
-                            <TableCell>Application</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Method Name</TableCell>
-                            <TableCell align="center">Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {logs?.length === 0 && !loading ? (
+            <Box
+                sx={{
+                    flexGrow: 1,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: 'calc(100% - 64px)', // Adjust based on your header height
+                }}
+            >
+                <TableContainer
+                    component={Paper}
+                    sx={{
+                        flexGrow: 1,
+                        overflow: 'auto',
+                        maxHeight: '100%',
+                        height: '100%',
+                    }}
+                >
+                    <Table stickyHeader aria-label="debug logs table" size="small">
+                        <TableHead>
                             <TableRow>
-                                <TableCell colSpan={10} align="center">
-                                    <Typography variant="body2" sx={{ py: 2 }}>
-                                        No logs found. Click refresh to fetch logs.
-                                    </Typography>
+                                <TableCell sx={{ bgcolor: 'background.paper', zIndex: 1 }}>Log Id</TableCell>
+                                <TableCell sx={{ bgcolor: 'background.paper', zIndex: 1 }}>Logged By User</TableCell>
+                                <TableCell sx={{ bgcolor: 'background.paper', zIndex: 1 }}>Log Length</TableCell>
+                                <TableCell sx={{ bgcolor: 'background.paper', zIndex: 1 }}>Start Time</TableCell>
+                                <TableCell sx={{ bgcolor: 'background.paper', zIndex: 1 }}>Operation</TableCell>
+                                <TableCell sx={{ bgcolor: 'background.paper', zIndex: 1 }}>Application</TableCell>
+                                <TableCell sx={{ bgcolor: 'background.paper', zIndex: 1 }}>Status</TableCell>
+                                <TableCell sx={{ bgcolor: 'background.paper', zIndex: 1 }}>Method Name</TableCell>
+                                <TableCell align="center" sx={{ bgcolor: 'background.paper', zIndex: 1 }}>
+                                    Actions
                                 </TableCell>
                             </TableRow>
-                        ) : (
-                            logs?.map((log) => (
-                                <TableRow key={log.Id} hover>
-                                    <TableCell
-                                        sx={{
-                                            maxWidth: '180px',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap',
-                                            cursor: 'pointer',
-                                            '&:hover': { textDecoration: 'underline' },
-                                        }}
-                                        title={log.Id}
-                                    >
-                                        {log.Id}
-                                    </TableCell>
-                                    <TableCell>{log.LogUser.Name}</TableCell>
-                                    <TableCell>{formatLogLength(log.LogLength)}</TableCell>
-                                    <TableCell>{formatDate(log.StartTime)}</TableCell>
-                                    <TableCell>{log.Operation}</TableCell>
-                                    <TableCell>{log.Application}</TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={log.Status}
-                                            size="small"
-                                            color={log.Status === 'Success' ? 'success' : 'error'}
-                                            variant="outlined"
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <MethodName logId={log.Id} />
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        <Tooltip
-                                            title={
-                                                downloadingLogId === log.Id
-                                                    ? 'Opening in VS Code...'
-                                                    : 'Download and open in VS Code'
-                                            }
-                                        >
-                                            <span>
-                                                {' '}
-                                                {/* Wrapper needed for disabled tooltip */}
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => downloadFullLog(log.Id)}
-                                                    disabled={downloadingLogId !== null}
-                                                    color="primary"
-                                                >
-                                                    {downloadingLogId === log.Id ? (
-                                                        <CircularProgress size={18} thickness={5} color="primary" />
-                                                    ) : (
-                                                        <DownloadIcon fontSize="small" />
-                                                    )}
-                                                </IconButton>
-                                            </span>
-                                        </Tooltip>
+                        </TableHead>
+                        <TableBody>
+                            {logs?.length === 0 && !loading ? (
+                                <TableRow>
+                                    <TableCell colSpan={10} align="center">
+                                        <Typography variant="body2" sx={{ py: 2 }}>
+                                            No logs found. Click refresh to fetch logs.
+                                        </Typography>
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                            ) : (
+                                logs?.map((log) => (
+                                    <TableRow key={log.Id} hover>
+                                        <TableCell
+                                            sx={{
+                                                maxWidth: '180px',
+                                                overflow: 'hidden',
+                                                textOverflow: 'ellipsis',
+                                                whiteSpace: 'nowrap',
+                                                cursor: 'pointer',
+                                                '&:hover': { textDecoration: 'underline' },
+                                            }}
+                                            title={log.Id}
+                                        >
+                                            {log.Id}
+                                        </TableCell>
+                                        <TableCell>{log.LogUser.Name}</TableCell>
+                                        <TableCell>{formatLogLength(log.LogLength)}</TableCell>
+                                        <TableCell>{formatDate(log.StartTime)}</TableCell>
+                                        <TableCell>{log.Operation}</TableCell>
+                                        <TableCell>{log.Application}</TableCell>
+                                        <TableCell>
+                                            <Chip
+                                                label={log.Status}
+                                                size="small"
+                                                color={log.Status === 'Success' ? 'success' : 'error'}
+                                                variant="outlined"
+                                            />
+                                        </TableCell>
+                                        <TableCell>
+                                            <MethodName logId={log.Id} />
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <Tooltip
+                                                title={
+                                                    downloadingLogId === log.Id
+                                                        ? 'Opening in VS Code...'
+                                                        : 'Download and open in VS Code'
+                                                }
+                                            >
+                                                <span>
+                                                    {' '}
+                                                    {/* Wrapper needed for disabled tooltip */}
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => downloadFullLog(log.Id)}
+                                                        disabled={downloadingLogId !== null}
+                                                        color="primary"
+                                                    >
+                                                        {downloadingLogId === log.Id ? (
+                                                            <CircularProgress size={18} thickness={5} color="primary" />
+                                                        ) : (
+                                                            <DownloadIcon fontSize="small" />
+                                                        )}
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Box>
         </Card>
     );
 }
