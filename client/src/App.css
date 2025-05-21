@@ -1,4 +1,68 @@
-/* #root {
+#root {
     height: 100%;
     width: 100%;
-} */
+    overflow-x: hidden;
+}
+
+/* Make all MUI components respect container boundaries */
+.MuiCard-root,
+.MuiPaper-root {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* Allow table containers to scroll horizontally */
+.MuiTableContainer-root {
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+}
+
+/* Tables can go beyond container width to allow scrolling */
+.MuiTable-root {
+    box-sizing: border-box;
+}
+
+/* Ensure text wrapping in tables and other components */
+.MuiTableCell-root {
+    white-space: normal;
+    word-break: break-word;
+}
+
+/* Force text wrap for Typography */
+.MuiTypography-root {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+}
+
+/* Ensure proper scrolling for table containers */
+.MuiTableContainer-root {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Fix sticky header in tables */
+.MuiTableHead-root {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+/* Make sticky headers more visible */
+.MuiTableCell-stickyHeader {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* Allow scrolling in table cells with long content that should be truncated */
+.MuiTableCell-root.scrollable {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Ensure tooltip content displays properly */
+.MuiTooltip-tooltip {
+    max-width: 400px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}

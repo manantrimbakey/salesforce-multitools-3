@@ -3,14 +3,12 @@ import {
     Card,
     CardContent,
     Typography,
-    // Chip,
     List,
     ListItem,
     ListItemText,
     ListItemIcon,
     Divider,
     Paper,
-    // Box,
 } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
 import CssIcon from '@mui/icons-material/Css';
@@ -66,9 +64,12 @@ export default function ComponentFileSwitcher() {
         // Add message event listener
         window.addEventListener('message', handleMessage);
 
+        // Request theme on mount - this is critical for proper theming
+        vscode.postMessage({ command: 'refreshTheme' });
+
         // Cleanup
         return () => window.removeEventListener('message', handleMessage);
-    }, []);
+    }, [vscode]);
 
     // Handle click on a component file
     const handleFileClick = (filePath: string) => {
@@ -114,10 +115,25 @@ export default function ComponentFileSwitcher() {
     // If no component detected, show empty state
     if (componentData.componentType === 'UNKNOWN' || !componentData.componentName) {
         return (
-            <Card sx={{ borderRadius: '0.25rem' }}>
-                <CardContent>
+            <Card
+                sx={{
+                    borderRadius: '0.25rem',
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
+            >
+                <CardContent
+                    sx={{
+                        flexGrow: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                    }}
+                >
                     <Typography variant="h6">Component File Switcher</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
                         Open an LWC or Aura component file to see related files here. Use Alt+O (Option+O on Mac) to
                         quickly switch between files.
                     </Typography>
@@ -128,96 +144,114 @@ export default function ComponentFileSwitcher() {
 
     // Display the component info and files
     return (
-        <Card sx={{ borderRadius: '0.25rem' }}>
-            <CardContent>
-                {/* <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6">Component Files</Typography>
-                    <Chip 
-                        label={componentData.componentType} 
-                        size="small" 
-                        color={componentData.componentType === 'LWC' ? 'primary' : 'secondary'} 
-                    />
-                </Box> */}
-
-                {/* <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
-                    {componentData.componentName}
-                </Typography> */}
-
+        <Card
+            sx={{
+                borderRadius: '0.25rem',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+            }}
+        >
+            <CardContent
+                sx={{
+                    p: 2,
+                    flexShrink: 0,
+                    pb: '16px !important', // Override MUI's default padding
+                }}
+            >
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                     Current: {componentData.fileName}
                 </Typography>
+            </CardContent>
 
-                <Paper variant="outlined">
-                    <List dense disablePadding>
-                        {Object.entries(filesByType).map(([type, files]) => (
-                            <div key={type}>
-                                <ListItem sx={{ bgcolor: 'action.hover' }}>
-                                    <ListItemText
-                                        primary={
-                                            <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
-                                                {type}
-                                            </Typography>
-                                        }
-                                    />
-                                </ListItem>
-                                <Divider />
+            <Paper
+                variant="outlined"
+                sx={{
+                    flexGrow: 1,
+                    m: 2,
+                    mt: 0,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                }}
+            >
+                <List
+                    dense
+                    disablePadding
+                    sx={{
+                        overflowY: 'auto',
+                        flexGrow: 1,
+                    }}
+                >
+                    {Object.entries(filesByType).map(([type, files]) => (
+                        <div key={type}>
+                            <ListItem sx={{ bgcolor: 'action.hover' }}>
+                                <ListItemText
+                                    primary={
+                                        <Typography variant="caption" sx={{ fontWeight: 'bold' }}>
+                                            {type}
+                                        </Typography>
+                                    }
+                                />
+                            </ListItem>
+                            <Divider />
 
-                                {files.map((file) => {
-                                    const isCurrentFile = file.name === componentData.fileName;
-                                    return (
-                                        <ListItem
-                                            key={file.path}
-                                            onClick={() => handleFileClick(file.path)}
+                            {files.map((file) => {
+                                const isCurrentFile = file.name === componentData.fileName;
+                                return (
+                                    <ListItem
+                                        key={file.path}
+                                        onClick={() => handleFileClick(file.path)}
+                                        sx={{
+                                            pl: 2,
+                                            cursor: 'pointer',
+                                            bgcolor: isCurrentFile ? 'primary.main' : 'transparent',
+                                            color: isCurrentFile ? 'primary.contrastText' : 'inherit',
+                                            '&:hover': {
+                                                bgcolor: isCurrentFile ? 'primary.dark' : 'action.hover',
+                                            },
+                                        }}
+                                    >
+                                        <ListItemIcon
                                             sx={{
-                                                pl: 2,
-                                                cursor: 'pointer',
-                                                bgcolor: isCurrentFile ? 'primary.main' : 'transparent',
+                                                minWidth: 36,
                                                 color: isCurrentFile ? 'primary.contrastText' : 'inherit',
-                                                '&:hover': {
-                                                    bgcolor: isCurrentFile ? 'primary.dark' : 'action.hover',
-                                                },
                                             }}
                                         >
-                                            <ListItemIcon
-                                                sx={{
-                                                    minWidth: 36,
-                                                    color: isCurrentFile ? 'primary.contrastText' : 'inherit',
-                                                }}
-                                            >
-                                                {getFileIcon(file.type)}
-                                            </ListItemIcon>
-                                            <ListItemText
-                                                primary={
-                                                    <Typography
-                                                        variant="body2"
-                                                        sx={{
-                                                            fontWeight: file.isBaseFile ? 'bold' : 'normal',
-                                                            color: 'inherit',
-                                                        }}
-                                                    >
-                                                        {file.name}
-                                                    </Typography>
-                                                }
+                                            {getFileIcon(file.type)}
+                                        </ListItemIcon>
+                                        <ListItemText
+                                            primary={
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        fontWeight: file.isBaseFile ? 'bold' : 'normal',
+                                                        color: 'inherit',
+                                                    }}
+                                                >
+                                                    {file.name}
+                                                </Typography>
+                                            }
+                                        />
+                                        {file.isUnsaved && (
+                                            <FiberManualRecordIcon
+                                                fontSize="small"
+                                                color="warning"
+                                                sx={{ width: 10, height: 10 }}
                                             />
-                                            {file.isUnsaved && (
-                                                <FiberManualRecordIcon
-                                                    fontSize="small"
-                                                    color="warning"
-                                                    sx={{ width: 10, height: 10 }}
-                                                />
-                                            )}
-                                        </ListItem>
-                                    );
-                                })}
-                            </div>
-                        ))}
-                    </List>
-                </Paper>
+                                        )}
+                                    </ListItem>
+                                );
+                            })}
+                        </div>
+                    ))}
+                </List>
+            </Paper>
 
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-                    Press Alt+O (Option+O on Mac) to switch files
-                </Typography>
-            </CardContent>
+            <Typography variant="caption" color="text.secondary" sx={{ m: 2, mt: 0, display: 'block', flexShrink: 0 }}>
+                Press Alt+O (Option+O on Mac) to switch files
+            </Typography>
         </Card>
     );
 }

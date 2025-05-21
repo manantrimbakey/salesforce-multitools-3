@@ -68,6 +68,7 @@ declare type DownloadResponse = {
 declare type User = {
     Id: string;
     Name: string;
+    Username?: string;
 };
 
 declare type UsersResponse = {
@@ -153,9 +154,12 @@ function MethodName({ logId }: { logId: string }) {
         );
     }
 
+    // Always display a tooltip with the full method name
     return (
         <Tooltip title={methodName || 'No method found'}>
-            <span>{methodName || 'N/A'}</span>
+            <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {methodName || 'N/A'}
+            </span>
         </Tooltip>
     );
 }
@@ -240,6 +244,9 @@ export default function DebugLogFetcher() {
         if (newValue === null) {
             // Show all logs
             fetchLogs('all');
+        } else if (newValue.Id === 'all') {
+            // All Users option selected
+            fetchLogs('all');
         } else {
             // Filter by selected user
             fetchLogs(newValue.Name);
@@ -252,6 +259,17 @@ export default function DebugLogFetcher() {
 
         try {
             setDownloadingLogId(logId);
+
+            // Find the log to get its size for better UX feedback
+            const logDetails = logs.find((log) => log.Id === logId);
+            const isLargeFile = logDetails && logDetails.LogLength > 5000000; // 5MB threshold
+
+            if (isLargeFile) {
+                console.log(
+                    `Downloading large log file (${Math.round(logDetails!.LogLength / 1048576)}MB), this may take some time...`,
+                );
+            }
+
             const response: DownloadResponse = await window.callServerApi(`/api/debugLogs/${logId}/download`);
 
             if (response?.success) {
@@ -311,20 +329,23 @@ export default function DebugLogFetcher() {
         <Card
             sx={{
                 borderRadius: '0.25rem',
-                mb: 2,
-                height: 'calc(100% - 1rem)',
+                height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
+                overflow: 'hidden',
             }}
         >
             <Box
                 sx={{
-                    p: 1,
+                    p: 2,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     borderBottom: 1,
                     borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    zIndex: 2, // Ensure it stays above the scrolling content
+                    flexShrink: 0, // Prevent header from shrinking
                 }}
             >
                 <Typography variant="h6" component="div">
@@ -332,7 +353,7 @@ export default function DebugLogFetcher() {
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Autocomplete
-                        sx={{ width: 250 }}
+                        sx={{ width: '20rem' }}
                         options={[
                             { Id: 'all', Name: 'All Users' },
                             ...(selectedUser &&
@@ -344,10 +365,30 @@ export default function DebugLogFetcher() {
                             ...users,
                         ]}
                         getOptionLabel={(option) => option.Name}
+                        renderOption={(props, option) => (
+                            <li {...props}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                    <Typography variant="body1">{option.Name}</Typography>
+                                    {option.Id !== 'all' && option.Id !== 'current' && 'Username' in option && (
+                                        <Typography variant="caption" color="text.secondary">
+                                            {(option as User).Username}
+                                        </Typography>
+                                    )}
+                                </Box>
+                            </li>
+                        )}
                         isOptionEqualToValue={(option, value) => option.Id === value.Id}
                         loading={loadingUsers}
+                        loadingText="Searching..."
                         value={selectedUser}
                         onChange={handleUserChange}
+                        onInputChange={(_, newInputValue) => {
+                            if (newInputValue && newInputValue.length > 1) {
+                                fetchUsers(newInputValue);
+                            }
+                        }}
+                        filterOptions={(x) => x} // Disable client-side filtering, rely on server search
+                        noOptionsText="Type to search users..."
                         renderInput={(params) => {
                             // Adornment components
                             const startAdornment = (
@@ -365,6 +406,7 @@ export default function DebugLogFetcher() {
                                 <TextField
                                     {...params}
                                     label="Filter by User"
+                                    placeholder="Start typing..."
                                     variant="outlined"
                                     size="small"
                                     // Use slotProps instead of InputProps
@@ -387,94 +429,221 @@ export default function DebugLogFetcher() {
                 </Box>
             </Box>
 
-            {loading && <LinearProgress />}
+            {loading && <LinearProgress sx={{ flexShrink: 0 }} />}
 
-            <TableContainer sx={{ flexGrow: 1 }} component={Paper}>
-                <Table stickyHeader size="small" aria-label="debug logs table">
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>Log Id</TableCell>
-                            <TableCell>Logged By User</TableCell>
-                            <TableCell>Log Length</TableCell>
-                            <TableCell>Start Time</TableCell>
-                            <TableCell>Operation</TableCell>
-                            <TableCell>Application</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Method Name</TableCell>
-                            <TableCell>Request Identifier</TableCell>
-                            <TableCell align="center">Actions</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {logs?.length === 0 && !loading ? (
+            <Box
+                sx={{
+                    flexGrow: 1,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: 0, // This is key for flex children to correctly size
+                }}
+            >
+                <TableContainer
+                    component={Paper}
+                    sx={{
+                        flexGrow: 1,
+                        overflow: 'auto',
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        maxWidth: '100%',
+                    }}
+                >
+                    <Table
+                        stickyHeader
+                        aria-label="debug logs table"
+                        size="small"
+                        sx={{ minWidth: 900 }} // Set a minimum width to ensure horizontal scrolling when needed
+                    >
+                        <TableHead>
                             <TableRow>
-                                <TableCell colSpan={10} align="center">
-                                    <Typography variant="body2" sx={{ py: 2 }}>
-                                        No logs found. Click refresh to fetch logs.
-                                    </Typography>
+                                <TableCell
+                                    sx={{
+                                        bgcolor: 'background.paper',
+                                        zIndex: 1,
+                                        position: 'sticky',
+                                        top: 0,
+                                    }}
+                                >
+                                    <Tooltip title="User who created this debug log">
+                                        <span>Logged By User</span>
+                                    </Tooltip>
+                                </TableCell>
+                                <TableCell
+                                    sx={{
+                                        bgcolor: 'background.paper',
+                                        zIndex: 1,
+                                        position: 'sticky',
+                                        top: 0,
+                                    }}
+                                >
+                                    <Tooltip title="Size of the debug log in bytes">
+                                        <span>Log Length</span>
+                                    </Tooltip>
+                                </TableCell>
+                                <TableCell
+                                    sx={{
+                                        bgcolor: 'background.paper',
+                                        zIndex: 1,
+                                        position: 'sticky',
+                                        top: 0,
+                                    }}
+                                >
+                                    <Tooltip title="Date and time when the log was created">
+                                        <span>Start Time</span>
+                                    </Tooltip>
+                                </TableCell>
+                                <TableCell
+                                    sx={{
+                                        bgcolor: 'background.paper',
+                                        zIndex: 1,
+                                        position: 'sticky',
+                                        top: 0,
+                                        maxWidth: '150px',
+                                    }}
+                                >
+                                    <Tooltip title="Operation that generated this log">
+                                        <span>Operation</span>
+                                    </Tooltip>
+                                </TableCell>
+                                <TableCell
+                                    sx={{
+                                        bgcolor: 'background.paper',
+                                        zIndex: 1,
+                                        position: 'sticky',
+                                        top: 0,
+                                    }}
+                                >
+                                    <Tooltip title="Application that generated this log">
+                                        <span>Application</span>
+                                    </Tooltip>
+                                </TableCell>
+                                <TableCell
+                                    sx={{
+                                        bgcolor: 'background.paper',
+                                        zIndex: 1,
+                                        position: 'sticky',
+                                        top: 0,
+                                        maxWidth: '100px',
+                                    }}
+                                >
+                                    <Tooltip title="Success or error status of the operation">
+                                        <span>Status</span>
+                                    </Tooltip>
+                                </TableCell>
+                                <TableCell
+                                    sx={{
+                                        bgcolor: 'background.paper',
+                                        zIndex: 1,
+                                        position: 'sticky',
+                                        top: 0,
+                                        minWidth: '250px',
+                                    }}
+                                >
+                                    <Tooltip title="Primary method executed in this debug log">
+                                        <span>Method Name</span>
+                                    </Tooltip>
+                                </TableCell>
+                                <TableCell
+                                    align="center"
+                                    sx={{
+                                        bgcolor: 'background.paper',
+                                        zIndex: 1,
+                                        position: 'sticky',
+                                        top: 0,
+                                    }}
+                                >
+                                    {/* Actions column with empty header text */}
                                 </TableCell>
                             </TableRow>
-                        ) : (
-                            logs?.map((log) => (
-                                <TableRow key={log.Id} hover>
-                                    <TableCell
-                                        sx={{
-                                            maxWidth: '180px',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap',
-                                            cursor: 'pointer',
-                                            '&:hover': { textDecoration: 'underline' },
-                                        }}
-                                        title={log.Id}
-                                    >
-                                        {log.Id}
-                                    </TableCell>
-                                    <TableCell>{log.LogUser.Name}</TableCell>
-                                    <TableCell>{formatLogLength(log.LogLength)}</TableCell>
-                                    <TableCell>{formatDate(log.StartTime)}</TableCell>
-                                    <TableCell>{log.Operation}</TableCell>
-                                    <TableCell>{log.Application}</TableCell>
-                                    <TableCell>
-                                        <Chip
-                                            label={log.Status}
-                                            size="small"
-                                            color={log.Status === 'Success' ? 'success' : 'error'}
-                                            variant="outlined"
-                                        />
-                                    </TableCell>
-                                    <TableCell>
-                                        <MethodName logId={log.Id} />
-                                    </TableCell>
-                                    <TableCell
-                                        sx={{
-                                            maxWidth: '180px',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap',
-                                        }}
-                                        title={log.RequestIdentifier}
-                                    >
-                                        {log.RequestIdentifier}
-                                    </TableCell>
-                                    <TableCell align="center">
-                                        <Tooltip title="Download and open in VS Code">
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => downloadFullLog(log.Id)}
-                                                disabled={downloadingLogId === log.Id}
-                                                color="primary"
-                                            >
-                                                <DownloadIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
+                        </TableHead>
+                        <TableBody>
+                            {logs?.length === 0 && !loading ? (
+                                <TableRow>
+                                    <TableCell colSpan={10} align="center">
+                                        <Typography variant="body2" sx={{ py: 2 }}>
+                                            No logs found. Click refresh to fetch logs.
+                                        </Typography>
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        )}
-                    </TableBody>
-                </Table>
-            </TableContainer>
+                            ) : (
+                                logs?.map((log) => (
+                                    <TableRow key={log.Id} hover>
+                                        <TableCell>
+                                            <Tooltip title={log.LogUser.Name}>
+                                                <span>{log.LogUser.Name}</span>
+                                            </Tooltip>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Tooltip title={formatLogLength(log.LogLength)}>
+                                                <span>{formatLogLength(log.LogLength)}</span>
+                                            </Tooltip>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Tooltip title={formatDate(log.StartTime)}>
+                                                <span>{formatDate(log.StartTime)}</span>
+                                            </Tooltip>
+                                        </TableCell>
+                                        <TableCell className="scrollable" sx={{ maxWidth: '150px' }}>
+                                            <Tooltip title={log.Operation}>
+                                                <span>{log.Operation}</span>
+                                            </Tooltip>
+                                        </TableCell>
+                                        <TableCell className="scrollable">
+                                            <Tooltip title={log.Application}>
+                                                <span>{log.Application}</span>
+                                            </Tooltip>
+                                        </TableCell>
+                                        <TableCell className="scrollable" sx={{ maxWidth: '100px' }}>
+                                            <Tooltip title={log.Status}>
+                                                <span>
+                                                    <Chip
+                                                        label={log.Status}
+                                                        size="small"
+                                                        color={log.Status === 'Success' ? 'success' : 'error'}
+                                                        variant="outlined"
+                                                    />
+                                                </span>
+                                            </Tooltip>
+                                        </TableCell>
+                                        <TableCell sx={{ minWidth: '250px' }}>
+                                            <MethodName logId={log.Id} />
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <Tooltip
+                                                title={
+                                                    downloadingLogId === log.Id
+                                                        ? 'Opening in VS Code...'
+                                                        : 'Download and open in VS Code'
+                                                }
+                                            >
+                                                <span>
+                                                    {' '}
+                                                    {/* Wrapper needed for disabled tooltip */}
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => downloadFullLog(log.Id)}
+                                                        disabled={downloadingLogId !== null}
+                                                        color="primary"
+                                                    >
+                                                        {downloadingLogId === log.Id ? (
+                                                            <CircularProgress size={18} thickness={5} color="primary" />
+                                                        ) : (
+                                                            <DownloadIcon fontSize="small" />
+                                                        )}
+                                                    </IconButton>
+                                                </span>
+                                            </Tooltip>
+                                        </TableCell>
+                                    </TableRow>
+                                ))
+                            )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Box>
         </Card>
     );
 }

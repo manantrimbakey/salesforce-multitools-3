@@ -1,4 +1,4 @@
-import { Grid } from '@mui/material';
+import { Box } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useVSCodeApi } from '../../App';
 import ComponentFileSwitcher from '../componentFileSwitcher/componentFileSwitcher';
@@ -58,9 +58,27 @@ function MainBody() {
     };
 
     return (
-        <Grid container direction="column" alignItems={'normal'} spacing={2}>
-            <Grid>{renderComponent()}</Grid>
-        </Grid>
+        <Box
+            sx={{
+                width: '100%',
+                height: '100%',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+            }}
+        >
+            <Box
+                sx={{
+                    flexGrow: 1,
+                    width: '100%',
+                    height: '100%',
+                    overflow: 'hidden',
+                    padding: '8px',
+                }}
+            >
+                {renderComponent()}
+            </Box>
+        </Box>
     );
 }
 
