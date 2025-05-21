@@ -209,8 +209,8 @@ export class ExpressServer {
                 let query =
                     'SELECT Id, LogUser.Name, LogLength, Operation, Application, Status, StartTime, RequestIdentifier FROM ApexLog';
 
-                // Add WHERE clause if user filter is provided
-                if (userFilter && userFilter !== 'all') {
+                // Add WHERE clause if user filter is provided and not 'all'
+                if (userFilter && userFilter !== 'all' && userFilter !== 'All Users') {
                     query += ` WHERE LogUser.Name = '${userFilter}'`;
                 }
 
@@ -246,27 +246,28 @@ export class ExpressServer {
         // Get Salesforce users for autocomplete
         this.app.get('/api/users', async (req, res) => {
             try {
-                Logger.debug('API request received for Salesforce users');
+                const searchTerm = req.query.search as string;
+                Logger.debug(`API request received for Salesforce users with search: ${searchTerm || 'none'}`);
 
                 const sfconnection = await SFUtils.getConnection();
 
-                // Get the search term if provided
-                const searchTerm = req.query.search as string;
+                // Construct the query with search filter
+                let query = 'SELECT Id, Name, Username FROM User WHERE IsActive = true';
 
-                // Construct the query with optional search filter
-                let query = 'SELECT Id, Name FROM User WHERE IsActive = true';
-
-                // Add search term if provided
+                // Add search term if provided - use LIKE for case-insensitive partial match
                 if (searchTerm && searchTerm.length > 0) {
-                    query += ` AND Name LIKE '%${searchTerm}%'`;
+                    // Escape any single quotes in the search term
+                    const escapedSearchTerm = searchTerm.replace(/'/g, "\\'");
+                    query += ` AND (Name LIKE '%${escapedSearchTerm}%' OR Username LIKE '%${escapedSearchTerm}%')`;
                 }
 
-                // Add ORDER BY and LIMIT
-                query += ' ORDER BY Name LIMIT 50';
+                // Add sorting and limit - increase limit for better suggestions but not too many
+                query += ' ORDER BY Name LIMIT 25';
 
+                Logger.debug(`Executing user search query: ${query}`);
                 const users = await sfconnection.query(query);
 
-                Logger.debug(`Retrieved ${users.totalSize} Salesforce users`);
+                Logger.debug(`Retrieved ${users.totalSize} Salesforce users matching search "${searchTerm || 'none'}"`);
 
                 // Get the current user's info
                 const currentUserInfo = await sfconnection.identity();

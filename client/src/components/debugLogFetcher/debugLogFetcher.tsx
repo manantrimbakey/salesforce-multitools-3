@@ -68,6 +68,7 @@ declare type DownloadResponse = {
 declare type User = {
     Id: string;
     Name: string;
+    Username?: string;
 };
 
 declare type UsersResponse = {
@@ -240,6 +241,9 @@ export default function DebugLogFetcher() {
         if (newValue === null) {
             // Show all logs
             fetchLogs('all');
+        } else if (newValue.Id === 'all') {
+            // All Users option selected
+            fetchLogs('all');
         } else {
             // Filter by selected user
             fetchLogs(newValue.Name);
@@ -252,6 +256,17 @@ export default function DebugLogFetcher() {
 
         try {
             setDownloadingLogId(logId);
+
+            // Find the log to get its size for better UX feedback
+            const logDetails = logs.find((log) => log.Id === logId);
+            const isLargeFile = logDetails && logDetails.LogLength > 5000000; // 5MB threshold
+
+            if (isLargeFile) {
+                console.log(
+                    `Downloading large log file (${Math.round(logDetails!.LogLength / 1048576)}MB), this may take some time...`,
+                );
+            }
+
             const response: DownloadResponse = await window.callServerApi(`/api/debugLogs/${logId}/download`);
 
             if (response?.success) {
@@ -344,10 +359,30 @@ export default function DebugLogFetcher() {
                             ...users,
                         ]}
                         getOptionLabel={(option) => option.Name}
+                        renderOption={(props, option) => (
+                            <li {...props}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                    <Typography variant="body1">{option.Name}</Typography>
+                                    {option.Id !== 'all' && option.Id !== 'current' && 'Username' in option && (
+                                        <Typography variant="caption" color="text.secondary">
+                                            {(option as User).Username}
+                                        </Typography>
+                                    )}
+                                </Box>
+                            </li>
+                        )}
                         isOptionEqualToValue={(option, value) => option.Id === value.Id}
                         loading={loadingUsers}
+                        loadingText="Searching..."
                         value={selectedUser}
                         onChange={handleUserChange}
+                        onInputChange={(_, newInputValue) => {
+                            if (newInputValue && newInputValue.length > 1) {
+                                fetchUsers(newInputValue);
+                            }
+                        }}
+                        filterOptions={(x) => x} // Disable client-side filtering, rely on server search
+                        noOptionsText="Type to search users..."
                         renderInput={(params) => {
                             // Adornment components
                             const startAdornment = (
@@ -365,6 +400,7 @@ export default function DebugLogFetcher() {
                                 <TextField
                                     {...params}
                                     label="Filter by User"
+                                    placeholder="Start typing..."
                                     variant="outlined"
                                     size="small"
                                     // Use slotProps instead of InputProps
@@ -446,15 +482,29 @@ export default function DebugLogFetcher() {
                                         <MethodName logId={log.Id} />
                                     </TableCell>
                                     <TableCell align="center">
-                                        <Tooltip title="Download and open in VS Code">
-                                            <IconButton
-                                                size="small"
-                                                onClick={() => downloadFullLog(log.Id)}
-                                                disabled={downloadingLogId === log.Id}
-                                                color="primary"
-                                            >
-                                                <DownloadIcon fontSize="small" />
-                                            </IconButton>
+                                        <Tooltip
+                                            title={
+                                                downloadingLogId === log.Id
+                                                    ? 'Opening in VS Code...'
+                                                    : 'Download and open in VS Code'
+                                            }
+                                        >
+                                            <span>
+                                                {' '}
+                                                {/* Wrapper needed for disabled tooltip */}
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => downloadFullLog(log.Id)}
+                                                    disabled={downloadingLogId !== null}
+                                                    color="primary"
+                                                >
+                                                    {downloadingLogId === log.Id ? (
+                                                        <CircularProgress size={18} thickness={5} color="primary" />
+                                                    ) : (
+                                                        <DownloadIcon fontSize="small" />
+                                                    )}
+                                                </IconButton>
+                                            </span>
                                         </Tooltip>
                                     </TableCell>
                                 </TableRow>
