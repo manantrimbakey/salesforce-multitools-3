@@ -12,6 +12,7 @@ import { storeLastModifiedInfo, getStoredLastModifiedInfo } from './lastModified
  */
 export async function getFileLastModifiedInfo(filePath: string): Promise<FormattedLastModifiedInfo | null> {
     try {
+        Logger.debug(`Getting last modified info for file: ${filePath}`);
         // Extract the metadata type and API name from the file path
         const metadataInfo = getMetadataInfoFromFilePath(filePath);
         if (!metadataInfo) {

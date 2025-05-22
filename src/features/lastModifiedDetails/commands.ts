@@ -132,6 +132,8 @@ async function updateStatusBarBasedOnEditor(editor?: vscode.TextEditor): Promise
     }
 
     const filePath = editor.document.uri.fsPath;
+
+    Logger.debug(`Updating status bar based on editor: ${filePath}`);
     const metadataInfo = getMetadataInfoFromFilePath(filePath);
 
     if (metadataInfo) {
@@ -188,6 +190,8 @@ function startAutoRefreshTimer(): void {
         const editor = vscode.window.activeTextEditor;
         if (editor) {
             const filePath = editor.document.uri.fsPath;
+
+            Logger.debug(`Auto-refreshing last modified details for ${filePath}`);
             const metadataInfo = getMetadataInfoFromFilePath(filePath);
 
             if (metadataInfo) {
@@ -296,7 +300,6 @@ class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
         const isAura = filePath.includes('/aura/');
 
         Logger.debug(`File path: ${filePath}, isLwc: ${isLwc}, isAura: ${isAura}`);
-
         const metadataInfo = getMetadataInfoFromFilePath(filePath);
 
         if (!metadataInfo) {

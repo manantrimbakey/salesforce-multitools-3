@@ -17,10 +17,19 @@ import {
     CircularProgress,
     TextField,
     Autocomplete,
+    Snackbar,
+    Alert,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DownloadIcon from '@mui/icons-material/Download';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
+import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 
 // Extend window interface to include server properties
 declare global {
@@ -164,6 +173,15 @@ function MethodName({ logId }: { logId: string }) {
     );
 }
 
+// Add type for delete response
+interface DeleteLogsResponse {
+    success: boolean;
+    deleted?: number;
+    failed?: number;
+    total?: number;
+    error?: string;
+}
+
 export default function DebugLogFetcher() {
     const [logs, setLogs] = useState<Log[]>([]);
     const [loading, setLoading] = useState(false);
@@ -172,6 +190,11 @@ export default function DebugLogFetcher() {
     const [selectedUser, setSelectedUser] = useState<User | { Id: string; Name: string } | null>(null);
     const [currentUser, setCurrentUser] = useState<{ display_name: string; username: string } | null>(null);
     const [loadingUsers, setLoadingUsers] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>(
+        { open: false, message: '', severity: 'success' }
+    );
+    const [pendingDelete, setPendingDelete] = useState<{ userName: string | null } | null>(null);
 
     // Fetch users for the autocomplete dropdown
     const fetchUsers = async (searchTerm: string = '') => {
@@ -294,6 +317,27 @@ export default function DebugLogFetcher() {
         }
     };
 
+    // Delete logs handler
+    const handleDeleteLogs = async (userName: string | null) => {
+        if (!window.callServerApi) return;
+        setDeleting(true);
+        try {
+            const response: unknown = await window.callServerApi('/api/debugLogs/delete', 'POST', { userName });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const isDeleteResponse = (resp: any): resp is DeleteLogsResponse => typeof resp === 'object' && resp !== null && 'success' in resp;
+            if (isDeleteResponse(response) && response.success) {
+                setSnackbar({ open: true, message: `Deleted ${response.deleted ?? 0} logs${response.failed && response.failed > 0 ? ", failed: " + response.failed : ''}`, severity: 'success' });
+                fetchLogs(userName && userName !== 'all' ? userName : 'all');
+            } else {
+                setSnackbar({ open: true, message: 'Failed to delete logs: ' + (isDeleteResponse(response) && response.error ? response.error : 'Unknown error'), severity: 'error' });
+            }
+        } catch (e) {
+            setSnackbar({ open: true, message: 'Error deleting logs: ' + (e instanceof Error ? e.message : String(e)), severity: 'error' });
+        } finally {
+            setDeleting(false);
+        }
+    };
+
     // Initial data load
     useEffect(() => {
         // Fetch users first to get current user
@@ -352,6 +396,48 @@ export default function DebugLogFetcher() {
                     Debug Logs
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Tooltip title="Delete logs for selected user">
+                        <span>
+                            <IconButton
+                                color="error"
+                                size="small"
+                                disabled={loading || deleting || !selectedUser || selectedUser.Id === 'all'}
+                                onClick={() => setPendingDelete({ userName: selectedUser ? selectedUser.Name : null })}
+                                sx={{
+                                    backgroundColor: 'error.main',
+                                    color: 'common.white',
+                                    borderRadius: 1,
+                                    '&:hover': {
+                                        backgroundColor: 'error.dark',
+                                    },
+                                    boxShadow: 1,
+                                }}
+                            >
+                                <PersonRemoveIcon />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+                    <Tooltip title="Delete all logs">
+                        <span>
+                            <IconButton
+                                color="error"
+                                size="small"
+                                disabled={loading || deleting}
+                                onClick={() => setPendingDelete({ userName: null })}
+                                sx={{
+                                    backgroundColor: 'error.main',
+                                    color: 'common.white',
+                                    borderRadius: 1,
+                                    '&:hover': {
+                                        backgroundColor: 'error.dark',
+                                    },
+                                    boxShadow: 1,
+                                }}
+                            >
+                                <DeleteSweepIcon />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
                     <Autocomplete
                         sx={{ width: '20rem' }}
                         options={[
@@ -644,6 +730,51 @@ export default function DebugLogFetcher() {
                     </Table>
                 </TableContainer>
             </Box>
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
+                onClose={() => setSnackbar({ ...snackbar, open: false })}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert
+                    onClose={() => setSnackbar({ ...snackbar, open: false })}
+                    severity={snackbar.severity}
+                    sx={{ width: '100%' }}
+                >
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
+            {/* Confirmation Modal for Delete */}
+            <Dialog
+                open={!!pendingDelete}
+                onClose={() => setPendingDelete(null)}
+                aria-labelledby="delete-confirmation-dialog-title"
+            >
+                <DialogTitle id="delete-confirmation-dialog-title">
+                    Confirm Deletion
+                </DialogTitle>
+                <DialogContent>
+                    {pendingDelete?.userName
+                        ? `Are you sure you want to delete logs for "${pendingDelete.userName}"?`
+                        : 'Are you sure you want to delete all logs?'}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setPendingDelete(null)} color="primary" variant="outlined">
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            handleDeleteLogs(pendingDelete?.userName ?? null);
+                            setPendingDelete(null);
+                        }}
+                        color="error"
+                        variant="contained"
+                        autoFocus
+                    >
+                        Confirm
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Card>
     );
 }
