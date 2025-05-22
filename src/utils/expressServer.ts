@@ -358,10 +358,25 @@ export class ExpressServer {
                     // Use the getLogBody method to get log content - limit to 1KB
                     const logBody = await this.getLogBody(logId, instanceUrl, accessToken, true);
 
-                    // Extract method name using regex
-                    const logEntryRegex = /\d+:\d+:\d+\.\d+ \(\d+\)\|CODE_UNIT_STARTED\|\[EXTERNAL\]\|\w+\|(.+)/;
-                    const logEntry = logBody?.match(logEntryRegex);
-                    const methodName = logEntry?.[1] || 'NO_METHOD_NAME_FOUND';
+                    // Find the first CODE_UNIT_STARTED line
+                    const codeUnitLine = logBody.split('\n').find(line => line.includes('|CODE_UNIT_STARTED|[EXTERNAL]|'));
+                    let methodName = 'NO_METHOD_NAME_FOUND';
+                    if (codeUnitLine) {
+                        const parts = codeUnitLine.split('|');
+                        let rawName = parts[parts.length - 1].trim();
+                        // Format Apex method names
+                        if (rawName.startsWith('apex://')) {
+                            // Example: apex://NotesManagerController/ACTION$getLatestInProgressTask
+                            const match = rawName.match(/^apex:\/\/([^/]+)\/ACTION\$(.+)$/);
+                            if (match) {
+                                methodName = `${match[1]}.${match[2]}`;
+                            } else {
+                                methodName = rawName; // fallback
+                            }
+                        } else {
+                            methodName = rawName;
+                        }
+                    }
 
                     res.json({
                         success: true,
@@ -398,6 +413,65 @@ export class ExpressServer {
                 });
             } catch (error: unknown) {
                 Logger.error(`Error deleting debug log via API:`, error);
+                res.status(500).json({
+                    success: false,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        });
+
+        // Bulk delete debug logs for a user or all users
+        this.app.post('/api/debugLogs/delete', async (req, res) => {
+            try {
+                const userName = req.body.userName;
+                const sfconnection = await SFUtils.getConnection();
+                let query = 'SELECT Id FROM ApexLog';
+
+                Logger.debug(`Deleting debug logs for user: ${userName}`);
+
+                if (userName && userName !== 'all') {
+                    query += ` WHERE LogUser.Name = '${userName.replace(/'/g, "\\'")}'`;
+                }
+
+                Logger.debug(`Executing query: ${query}`);
+
+                const logs = await sfconnection.query(query);
+
+                Logger.debug(`Retrieved ${JSON.stringify(logs)} debug logs`);
+
+                const logIds = logs.records.map((log: any) => log.Id);
+                let deleted = 0, failed = 0;
+                const batchSize = 10;
+                for (let i = 0; i < logIds.length; i += batchSize) {
+                    const batch = logIds.slice(i, i + batchSize);
+                    Logger.debug(`Deleting batch ${i / batchSize + 1}: ${batch.length} logs`);
+                    const results = await Promise.allSettled(
+                        batch.map(async (logId) => {
+                            try {
+                                await sfconnection.request({
+                                    url: `/services/data/v56.0/sobjects/ApexLog/${logId}`,
+                                    method: 'DELETE',
+                                });
+                                Logger.debug(`Deleted log ${logId}`);
+                                return 'deleted';
+                            } catch (err) {
+                                Logger.error(`Failed to delete log ${logId}:`, err);
+                                return 'failed';
+                            }
+                        })
+                    );
+                    deleted += results.filter(r => r.status === 'fulfilled' && r.value === 'deleted').length;
+                    failed += results.filter(r => r.status === 'fulfilled' && r.value === 'failed').length;
+                    failed += results.filter(r => r.status === 'rejected').length;
+                }
+                res.json({
+                    success: true,
+                    deleted,
+                    failed,
+                    total: logIds.length,
+                });
+            } catch (error) {
+                Logger.error('Error bulk deleting debug logs:', error);
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
