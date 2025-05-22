@@ -46,6 +46,7 @@ export enum ComponentType {
  * Get the component type from a file path
  */
 export function getComponentType(filePath: string): ComponentType {
+    Logger.debug(`Getting component type for ${filePath}`);
     const metadataInfo = getMetadataInfoFromFilePath(filePath);
 
     if (!metadataInfo) {
@@ -67,6 +68,7 @@ export function getComponentType(filePath: string): ComponentType {
  * Get the component folder from a file path
  */
 export function getComponentFolder(filePath: string): string | null {
+    Logger.debug(`Getting component folder for ${filePath}`);
     const metadataInfo = getMetadataInfoFromFilePath(filePath);
 
     if (!metadataInfo) {
@@ -94,6 +96,7 @@ export function getComponentFolder(filePath: string): string | null {
  * Get the component name from a file path
  */
 export function getComponentName(filePath: string): string | null {
+    Logger.debug(`Getting component name for ${filePath}`);
     const metadataInfo = getMetadataInfoFromFilePath(filePath);
 
     if (!metadataInfo) {
