@@ -2,7 +2,7 @@
     "name": "salesforce-multitools-3",
     "displayName": "Salesforce Multitools",
     "description": "A set of tools for Salesforce development in VS Code",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "publisher": "manantrimbakey",
     "icon": "resources/salesforce-icon-colorful.png",
     "repository": {
