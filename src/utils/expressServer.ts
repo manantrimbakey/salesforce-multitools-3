@@ -204,6 +204,9 @@ export class ExpressServer {
 
                 // Get the user filter if provided
                 const userFilter = req.query.user as string;
+                const sizeParam = req.query.size as string;
+                const sizeDirection = req.query.sizeDirection as string; // 'above' or 'below'
+                const size = sizeParam ? parseInt(sizeParam, 10) : undefined;
 
                 // Construct the query with optional user filter
                 let query =
@@ -227,6 +230,16 @@ export class ExpressServer {
                     logRecords = logs;
                 } else {
                     logRecords = {};
+                }
+
+                // Filter by log size if requested
+                if (logRecords.records && size && (sizeDirection === 'above' || sizeDirection === 'below')) {
+                    logRecords.records = logRecords.records.filter((log: any) =>
+                        sizeDirection === 'above'
+                            ? log.LogLength > size
+                            : log.LogLength < size
+                    );
+                    logRecords.totalSize = logRecords.records.length;
                 }
 
                 // Return an empty array for now - actual implementation would come from your DebugLogProvider

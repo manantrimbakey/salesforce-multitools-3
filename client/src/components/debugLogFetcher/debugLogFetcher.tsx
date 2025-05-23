@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     Card,
     TableContainer,
@@ -24,6 +24,8 @@ import {
     DialogContent,
     DialogActions,
     Button,
+    InputAdornment,
+    MenuItem,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -105,8 +107,32 @@ function MethodName({ logId }: { logId: string }) {
     const [methodName, setMethodName] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [shouldFetch, setShouldFetch] = useState(false);
+    const ref = useRef<HTMLSpanElement | null>(null);
 
     useEffect(() => {
+        // Use Intersection Observer to trigger fetch only when visible
+        const node = ref.current;
+        if (!node) return;
+        const observer = new window.IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        setShouldFetch(true);
+                    }
+                });
+            },
+            { threshold: 0.1 }
+        );
+        observer.observe(node);
+        return () => {
+            observer.unobserve(node);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!shouldFetch) return;
+        let cancelled = false;
         const fetchMethodName = async () => {
             // Check if we have a cached value that's less than 30 minutes old
             const cachedData = methodNameCache[logId];
@@ -114,47 +140,40 @@ function MethodName({ logId }: { logId: string }) {
             const now = Date.now();
 
             if (cachedData && now - cachedData.timestamp < cacheExpiration) {
-                // Use cached value
                 setMethodName(cachedData.methodName);
                 return;
             }
 
-            // No valid cache, fetch from API
             if (!window.callServerApi) return;
-
             setLoading(true);
             setError(null);
-
             try {
                 const response: MethodNameResponse = await window.callServerApi(`/api/debugLogs/${logId}/methodName`);
-
                 if (response?.success) {
                     const newMethodName = response.methodName;
-                    setMethodName(newMethodName);
-
-                    // Store in cache
+                    if (!cancelled) setMethodName(newMethodName);
                     methodNameCache[logId] = {
                         methodName: newMethodName,
                         timestamp: now,
                     };
                 } else {
-                    setError('Failed to fetch method name');
+                    if (!cancelled) setError('Failed to fetch method name');
                 }
-            } catch (err) {
-                console.error('Error fetching method name:', err);
-                setError('Error fetching method name');
+            } catch {
+                if (!cancelled) setError('Error fetching method name');
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
-
         fetchMethodName();
-    }, [logId]);
+        return () => {
+            cancelled = true;
+        };
+    }, [logId, shouldFetch]);
 
     if (loading) {
         return <CircularProgress size={16} />;
     }
-
     if (error) {
         return (
             <Tooltip title={error}>
@@ -162,11 +181,10 @@ function MethodName({ logId }: { logId: string }) {
             </Tooltip>
         );
     }
-
     // Always display a tooltip with the full method name
     return (
         <Tooltip title={methodName || 'No method found'}>
-            <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <span ref={ref} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {methodName || 'N/A'}
             </span>
         </Tooltip>
@@ -195,6 +213,8 @@ export default function DebugLogFetcher() {
         { open: false, message: '', severity: 'success' }
     );
     const [pendingDelete, setPendingDelete] = useState<{ userName: string | null } | null>(null);
+    const [logSize, setLogSize] = useState<string>('');
+    const [logSizeDirection, setLogSizeDirection] = useState<'above' | 'below'>('above');
 
     // Fetch users for the autocomplete dropdown
     const fetchUsers = async (searchTerm: string = '') => {
@@ -230,26 +250,26 @@ export default function DebugLogFetcher() {
         }
     };
 
-    const fetchLogs = async (userFilter: string | null = null) => {
+    const fetchLogs = async (userFilter: string | null = null, size?: string, sizeDirection?: 'above' | 'below') => {
         if (!window.callServerApi) return;
 
         setLoading(true);
         try {
             let endpoint = '/api/debugLogs';
-
-            // Add user filter if provided
+            const params = [];
             if (userFilter && userFilter !== 'all') {
-                endpoint += `?user=${encodeURIComponent(userFilter)}`;
+                params.push(`user=${encodeURIComponent(userFilter)}`);
             }
-
+            if (size && size !== '') {
+                params.push(`size=${encodeURIComponent(size)}`);
+            }
+            if (sizeDirection) {
+                params.push(`sizeDirection=${encodeURIComponent(sizeDirection)}`);
+            }
+            if (params.length > 0) {
+                endpoint += `?${params.join('&')}`;
+            }
             const response: Response = await window.callServerApi(endpoint);
-
-            console.log(
-                `%cresponse: %c${JSON.stringify(response)}`,
-                'padding: 0.5rem; color: white; font-weight: bold; background-color: blue;',
-                'padding: 0.5rem; color: black; background-color: gold;',
-            );
-
             if (response?.success) {
                 setLogs(response?.logs?.records || []);
             }
@@ -263,16 +283,12 @@ export default function DebugLogFetcher() {
     // Handle user selection change
     const handleUserChange = (_event: React.SyntheticEvent, newValue: User | { Id: string; Name: string } | null) => {
         setSelectedUser(newValue);
-
         if (newValue === null) {
-            // Show all logs
-            fetchLogs('all');
+            fetchLogs('all', logSize, logSizeDirection);
         } else if (newValue.Id === 'all') {
-            // All Users option selected
-            fetchLogs('all');
+            fetchLogs('all', logSize, logSizeDirection);
         } else {
-            // Filter by selected user
-            fetchLogs(newValue.Name);
+            fetchLogs(newValue.Name, logSize, logSizeDirection);
         }
     };
 
@@ -338,6 +354,11 @@ export default function DebugLogFetcher() {
         }
     };
 
+    // Add a handler for the log size filter
+    const handleLogSizeFilter = () => {
+        fetchLogs(selectedUser ? selectedUser.Name : 'all', logSize, logSizeDirection);
+    };
+
     // Initial data load
     useEffect(() => {
         // Fetch users first to get current user
@@ -345,11 +366,12 @@ export default function DebugLogFetcher() {
         // Logs will be fetched after current user is set
     }, []);
 
-    // Fetch logs when current user is set
+    // Fetch logs when current user is set or log size filter changes
     useEffect(() => {
         if (selectedUser) {
-            fetchLogs(selectedUser.Name);
+            fetchLogs(selectedUser.Name, logSize, logSizeDirection);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentUser]);
 
     // Format the date to be more readable
@@ -512,10 +534,43 @@ export default function DebugLogFetcher() {
                             <RefreshIcon />
                         </IconButton>
                     </Tooltip>
+                    {/* Log Size Filter Controls */}
+                    <TextField
+                        label="Log Size (bytes)"
+                        type="number"
+                        size="small"
+                        value={logSize}
+                        onChange={e => setLogSize(e.target.value)}
+                        slotProps={{
+                            input: {
+                                endAdornment: <InputAdornment position="end">bytes</InputAdornment>,
+                            }
+                        }}
+                        sx={{ width: 140 }}
+                    />
+                    <TextField
+                        select
+                        label="Filter"
+                        size="small"
+                        value={logSizeDirection}
+                        onChange={e => setLogSizeDirection(e.target.value as 'above' | 'below')}
+                        sx={{ width: 100 }}
+                    >
+                        <MenuItem value="above">Above</MenuItem>
+                        <MenuItem value="below">Below</MenuItem>
+                    </TextField>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={handleLogSizeFilter}
+                        disabled={loading}
+                    >
+                        Apply
+                    </Button>
                 </Box>
             </Box>
 
-            {loading && <LinearProgress sx={{ flexShrink: 0 }} />}
+            {(loading || deleting) && <LinearProgress sx={{ flexShrink: 0 }} />}
 
             <Box
                 sx={{
@@ -759,7 +814,7 @@ export default function DebugLogFetcher() {
                         : 'Are you sure you want to delete all logs?'}
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setPendingDelete(null)} color="primary" variant="outlined">
+                    <Button onClick={() => setPendingDelete(null)} color="primary" variant="outlined" disabled={deleting}>
                         Cancel
                     </Button>
                     <Button
@@ -770,8 +825,10 @@ export default function DebugLogFetcher() {
                         color="error"
                         variant="contained"
                         autoFocus
+                        disabled={deleting}
+                        startIcon={deleting ? <CircularProgress size={18} color="inherit" /> : null}
                     >
-                        Confirm
+                        {deleting ? 'Deleting...' : 'Confirm'}
                     </Button>
                 </DialogActions>
             </Dialog>
