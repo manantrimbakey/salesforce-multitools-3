@@ -56,7 +56,6 @@ export default function ComponentFileSwitcher() {
 
             // Handle component file switcher refresh
             if (message.command === 'componentFileSwitcherRefresh') {
-                console.log('Component data refresh:', message.data);
                 setComponentData(message.data);
             }
         };
@@ -153,24 +152,10 @@ export default function ComponentFileSwitcher() {
                 overflow: 'hidden',
             }}
         >
-            <CardContent
-                sx={{
-                    p: 2,
-                    flexShrink: 0,
-                    pb: '16px !important', // Override MUI's default padding
-                }}
-            >
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    Current: {componentData.fileName}
-                </Typography>
-            </CardContent>
-
             <Paper
                 variant="outlined"
                 sx={{
                     flexGrow: 1,
-                    m: 2,
-                    mt: 0,
                     overflow: 'hidden',
                     display: 'flex',
                     flexDirection: 'column',
@@ -204,7 +189,6 @@ export default function ComponentFileSwitcher() {
                                         key={file.path}
                                         onClick={() => handleFileClick(file.path)}
                                         sx={{
-                                            pl: 2,
                                             cursor: 'pointer',
                                             bgcolor: isCurrentFile ? 'primary.main' : 'transparent',
                                             color: isCurrentFile ? 'primary.contrastText' : 'inherit',
@@ -249,7 +233,15 @@ export default function ComponentFileSwitcher() {
                 </List>
             </Paper>
 
-            <Typography variant="caption" color="text.secondary" sx={{ m: 2, mt: 0, display: 'block', flexShrink: 0 }}>
+            <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                    display: 'block',
+                    flexShrink: 0,
+                    textAlign: 'center',
+                }}
+            >
                 Press Alt+O (Option+O on Mac) to switch files
             </Typography>
         </Card>

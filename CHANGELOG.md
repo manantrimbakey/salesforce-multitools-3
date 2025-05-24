@@ -2,6 +2,10 @@
 
 All notable changes to the "salesforce-multitools-3" extension will be documented in this file.
 
+## [0.3.0]
+### Updated
+- UI enhancements for the debug log fetcher
+
 ## [0.2.1]
 ### Updated
 - Updated the readme for the extension

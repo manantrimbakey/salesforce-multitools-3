@@ -24,12 +24,16 @@ import {
     DialogContent,
     DialogActions,
     Button,
+    Grid,
+    Divider,
     InputAdornment,
-    MenuItem,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DownloadIcon from '@mui/icons-material/Download';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 
@@ -68,12 +72,6 @@ declare type MethodNameResponse = {
     success: boolean;
     methodName: string;
     logId: string;
-};
-
-declare type DownloadResponse = {
-    success: boolean;
-    message: string;
-    size: number;
 };
 
 declare type User = {
@@ -122,7 +120,7 @@ function MethodName({ logId }: { logId: string }) {
                     }
                 });
             },
-            { threshold: 0.1 }
+            { threshold: 0.1 },
         );
         observer.observe(node);
         return () => {
@@ -209,9 +207,11 @@ export default function DebugLogFetcher() {
     const [currentUser, setCurrentUser] = useState<{ display_name: string; username: string } | null>(null);
     const [loadingUsers, setLoadingUsers] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>(
-        { open: false, message: '', severity: 'success' }
-    );
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+        open: false,
+        message: '',
+        severity: 'success',
+    });
     const [pendingDelete, setPendingDelete] = useState<{ userName: string | null } | null>(null);
     const [logSize, setLogSize] = useState<string>('');
     const [logSizeDirection, setLogSizeDirection] = useState<'above' | 'below'>('above');
@@ -243,8 +243,9 @@ export default function DebugLogFetcher() {
                     setSelectedUser(currentUserObj);
                 }
             }
-        } catch (error) {
-            console.error('Error fetching users:', error);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_) {
+            /* empty */
         } finally {
             setLoadingUsers(false);
         }
@@ -273,8 +274,9 @@ export default function DebugLogFetcher() {
             if (response?.success) {
                 setLogs(response?.logs?.records || []);
             }
-        } catch (error) {
-            console.error('Error fetching logs:', error);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_) {
+            /* empty */
         } finally {
             setLoading(false);
         }
@@ -300,24 +302,11 @@ export default function DebugLogFetcher() {
             setDownloadingLogId(logId);
 
             // Find the log to get its size for better UX feedback
-            const logDetails = logs.find((log) => log.Id === logId);
-            const isLargeFile = logDetails && logDetails.LogLength > 5000000; // 5MB threshold
 
-            if (isLargeFile) {
-                console.log(
-                    `Downloading large log file (${Math.round(logDetails!.LogLength / 1048576)}MB), this may take some time...`,
-                );
-            }
-
-            const response: DownloadResponse = await window.callServerApi(`/api/debugLogs/${logId}/download`);
-
-            if (response?.success) {
-                console.log(`Log opened in VS Code: ${response.message}`);
-            } else {
-                console.error('Failed to open log in VS Code');
-            }
-        } catch (error) {
-            console.error('Error downloading log:', error);
+            await window.callServerApi(`/api/debugLogs/${logId}/download`);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_) {
+            /* empty */
         } finally {
             setDownloadingLogId(null);
         }
@@ -327,9 +316,9 @@ export default function DebugLogFetcher() {
     const handleRefresh = () => {
         // Refresh logs with the current user filter
         if (selectedUser === null) {
-            fetchLogs('all');
+            fetchLogs('all', logSize, logSizeDirection);
         } else {
-            fetchLogs(selectedUser.Name);
+            fetchLogs(selectedUser.Name, logSize, logSizeDirection);
         }
     };
 
@@ -340,23 +329,45 @@ export default function DebugLogFetcher() {
         try {
             const response: unknown = await window.callServerApi('/api/debugLogs/delete', 'POST', { userName });
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const isDeleteResponse = (resp: any): resp is DeleteLogsResponse => typeof resp === 'object' && resp !== null && 'success' in resp;
+            const isDeleteResponse = (resp: any): resp is DeleteLogsResponse =>
+                typeof resp === 'object' && resp !== null && 'success' in resp;
             if (isDeleteResponse(response) && response.success) {
-                setSnackbar({ open: true, message: `Deleted ${response.deleted ?? 0} logs${response.failed && response.failed > 0 ? ", failed: " + response.failed : ''}`, severity: 'success' });
+                setSnackbar({
+                    open: true,
+                    message: `Deleted ${response.deleted ?? 0} logs${response.failed && response.failed > 0 ? ', failed: ' + response.failed : ''}`,
+                    severity: 'success',
+                });
                 fetchLogs(userName && userName !== 'all' ? userName : 'all');
             } else {
-                setSnackbar({ open: true, message: 'Failed to delete logs: ' + (isDeleteResponse(response) && response.error ? response.error : 'Unknown error'), severity: 'error' });
+                setSnackbar({
+                    open: true,
+                    message:
+                        'Failed to delete logs: ' +
+                        (isDeleteResponse(response) && response.error ? response.error : 'Unknown error'),
+                    severity: 'error',
+                });
             }
         } catch (e) {
-            setSnackbar({ open: true, message: 'Error deleting logs: ' + (e instanceof Error ? e.message : String(e)), severity: 'error' });
+            setSnackbar({
+                open: true,
+                message: 'Error deleting logs: ' + (e instanceof Error ? e.message : String(e)),
+                severity: 'error',
+            });
         } finally {
             setDeleting(false);
         }
     };
 
-    // Add a handler for the log size filter
-    const handleLogSizeFilter = () => {
-        fetchLogs(selectedUser ? selectedUser.Name : 'all', logSize, logSizeDirection);
+    // Handle log size change
+    const handleLogSizeChange = (value: string) => {
+        setLogSize(value);
+        fetchLogs(selectedUser ? selectedUser.Name : 'all', value, logSizeDirection);
+    };
+
+    // Handle log size direction change
+    const handleLogSizeDirectionChange = (direction: 'above' | 'below') => {
+        setLogSizeDirection(direction);
+        fetchLogs(selectedUser ? selectedUser.Name : 'all', logSize, direction);
     };
 
     // Initial data load
@@ -380,8 +391,8 @@ export default function DebugLogFetcher() {
         try {
             const date = new Date(dateString);
             return date.toLocaleString();
-        } catch (e) {
-            console.error('Error formatting date:', e);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        } catch (_) {
             return dateString;
         }
     };
@@ -395,73 +406,18 @@ export default function DebugLogFetcher() {
         <Card
             sx={{
                 borderRadius: '0.25rem',
-                height: '100%',
+                height: 'calc(100% - 1rem)',
+                maxHeight: 'calc(100% - 1rem)',
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
             }}
         >
-            <Box
-                sx={{
-                    p: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    borderBottom: 1,
-                    borderColor: 'divider',
-                    bgcolor: 'background.paper',
-                    zIndex: 2, // Ensure it stays above the scrolling content
-                    flexShrink: 0, // Prevent header from shrinking
-                }}
-            >
-                <Typography variant="h6" component="div">
-                    Debug Logs
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Tooltip title="Delete logs for selected user">
-                        <span>
-                            <IconButton
-                                color="error"
-                                size="small"
-                                disabled={loading || deleting || !selectedUser || selectedUser.Id === 'all'}
-                                onClick={() => setPendingDelete({ userName: selectedUser ? selectedUser.Name : null })}
-                                sx={{
-                                    backgroundColor: 'error.main',
-                                    color: 'common.white',
-                                    borderRadius: 1,
-                                    '&:hover': {
-                                        backgroundColor: 'error.dark',
-                                    },
-                                    boxShadow: 1,
-                                }}
-                            >
-                                <PersonRemoveIcon />
-                            </IconButton>
-                        </span>
-                    </Tooltip>
-                    <Tooltip title="Delete all logs">
-                        <span>
-                            <IconButton
-                                color="error"
-                                size="small"
-                                disabled={loading || deleting}
-                                onClick={() => setPendingDelete({ userName: null })}
-                                sx={{
-                                    backgroundColor: 'error.main',
-                                    color: 'common.white',
-                                    borderRadius: 1,
-                                    '&:hover': {
-                                        backgroundColor: 'error.dark',
-                                    },
-                                    boxShadow: 1,
-                                }}
-                            >
-                                <DeleteSweepIcon />
-                            </IconButton>
-                        </span>
-                    </Tooltip>
+            <Grid sx={{ p: '1rem', justifyContent: 'center', alignItems: 'center' }} container spacing={1}>
+                {/* User filter */}
+                <Grid sx={{ height: '100%' }}>
                     <Autocomplete
-                        sx={{ width: '20rem' }}
+                        sx={{ width: '20rem', height: '100%' }}
                         options={[
                             { Id: 'all', Name: 'All Users' },
                             ...(selectedUser &&
@@ -529,262 +485,249 @@ export default function DebugLogFetcher() {
                             );
                         }}
                     />
+                </Grid>
+
+                {/* Refresh logs */}
+                <Grid sx={{ height: '100%' }}>
                     <Tooltip title="Refresh logs">
-                        <IconButton onClick={handleRefresh} disabled={loading}>
+                        <IconButton sx={{ height: '100%' }} onClick={handleRefresh} disabled={loading}>
                             <RefreshIcon />
                         </IconButton>
                     </Tooltip>
-                    {/* Log Size Filter Controls */}
+                </Grid>
+
+                {/* Divider */}
+                <Divider orientation="vertical" flexItem />
+
+                {/* Delete logs for selected user */}
+                <Grid sx={{ height: '100%' }}>
+                    <Tooltip title="Delete logs for selected user">
+                        <IconButton
+                            color="error"
+                            size="small"
+                            disabled={loading || deleting || !selectedUser || selectedUser.Id === 'all'}
+                            onClick={() => setPendingDelete({ userName: selectedUser ? selectedUser.Name : null })}
+                            sx={{
+                                backgroundColor: 'error.main',
+                                color: 'common.white',
+                                borderRadius: 1,
+                                '&:hover': {
+                                    backgroundColor: 'error.dark',
+                                },
+                                boxShadow: 1,
+                                height: '100%',
+                            }}
+                        >
+                            <PersonRemoveIcon />
+                        </IconButton>
+                    </Tooltip>
+                </Grid>
+
+                {/* Delete all logs */}
+                <Grid sx={{ height: '100%' }}>
+                    <Tooltip title="Delete all logs">
+                        <IconButton
+                            color="error"
+                            size="small"
+                            disabled={loading || deleting}
+                            onClick={() => setPendingDelete({ userName: null })}
+                            sx={{
+                                backgroundColor: 'error.main',
+                                color: 'common.white',
+                                borderRadius: 1,
+                                '&:hover': {
+                                    backgroundColor: 'error.dark',
+                                },
+                                boxShadow: 1,
+                                height: '100%',
+                            }}
+                        >
+                            <DeleteSweepIcon />
+                        </IconButton>
+                    </Tooltip>
+                </Grid>
+
+                {/* Spacer */}
+                <Grid sx={{ flexGrow: 1, height: '100%' }}></Grid>
+
+                {/* Log Size Filter Controls */}
+                <Grid sx={{ height: '100%' }}>
                     <TextField
+                        sx={{ height: '100%' }}
                         label="Log Size (bytes)"
                         type="number"
                         size="small"
                         value={logSize}
-                        onChange={e => setLogSize(e.target.value)}
+                        onChange={(e) => handleLogSizeChange(e.target.value)}
                         slotProps={{
                             input: {
-                                endAdornment: <InputAdornment position="end">bytes</InputAdornment>,
-                            }
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <Tooltip
+                                            title={
+                                                logSizeDirection === 'above'
+                                                    ? 'Show logs larger than this size'
+                                                    : 'Show logs smaller than this size'
+                                            }
+                                        >
+                                            <IconButton
+                                                size="small"
+                                                onClick={() =>
+                                                    handleLogSizeDirectionChange(
+                                                        logSizeDirection === 'above' ? 'below' : 'above',
+                                                    )
+                                                }
+                                                edge="end"
+                                            >
+                                                {logSizeDirection === 'above' ? (
+                                                    <KeyboardArrowUpIcon />
+                                                ) : (
+                                                    <KeyboardArrowDownIcon />
+                                                )}
+                                            </IconButton>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                ),
+                            },
                         }}
-                        sx={{ width: 140 }}
                     />
-                    <TextField
-                        select
-                        label="Filter"
-                        size="small"
-                        value={logSizeDirection}
-                        onChange={e => setLogSizeDirection(e.target.value as 'above' | 'below')}
-                        sx={{ width: 100 }}
-                    >
-                        <MenuItem value="above">Above</MenuItem>
-                        <MenuItem value="below">Below</MenuItem>
-                    </TextField>
-                    <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={handleLogSizeFilter}
-                        disabled={loading}
-                    >
-                        Apply
-                    </Button>
-                </Box>
-            </Box>
+                </Grid>
+            </Grid>
 
             {(loading || deleting) && <LinearProgress sx={{ flexShrink: 0 }} />}
 
-            <Box
-                sx={{
-                    flexGrow: 1,
-                    overflow: 'hidden',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    height: 0, // This is key for flex children to correctly size
-                }}
-            >
-                <TableContainer
-                    component={Paper}
-                    sx={{
-                        flexGrow: 1,
-                        overflow: 'auto',
-                        height: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        maxWidth: '100%',
-                    }}
+            <TableContainer component={Paper}>
+                <Table
+                    stickyHeader
+                    aria-label="debug logs table"
+                    size="small"
+                    sx={{ minWidth: 900 }} // Set a minimum width to ensure horizontal scrolling when needed
                 >
-                    <Table
-                        stickyHeader
-                        aria-label="debug logs table"
-                        size="small"
-                        sx={{ minWidth: 900 }} // Set a minimum width to ensure horizontal scrolling when needed
-                    >
-                        <TableHead>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>
+                                <Tooltip title="User who created this debug log">
+                                    <span>Logged By User</span>
+                                </Tooltip>
+                            </TableCell>
+                            <TableCell>
+                                <Tooltip title="Size of the debug log in bytes">
+                                    <span>Log Length</span>
+                                </Tooltip>
+                            </TableCell>
+                            <TableCell>
+                                <Tooltip title="Date and time when the log was created">
+                                    <span>Start Time</span>
+                                </Tooltip>
+                            </TableCell>
+                            <TableCell>
+                                <Tooltip title="Operation that generated this log">
+                                    <span>Operation</span>
+                                </Tooltip>
+                            </TableCell>
+                            <TableCell>
+                                <Tooltip title="Application that generated this log">
+                                    <span>Application</span>
+                                </Tooltip>
+                            </TableCell>
+                            <TableCell>
+                                <Tooltip title="Success or error status of the operation">
+                                    <span>Status</span>
+                                </Tooltip>
+                            </TableCell>
+                            <TableCell>
+                                <Tooltip title="Primary method executed in this debug log">
+                                    <span>Method Name</span>
+                                </Tooltip>
+                            </TableCell>
+                            <TableCell align="center">{/* Actions column with empty header text */}</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {logs?.length === 0 && !loading ? (
                             <TableRow>
-                                <TableCell
-                                    sx={{
-                                        bgcolor: 'background.paper',
-                                        zIndex: 1,
-                                        position: 'sticky',
-                                        top: 0,
-                                    }}
-                                >
-                                    <Tooltip title="User who created this debug log">
-                                        <span>Logged By User</span>
-                                    </Tooltip>
-                                </TableCell>
-                                <TableCell
-                                    sx={{
-                                        bgcolor: 'background.paper',
-                                        zIndex: 1,
-                                        position: 'sticky',
-                                        top: 0,
-                                    }}
-                                >
-                                    <Tooltip title="Size of the debug log in bytes">
-                                        <span>Log Length</span>
-                                    </Tooltip>
-                                </TableCell>
-                                <TableCell
-                                    sx={{
-                                        bgcolor: 'background.paper',
-                                        zIndex: 1,
-                                        position: 'sticky',
-                                        top: 0,
-                                    }}
-                                >
-                                    <Tooltip title="Date and time when the log was created">
-                                        <span>Start Time</span>
-                                    </Tooltip>
-                                </TableCell>
-                                <TableCell
-                                    sx={{
-                                        bgcolor: 'background.paper',
-                                        zIndex: 1,
-                                        position: 'sticky',
-                                        top: 0,
-                                        maxWidth: '150px',
-                                    }}
-                                >
-                                    <Tooltip title="Operation that generated this log">
-                                        <span>Operation</span>
-                                    </Tooltip>
-                                </TableCell>
-                                <TableCell
-                                    sx={{
-                                        bgcolor: 'background.paper',
-                                        zIndex: 1,
-                                        position: 'sticky',
-                                        top: 0,
-                                    }}
-                                >
-                                    <Tooltip title="Application that generated this log">
-                                        <span>Application</span>
-                                    </Tooltip>
-                                </TableCell>
-                                <TableCell
-                                    sx={{
-                                        bgcolor: 'background.paper',
-                                        zIndex: 1,
-                                        position: 'sticky',
-                                        top: 0,
-                                        maxWidth: '100px',
-                                    }}
-                                >
-                                    <Tooltip title="Success or error status of the operation">
-                                        <span>Status</span>
-                                    </Tooltip>
-                                </TableCell>
-                                <TableCell
-                                    sx={{
-                                        bgcolor: 'background.paper',
-                                        zIndex: 1,
-                                        position: 'sticky',
-                                        top: 0,
-                                        minWidth: '250px',
-                                    }}
-                                >
-                                    <Tooltip title="Primary method executed in this debug log">
-                                        <span>Method Name</span>
-                                    </Tooltip>
-                                </TableCell>
-                                <TableCell
-                                    align="center"
-                                    sx={{
-                                        bgcolor: 'background.paper',
-                                        zIndex: 1,
-                                        position: 'sticky',
-                                        top: 0,
-                                    }}
-                                >
-                                    {/* Actions column with empty header text */}
+                                <TableCell colSpan={10} align="center">
+                                    <Typography variant="body2" sx={{ py: 2 }}>
+                                        No logs found. Click refresh to fetch logs.
+                                    </Typography>
                                 </TableCell>
                             </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {logs?.length === 0 && !loading ? (
-                                <TableRow>
-                                    <TableCell colSpan={10} align="center">
-                                        <Typography variant="body2" sx={{ py: 2 }}>
-                                            No logs found. Click refresh to fetch logs.
-                                        </Typography>
+                        ) : (
+                            logs?.map((log) => (
+                                <TableRow key={log.Id} hover>
+                                    <TableCell>
+                                        <Tooltip title={log.LogUser.Name}>
+                                            <span>{log.LogUser.Name}</span>
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Tooltip title={formatLogLength(log.LogLength)}>
+                                            <span>{formatLogLength(log.LogLength)}</span>
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Tooltip title={formatDate(log.StartTime)}>
+                                            <span>{formatDate(log.StartTime)}</span>
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell className="scrollable" sx={{ maxWidth: '150px' }}>
+                                        <Tooltip title={log.Operation}>
+                                            <span>{log.Operation}</span>
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell className="scrollable">
+                                        <Tooltip title={log.Application}>
+                                            <span>{log.Application}</span>
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell className="scrollable" sx={{ maxWidth: '100px' }}>
+                                        <Tooltip title={log.Status}>
+                                            <span>
+                                                <Chip
+                                                    label={log.Status}
+                                                    size="small"
+                                                    color={log.Status === 'Success' ? 'success' : 'error'}
+                                                    variant="outlined"
+                                                />
+                                            </span>
+                                        </Tooltip>
+                                    </TableCell>
+                                    <TableCell sx={{ minWidth: '250px' }}>
+                                        <MethodName logId={log.Id} />
+                                    </TableCell>
+                                    <TableCell align="center">
+                                        <Tooltip
+                                            title={
+                                                downloadingLogId === log.Id
+                                                    ? 'Opening in VS Code...'
+                                                    : 'Download and open in VS Code'
+                                            }
+                                        >
+                                            <span>
+                                                {' '}
+                                                {/* Wrapper needed for disabled tooltip */}
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => downloadFullLog(log.Id)}
+                                                    disabled={downloadingLogId !== null}
+                                                    color="primary"
+                                                >
+                                                    {downloadingLogId === log.Id ? (
+                                                        <CircularProgress size={18} thickness={5} color="primary" />
+                                                    ) : (
+                                                        <DownloadIcon fontSize="small" />
+                                                    )}
+                                                </IconButton>
+                                            </span>
+                                        </Tooltip>
                                     </TableCell>
                                 </TableRow>
-                            ) : (
-                                logs?.map((log) => (
-                                    <TableRow key={log.Id} hover>
-                                        <TableCell>
-                                            <Tooltip title={log.LogUser.Name}>
-                                                <span>{log.LogUser.Name}</span>
-                                            </Tooltip>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Tooltip title={formatLogLength(log.LogLength)}>
-                                                <span>{formatLogLength(log.LogLength)}</span>
-                                            </Tooltip>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Tooltip title={formatDate(log.StartTime)}>
-                                                <span>{formatDate(log.StartTime)}</span>
-                                            </Tooltip>
-                                        </TableCell>
-                                        <TableCell className="scrollable" sx={{ maxWidth: '150px' }}>
-                                            <Tooltip title={log.Operation}>
-                                                <span>{log.Operation}</span>
-                                            </Tooltip>
-                                        </TableCell>
-                                        <TableCell className="scrollable">
-                                            <Tooltip title={log.Application}>
-                                                <span>{log.Application}</span>
-                                            </Tooltip>
-                                        </TableCell>
-                                        <TableCell className="scrollable" sx={{ maxWidth: '100px' }}>
-                                            <Tooltip title={log.Status}>
-                                                <span>
-                                                    <Chip
-                                                        label={log.Status}
-                                                        size="small"
-                                                        color={log.Status === 'Success' ? 'success' : 'error'}
-                                                        variant="outlined"
-                                                    />
-                                                </span>
-                                            </Tooltip>
-                                        </TableCell>
-                                        <TableCell sx={{ minWidth: '250px' }}>
-                                            <MethodName logId={log.Id} />
-                                        </TableCell>
-                                        <TableCell align="center">
-                                            <Tooltip
-                                                title={
-                                                    downloadingLogId === log.Id
-                                                        ? 'Opening in VS Code...'
-                                                        : 'Download and open in VS Code'
-                                                }
-                                            >
-                                                <span>
-                                                    {' '}
-                                                    {/* Wrapper needed for disabled tooltip */}
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => downloadFullLog(log.Id)}
-                                                        disabled={downloadingLogId !== null}
-                                                        color="primary"
-                                                    >
-                                                        {downloadingLogId === log.Id ? (
-                                                            <CircularProgress size={18} thickness={5} color="primary" />
-                                                        ) : (
-                                                            <DownloadIcon fontSize="small" />
-                                                        )}
-                                                    </IconButton>
-                                                </span>
-                                            </Tooltip>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            </Box>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+
             <Snackbar
                 open={snackbar.open}
                 autoHideDuration={4000}
@@ -805,16 +748,19 @@ export default function DebugLogFetcher() {
                 onClose={() => setPendingDelete(null)}
                 aria-labelledby="delete-confirmation-dialog-title"
             >
-                <DialogTitle id="delete-confirmation-dialog-title">
-                    Confirm Deletion
-                </DialogTitle>
+                <DialogTitle id="delete-confirmation-dialog-title">Confirm Deletion</DialogTitle>
                 <DialogContent>
                     {pendingDelete?.userName
                         ? `Are you sure you want to delete logs for "${pendingDelete.userName}"?`
                         : 'Are you sure you want to delete all logs?'}
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setPendingDelete(null)} color="primary" variant="outlined" disabled={deleting}>
+                    <Button
+                        onClick={() => setPendingDelete(null)}
+                        color="primary"
+                        variant="outlined"
+                        disabled={deleting}
+                    >
                         Cancel
                     </Button>
                     <Button
