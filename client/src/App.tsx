@@ -65,6 +65,9 @@ const darkTheme = createTheme({
     palette: {
         mode: 'dark',
     },
+    typography: {
+        fontSize: 12,
+    },
 });
 
 const lightTheme = createTheme({
