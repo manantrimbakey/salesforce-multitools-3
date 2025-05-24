@@ -397,7 +397,8 @@ export default function DebugLogFetcher() {
         <Card
             sx={{
                 borderRadius: '0.25rem',
-                height: '100%',
+                height: 'calc(100% - 1rem)',
+                maxHeight: 'calc(100% - 1rem)',
                 display: 'flex',
                 flexDirection: 'column',
                 overflow: 'hidden',
