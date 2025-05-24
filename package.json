@@ -5,10 +5,7 @@
     "version": "0.2.0",
     "publisher": "manantrimbakey",
     "icon": "resources/salesforce-icon-colorful.png",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/manantrimbakey/salesforce-multitools-3"
-    },
+    "repository": "https://github.com/manantrimbakey/salesforce-multitools-3",
     "engines": {
         "vscode": "^1.90.0"
     },
