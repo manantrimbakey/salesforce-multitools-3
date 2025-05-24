@@ -17,7 +17,7 @@ export enum LogLevel {
 export class Logger {
     private static outputChannel: vscode.OutputChannel;
     private static logLevel: LogLevel = LogLevel.INFO;
-    private static prefix: string = 'Salesforce Multitool';
+    private static readonly prefix: string = 'Salesforce Multitool';
 
     /**
      * Initialize the logger
