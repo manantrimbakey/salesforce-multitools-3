@@ -24,6 +24,8 @@ The sidebar provides a clean interface with:
 - Unsaved files get a special indicator
 - Current file is highlighted for easy reference
 
+![File Switcher in action](./asset/File_Swicther.gif)
+
 ### 👀 Last Modified Details
 
 See who modified your code last and when, get notified and blame them!
@@ -31,6 +33,8 @@ See who modified your code last and when, get notified and blame them!
 - Displays timestamps of when changes were made
 - Integrates with CodeLens for in-line visibility
 - Automatic refresh at configurable intervals
+
+![Last Modified Details](./asset/Last_Modified_Details.gif)
 
 ### 🔍 Debug Log Fetcher
 
@@ -40,6 +44,8 @@ Fetch and analyze Salesforce debug logs with enhanced filtering and UI:
 - Interactive log viewer with method name tracking
 - Responsive table with tooltips and optimized layout
 - One-click download and open in VS Code
+
+![Debug Logs Fetcher](./asset/Debug_Logs_Fetcher.gif)
 
 ## 🔮 Coming Soon! 🔮
 
