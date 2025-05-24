@@ -2,6 +2,10 @@
 
 All notable changes to the "salesforce-multitools-3" extension will be documented in this file.
 
+## [0.2.1]
+### Updated
+- Updated the readme for the extension
+
 ## [0.2.0]
 ### Added
 - Log size filtering feature to filter debug logs above or below a specified size
