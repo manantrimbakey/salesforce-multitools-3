@@ -24,13 +24,15 @@ import {
     DialogContent,
     DialogActions,
     Button,
-    MenuItem,
     Grid,
     Divider,
+    InputAdornment,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DownloadIcon from '@mui/icons-material/Download';
 import FilterListIcon from '@mui/icons-material/FilterList';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
@@ -356,9 +358,16 @@ export default function DebugLogFetcher() {
         }
     };
 
-    // Add a handler for the log size filter
-    const handleLogSizeFilter = () => {
-        fetchLogs(selectedUser ? selectedUser.Name : 'all', logSize, logSizeDirection);
+    // Handle log size change
+    const handleLogSizeChange = (value: string) => {
+        setLogSize(value);
+        fetchLogs(selectedUser ? selectedUser.Name : 'all', value, logSizeDirection);
+    };
+
+    // Handle log size direction change
+    const handleLogSizeDirectionChange = (direction: 'above' | 'below') => {
+        setLogSizeDirection(direction);
+        fetchLogs(selectedUser ? selectedUser.Name : 'all', logSize, direction);
     };
 
     // Initial data load
@@ -487,8 +496,8 @@ export default function DebugLogFetcher() {
                     </Tooltip>
                 </Grid>
 
-                {/* Spacer */}
-                <Grid sx={{ flexGrow: 1, height: '100%' }}></Grid>
+                {/* Divider */}
+                <Divider orientation="vertical" flexItem />
 
                 {/* Delete logs for selected user */}
                 <Grid sx={{ height: '100%' }}>
@@ -538,7 +547,8 @@ export default function DebugLogFetcher() {
                     </Tooltip>
                 </Grid>
 
-                <Divider orientation="vertical" flexItem />
+                {/* Spacer */}
+                <Grid sx={{ flexGrow: 1, height: '100%' }}></Grid>
 
                 {/* Log Size Filter Controls */}
                 <Grid sx={{ height: '100%' }}>
@@ -548,36 +558,39 @@ export default function DebugLogFetcher() {
                         type="number"
                         size="small"
                         value={logSize}
-                        onChange={(e) => setLogSize(e.target.value)}
+                        onChange={(e) => handleLogSizeChange(e.target.value)}
+                        slotProps={{
+                            input: {
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <Tooltip
+                                            title={
+                                                logSizeDirection === 'above'
+                                                    ? 'Show logs larger than this size'
+                                                    : 'Show logs smaller than this size'
+                                            }
+                                        >
+                                            <IconButton
+                                                size="small"
+                                                onClick={() =>
+                                                    handleLogSizeDirectionChange(
+                                                        logSizeDirection === 'above' ? 'below' : 'above',
+                                                    )
+                                                }
+                                                edge="end"
+                                            >
+                                                {logSizeDirection === 'above' ? (
+                                                    <KeyboardArrowUpIcon />
+                                                ) : (
+                                                    <KeyboardArrowDownIcon />
+                                                )}
+                                            </IconButton>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                ),
+                            },
+                        }}
                     />
-                </Grid>
-
-                {/* Log size direction filter */}
-                <Grid sx={{ height: '100%' }}>
-                    <TextField
-                        select
-                        label="Filter"
-                        size="small"
-                        value={logSizeDirection}
-                        onChange={(e) => setLogSizeDirection(e.target.value as 'above' | 'below')}
-                        sx={{ width: 100, height: '100%' }}
-                    >
-                        <MenuItem value="above">Above</MenuItem>
-                        <MenuItem value="below">Below</MenuItem>
-                    </TextField>
-                </Grid>
-
-                {/* Apply log size filter */}
-                <Grid sx={{ height: '100%' }}>
-                    <Button
-                        sx={{ height: '100%' }}
-                        variant="outlined"
-                        size="small"
-                        onClick={handleLogSizeFilter}
-                        disabled={loading}
-                    >
-                        Filter By Size
-                    </Button>
                 </Grid>
             </Grid>
 
