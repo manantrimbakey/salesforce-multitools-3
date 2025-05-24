@@ -1,0 +1,9 @@
+# This file defines ownership for all files in the repository
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+* @manantrimbakey
+
+# Specific owners for certain directories can be added below if needed
+# /src/ @manantrimbakey
+# /client/ @manantrimbakey 

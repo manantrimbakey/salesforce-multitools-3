@@ -42,3 +42,5 @@ pnpm-lock.yaml
 # node_modules/**/License
 
 node_modules/**
+
+asset/**
