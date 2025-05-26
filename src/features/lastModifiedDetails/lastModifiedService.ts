@@ -107,4 +107,3 @@ export async function getFileLastModifiedInfo(filePath: string): Promise<Formatt
         throw error;
     }
 }
-

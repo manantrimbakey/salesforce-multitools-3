@@ -454,4 +454,3 @@ class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
         }
     }
 }
-
