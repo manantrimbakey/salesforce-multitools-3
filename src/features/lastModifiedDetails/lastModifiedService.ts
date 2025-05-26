@@ -82,10 +82,13 @@ export async function getFileLastModifiedInfo(filePath: string): Promise<Formatt
                 'LastModifiedService.getFileLastModifiedInfo',
             );
 
+            // Store the original Salesforce date string (should be ISO format)
+            // but format it for display in user's locale
             const formattedInfo = {
                 lastModifiedBy: record.LastModifiedBy.Name,
-                lastModifiedDate: new Date(record.LastModifiedDate).toLocaleString(),
+                lastModifiedDate: record.LastModifiedDate, // Keep the ISO date string for storage and comparison
                 lastModifiedById: record.LastModifiedById,
+                formattedDate: new Date(record.LastModifiedDate).toLocaleString(), // Add formatted date for display
             };
 
             // Note: The comparison with stored data and notifications are now handled in the commands.ts file
@@ -104,3 +107,4 @@ export async function getFileLastModifiedInfo(filePath: string): Promise<Formatt
         throw error;
     }
 }
+

@@ -164,8 +164,8 @@ function isValidEditor(editor?: vscode.TextEditor): boolean {
  */
 function updateStatusBarText(info: FormattedLastModifiedInfo, connection: any): void {
     const orgUsername = connection?.username || 'Unknown org';
-    lastModifiedStatusBar.text = `$(history) Modified: ${info.lastModifiedDate} by ${info.lastModifiedBy}`;
-    lastModifiedStatusBar.tooltip = `Last modified on ${info.lastModifiedDate} by ${info.lastModifiedBy}\nOrg: ${orgUsername}\nClick to refresh`;
+    lastModifiedStatusBar.text = `$(history) Modified: ${info.formattedDate} by ${info.lastModifiedBy}`;
+    lastModifiedStatusBar.tooltip = `Last modified on ${info.formattedDate} by ${info.lastModifiedBy}\nOrg: ${orgUsername}\nClick to refresh`;
 }
 
 /**
@@ -277,7 +277,7 @@ export async function refreshLastModifiedInfo(forceRefresh: boolean = false): Pr
         // Step 2: Check if it was modified by someone else
         await checkForExternalModifications(metadataInfo.type, metadataInfo.apiName, {
             LastModifiedBy: { Name: info.lastModifiedBy },
-            LastModifiedDate: new Date(info.lastModifiedDate).toISOString(),
+            LastModifiedDate: info.lastModifiedDate,
             LastModifiedById: info.lastModifiedById,
         });
 
@@ -287,14 +287,23 @@ export async function refreshLastModifiedInfo(forceRefresh: boolean = false): Pr
         codeLensProvider.refreshWithLatestInfo(editor.document.uri, info);
 
         // Step 4: Store the data locally
-        await storeLastModifiedInfo(metadataInfo.type, metadataInfo.apiName, {
-            lastModifiedBy: info.lastModifiedBy,
-            lastModifiedDate: new Date(info.lastModifiedDate).toISOString(),
-            lastModifiedById: info.lastModifiedById,
-            retrievedAt: new Date().toISOString(),
-            orgId: connection.instanceUrl || '',
-            orgUsername: (await SFUtils.getDefaultUsername()) || '',
-        });
+        try {
+            await storeLastModifiedInfo(metadataInfo.type, metadataInfo.apiName, {
+                lastModifiedBy: info.lastModifiedBy,
+                lastModifiedDate: info.lastModifiedDate, // Store the ISO date string
+                lastModifiedById: info.lastModifiedById,
+                retrievedAt: new Date().toISOString(),
+                orgId: connection.instanceUrl || '',
+                orgUsername: (await SFUtils.getDefaultUsername()) || '',
+            });
+        } catch (storageError) {
+            Logger.error(
+                'Error storing last modified info:',
+                'LastModifiedDetailsCommands.refreshLastModifiedInfo',
+                storageError,
+            );
+            // Don't throw - allow UI to be updated even if storage fails
+        }
     } catch (error) {
         Logger.error(
             'Error getting file last modified info:',
@@ -321,12 +330,33 @@ async function checkForExternalModifications(metadataType: string, apiName: stri
             return;
         }
 
-        // Check if the modification date is different and by a different user
-        const storedDate = new Date(storedInfo.lastModifiedDate).getTime();
-        const currentDate = new Date(currentData.LastModifiedDate).getTime();
+        // Parse dates from ISO strings
+        let storedDate: number;
+        let currentDate: number;
+
+        try {
+            // Salesforce returns ISO format dates which should parse reliably
+            storedDate = new Date(storedInfo.lastModifiedDate).getTime();
+            currentDate = new Date(currentData.LastModifiedDate).getTime();
+
+            Logger.debug(
+                `Date comparison: stored=${storedInfo.lastModifiedDate} (${storedDate}), current=${currentData.LastModifiedDate} (${currentDate})`,
+                'LastModifiedDetailsCommands.checkForExternalModifications',
+            );
+        } catch (dateError) {
+            // If date parsing fails, log and fall back to just ID comparison
+            Logger.warn(
+                `Date parsing failed, falling back to ID comparison: ${dateError}`,
+                'LastModifiedDetailsCommands.checkForExternalModifications',
+            );
+            storedDate = 0;
+            currentDate = 1; // Ensure it's different if parsing fails
+        }
+
         const storedId = storedInfo.lastModifiedById;
         const currentId = currentData.LastModifiedById;
 
+        // Check if the modification date is newer and by a different user
         if (currentDate > storedDate && storedId !== currentId) {
             vscode.window.showInformationMessage(
                 `This file was modified on Salesforce by ${currentData.LastModifiedBy.Name} since your last check.`,
@@ -401,8 +431,8 @@ class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
 
             return [
                 new vscode.CodeLens(range, {
-                    title: `$(history) Last modified: ${pendingInfo.lastModifiedDate} by ${pendingInfo.lastModifiedBy}`,
-                    tooltip: `Last modified on ${pendingInfo.lastModifiedDate} by ${pendingInfo.lastModifiedBy}${
+                    title: `$(history) Last modified: ${pendingInfo.formattedDate} by ${pendingInfo.lastModifiedBy}`,
+                    tooltip: `Last modified on ${pendingInfo.formattedDate} by ${pendingInfo.lastModifiedBy}${
                         orgUsername ? ` in org ${orgUsername}` : ''
                     }\nClick to refresh`,
                     command: 'salesforce-multitools-3.refreshLastModifiedInfo',
@@ -424,3 +454,4 @@ class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
         }
     }
 }
+

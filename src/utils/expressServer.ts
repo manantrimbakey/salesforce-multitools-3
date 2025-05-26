@@ -322,19 +322,28 @@ export class ExpressServer {
                         throw new Error('No valid access token available');
                     }
 
-                    // Get the full log content
-                    const logContent = await this.getLogBody(logId, instanceUrl, accessToken, false);
+                    // Check if the log file already exists in the _multi-tool folder
+                    const storedLogPath = await this.getStoredLogPath(logId);
+                    let logFilePath: string;
 
-                    // If this is the full log, we'll open it in VSCode
-                    const tempFilePath = await this.saveTempLogFile(logId, logContent);
+                    if (await this.fileExists(storedLogPath)) {
+                        // If log exists, use it directly
+                        Logger.debug(`Using existing log file: ${storedLogPath}`, 'ExpressServer.setupDebugLogRoutes');
+                        logFilePath = storedLogPath;
+                    } else {
+                        // If log doesn't exist, download and save it
+                        Logger.debug(`Downloading log ${logId} from Salesforce`, 'ExpressServer.setupDebugLogRoutes');
+                        const logContent = await this.getLogBody(logId, instanceUrl, accessToken, false);
+                        logFilePath = await this.saveLogFile(logId, logContent);
+                    }
 
                     // Open the file in VS Code
-                    vscode.commands.executeCommand('vscode.open', vscode.Uri.file(tempFilePath));
+                    vscode.commands.executeCommand('vscode.open', vscode.Uri.file(logFilePath));
 
                     res.json({
                         success: true,
                         message: 'Log opened in VS Code editor',
-                        size: Buffer.from(logContent).length,
+                        path: logFilePath,
                     });
                 } catch (sfError) {
                     Logger.error(`Error fetching log content from Salesforce:`, 'ExpressServer.getLogBody', sfError);
@@ -363,20 +372,33 @@ export class ExpressServer {
                 );
 
                 try {
-                    // Get the connection to Salesforce
-                    const connection = await SFUtils.getConnection();
+                    // Check if we already have the log file stored
+                    const storedLogPath = await this.getStoredLogPath(logId);
+                    let logBody: string;
 
-                    // Get the instance URL and access token from the connection
-                    const instanceUrl = connection.instanceUrl;
-                    const accessToken = connection.accessToken;
+                    if (await this.fileExists(storedLogPath)) {
+                        // Read the first 1KB from the stored log file
+                        const fs = require('fs').promises;
+                        const fileContent = await fs.readFile(storedLogPath, { encoding: 'utf8', flag: 'r' });
+                        logBody = fileContent.substring(0, 1024);
+                        Logger.debug(
+                            `Using stored log file for method name: ${storedLogPath}`,
+                            'ExpressServer.setupDebugLogRoutes',
+                        );
+                    } else {
+                        // Get the connection to Salesforce
+                        const connection = await SFUtils.getConnection();
+                        const instanceUrl = connection.instanceUrl;
+                        const accessToken = connection.accessToken;
 
-                    // Make sure we have a valid access token
-                    if (!accessToken) {
-                        throw new Error('No valid access token available');
+                        // Make sure we have a valid access token
+                        if (!accessToken) {
+                            throw new Error('No valid access token available');
+                        }
+
+                        // Use the getLogBody method to get log content - limit to 1KB
+                        logBody = await this.getLogBody(logId, instanceUrl, accessToken, true);
                     }
-
-                    // Use the getLogBody method to get log content - limit to 1KB
-                    const logBody = await this.getLogBody(logId, instanceUrl, accessToken, true);
 
                     // Find the first CODE_UNIT_STARTED line
                     const codeUnitLine = logBody
@@ -508,6 +530,40 @@ export class ExpressServer {
                 });
             }
         });
+
+        // Check if a log exists locally
+        this.app.get('/api/debugLogs/:id/exists', async (req, res) => {
+            try {
+                const logId = req.params.id;
+                Logger.debug(
+                    `API request received to check if log exists locally: ${logId}`,
+                    'ExpressServer.setupDebugLogRoutes',
+                );
+
+                try {
+                    const storedLogPath = await this.getStoredLogPath(logId);
+                    const exists = await this.fileExists(storedLogPath);
+
+                    res.json({
+                        success: true,
+                        exists,
+                        logId,
+                    });
+                } catch (error) {
+                    Logger.error(`Error checking if log exists:`, 'ExpressServer.setupDebugLogRoutes', error);
+                    res.status(500).json({
+                        success: false,
+                        error: error instanceof Error ? error.message : String(error),
+                    });
+                }
+            } catch (error) {
+                Logger.error(`Error in exists API:`, 'ExpressServer.setupDebugLogRoutes', error);
+                res.status(500).json({
+                    success: false,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        });
     }
 
     /**
@@ -530,6 +586,94 @@ export class ExpressServer {
 
         Logger.debug(`Saved log content to temporary file: ${tempFilePath}`, 'ExpressServer.saveTempLogFile');
         return tempFilePath;
+    }
+
+    /**
+     * Get the path where a log file should be stored in _multi-tool folder
+     * @param logId The ID of the log
+     * @returns Path to the stored log file
+     */
+    private async getStoredLogPath(logId: string): Promise<string> {
+        const path = require('path');
+        const fs = require('fs');
+
+        if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
+            throw new Error('No workspace folder found to store logs');
+        }
+
+        const rootPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
+        const sfdxFolder = path.join(rootPath, '.sfdx');
+        const multiToolFolder = path.join(sfdxFolder, '_multi-tool');
+        const logsFolder = path.join(multiToolFolder, 'debug-logs');
+
+        // Create folders if they don't exist
+        await this.ensureFolderExists(sfdxFolder);
+        await this.ensureFolderExists(multiToolFolder);
+        await this.ensureFolderExists(logsFolder);
+
+        // Get organization identifier for organization-specific storage
+        const connection = await SFUtils.getConnection();
+        const orgId = connection?.instanceUrl
+            ? connection.instanceUrl
+                  .replace(/^https?:\/\//, '')
+                  .replace(/[^a-zA-Z0-9.-]/g, '-')
+                  .toLowerCase()
+            : 'unknown-org';
+
+        const orgFolder = path.join(logsFolder, orgId);
+        await this.ensureFolderExists(orgFolder);
+
+        return path.join(orgFolder, `${logId}.log`);
+    }
+
+    /**
+     * Check if a file exists
+     * @param filePath Path to the file
+     * @returns True if the file exists, false otherwise
+     */
+    private async fileExists(filePath: string): Promise<boolean> {
+        const fs = require('fs').promises;
+        try {
+            await fs.access(filePath);
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Save log content to a file in the _multi-tool folder
+     * @param logId The ID of the log
+     * @param content The log content to save
+     * @returns Path to the saved file
+     */
+    private async saveLogFile(logId: string, content: string): Promise<string> {
+        const fs = require('fs').promises;
+
+        // Get the path where the log should be stored
+        const logFilePath = await this.getStoredLogPath(logId);
+
+        // Write the content to the file
+        await fs.writeFile(logFilePath, content, 'utf8');
+
+        Logger.debug(`Saved log content to file: ${logFilePath}`, 'ExpressServer.saveLogFile');
+        return logFilePath;
+    }
+
+    /**
+     * Ensure a folder exists, creating it if necessary
+     * @param folderPath Path to the folder
+     */
+    private async ensureFolderExists(folderPath: string): Promise<void> {
+        const fs = require('fs').promises;
+        try {
+            await fs.mkdir(folderPath, { recursive: true });
+        } catch (error) {
+            // If folder already exists, that's fine
+            if ((error as NodeJS.ErrnoException).code !== 'EEXIST') {
+                throw error;
+            }
+        }
     }
 
     /**
@@ -566,6 +710,8 @@ export class ExpressServer {
 
         return new Promise((resolve, reject) => {
             let buff = Buffer.alloc(0);
+            const startTime = Date.now();
+
             https
                 .get(
                     restApiUrl,
@@ -575,6 +721,16 @@ export class ExpressServer {
                         },
                     },
                     (response: typeof IncomingMessage) => {
+                        // Log response code
+                        Logger.debug(
+                            `Log API response status: ${response.statusCode} ${response.statusMessage}`,
+                            'ExpressServer.getLogBody',
+                        );
+
+                        if (response.statusCode !== 200) {
+                            return reject(new Error(`API returned status code ${response.statusCode}`));
+                        }
+
                         response.on('data', (chunk: Uint8Array) => {
                             buff = Buffer.concat([buff, chunk]);
                             if (limitToOneKb && buff.length > 1024) {
@@ -583,15 +739,32 @@ export class ExpressServer {
                                 return resolve(buff.toString().substring(0, 1024));
                             }
                         });
+
                         response.on('end', () => {
+                            const endTime = Date.now();
+                            const duration = endTime - startTime;
+                            const size = buff.length;
+
+                            Logger.debug(
+                                `Log download complete: ${logId}, Size: ${size} bytes, Duration: ${duration}ms`,
+                                'ExpressServer.getLogBody',
+                            );
+
                             resolve(buff.toString());
                         });
+
                         response.on('error', (error: Error) => {
+                            Logger.error(
+                                `Error in response stream: ${error.message}`,
+                                'ExpressServer.getLogBody',
+                                error,
+                            );
                             reject(error);
                         });
                     },
                 )
                 .on('error', (error: Error) => {
+                    Logger.error(`HTTPS request error: ${error.message}`, 'ExpressServer.getLogBody', error);
                     reject(error);
                 });
         });
@@ -748,3 +921,4 @@ export async function disposeExpressServer(): Promise<void> {
         Logger.error('Error disposing Express server:', 'ExpressServer.disposeExpressServer', err);
     }
 }
+
