@@ -17,7 +17,8 @@ export interface LastModifiedInfo {
  */
 export interface FormattedLastModifiedInfo {
     lastModifiedBy: string;
-    lastModifiedDate: string;
+    lastModifiedDate: string; // ISO date string from Salesforce
     lastModifiedById: string;
+    formattedDate: string; // Human-readable date in local format
     cachedAt?: number; // Optional timestamp for when this was cached
 }

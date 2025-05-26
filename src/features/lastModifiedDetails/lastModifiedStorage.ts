@@ -39,7 +39,10 @@ export async function storeLastModifiedInfo(
 ): Promise<void> {
     try {
         if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
-            Logger.warn('No workspace folder found to store last modified info');
+            Logger.warn(
+                'No workspace folder found to store last modified info',
+                'LastModifiedStorage.storeLastModifiedInfo',
+            );
             return;
         }
 
@@ -65,12 +68,19 @@ export async function storeLastModifiedInfo(
         // Create or update the JSON file for this component
         const filePath = path.join(metadataTypeFolder, `${apiName}.json`);
 
-        Logger.debug(`Storing last modified info to: ${filePath}`);
+        Logger.debug(`Storing last modified info to: ${filePath}`, 'LastModifiedStorage.storeLastModifiedInfo');
         await writeJsonFile(filePath, modifiedInfo);
 
-        Logger.info(`Last modified info stored for ${metadataType}:${apiName} in org ${orgId}`);
+        Logger.info(
+            `Last modified info stored for ${metadataType}:${apiName} in org ${orgId}`,
+            'LastModifiedStorage.storeLastModifiedInfo',
+        );
     } catch (error) {
-        Logger.error(`Error storing last modified info for ${metadataType}:${apiName}:`, error);
+        Logger.error(
+            `Error storing last modified info for ${metadataType}:${apiName}:`,
+            'LastModifiedStorage.storeLastModifiedInfo',
+            error,
+        );
         // Don't throw - storing info is non-critical
     }
 }
@@ -107,7 +117,11 @@ export async function getStoredLastModifiedInfo(
 
         return await readJsonFile<LastModifiedInfo>(filePath);
     } catch (error) {
-        Logger.error(`Error reading stored last modified info for ${metadataType}:${apiName}:`, error);
+        Logger.error(
+            `Error reading stored last modified info for ${metadataType}:${apiName}:`,
+            'LastModifiedStorage.getStoredLastModifiedInfo',
+            error,
+        );
         return null;
     }
 }

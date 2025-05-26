@@ -14,7 +14,7 @@ export function registerDebugLogCommands(context: vscode.ExtensionContext): void
 
     context.subscriptions.push(openDebugLogsTabCmdDisposable);
 
-    Logger.debug('Debug log commands registered');
+    Logger.debug('Debug log commands registered', 'DebugLogCommands.registerDebugLogCommands');
 }
 
 /**
@@ -90,7 +90,7 @@ export async function handleDebugLogWebviewCommand(
 
         return false; // Command not handled
     } catch (error) {
-        Logger.error('Error handling debug log command:', error);
+        Logger.error('Error handling debug log command:', 'DebugLogCommands.handleDebugLogWebviewCommand', error);
 
         // Send error back to webview
         sendResponseFunction({

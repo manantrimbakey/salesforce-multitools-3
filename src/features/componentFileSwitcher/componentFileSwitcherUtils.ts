@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { Logger } from '../../utils/logger';
 import { getMetadataInfoFromFilePath } from '../../utils/metadataUtils';
+import { isRegularFilePath } from '../../utils/fileUtils';
 
 /**
  * File types for LWC and Aura components
@@ -46,7 +47,7 @@ export enum ComponentType {
  * Get the component type from a file path
  */
 export function getComponentType(filePath: string): ComponentType {
-    Logger.debug(`Getting component type for ${filePath}`);
+    Logger.debug(`Getting component type for ${filePath}`, 'ComponentFileSwitcher.getComponentType');
     const metadataInfo = getMetadataInfoFromFilePath(filePath);
 
     if (!metadataInfo) {
@@ -68,7 +69,7 @@ export function getComponentType(filePath: string): ComponentType {
  * Get the component folder from a file path
  */
 export function getComponentFolder(filePath: string): string | null {
-    Logger.debug(`Getting component folder for ${filePath}`);
+    Logger.debug(`Getting component folder for ${filePath}`, 'ComponentFileSwitcher.getComponentFolder');
     const metadataInfo = getMetadataInfoFromFilePath(filePath);
 
     if (!metadataInfo) {
@@ -96,7 +97,7 @@ export function getComponentFolder(filePath: string): string | null {
  * Get the component name from a file path
  */
 export function getComponentName(filePath: string): string | null {
-    Logger.debug(`Getting component name for ${filePath}`);
+    Logger.debug(`Getting component name for ${filePath}`, 'ComponentFileSwitcher.getComponentName');
     const metadataInfo = getMetadataInfoFromFilePath(filePath);
 
     if (!metadataInfo) {
@@ -110,11 +111,15 @@ export function getComponentName(filePath: string): string | null {
  * Get all related files for a component
  */
 export async function getComponentFiles(filePath: string): Promise<ComponentFile[]> {
+    Logger.debug(`getComponentFiles called for ${filePath}`, 'ComponentFileSwitcher.getComponentFiles');
     const componentFolder = getComponentFolder(filePath);
     const componentName = getComponentName(filePath);
 
     if (!componentFolder || !componentName) {
-        Logger.warn(`Could not determine component folder or name for ${filePath}`);
+        Logger.warn(
+            `Could not determine component folder or name for ${filePath}`,
+            'ComponentFileSwitcher.getComponentFiles',
+        );
         return [];
     }
 
@@ -151,7 +156,7 @@ export async function getComponentFiles(filePath: string): Promise<ComponentFile
         // Sort by priority
         return componentFiles.sort((a, b) => a.priority - b.priority);
     } catch (error) {
-        Logger.error(`Error getting component files: ${error}`);
+        Logger.error(`Error getting component files: ${error}`, 'ComponentFileSwitcher.getComponentFiles');
         return [];
     }
 }
@@ -350,6 +355,12 @@ export function formatComponentFilesForQuickPick(files: ComponentFile[]): vscode
  * Check if the current file is part of a Lightning component (LWC or Aura)
  */
 export function isLightningComponentFile(filePath: string): boolean {
+    // Skip non-regular files like extension output, temp files etc.
+    if (!isRegularFilePath(filePath)) {
+        return false;
+    }
+
+    Logger.debug(`isLightningComponentFile called for ${filePath}`, 'ComponentFileSwitcher.isLightningComponentFile');
     return getComponentType(filePath) !== ComponentType.UNKNOWN;
 }
 
@@ -361,6 +372,7 @@ export function getComponentDetails(filePath: string): {
     componentType: ComponentType;
     fileName: string;
 } {
+    Logger.debug(`getComponentDetails called for ${filePath}`, 'ComponentFileSwitcher.getComponentDetails');
     const componentName = getComponentName(filePath);
     const componentType = getComponentType(filePath);
     const fileName = path.basename(filePath);
