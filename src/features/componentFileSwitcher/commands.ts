@@ -8,6 +8,7 @@ import {
     getComponentDetails,
     ComponentType,
 } from './componentFileSwitcherUtils';
+import { isRegularFileEditor, isRegularFilePath } from '../../utils/fileUtils';
 
 // Reference to the webview to refresh as needed
 let fileWatcherDisposable: vscode.Disposable | undefined;
@@ -17,7 +18,7 @@ let fileChangeListenerDisposable: vscode.Disposable | undefined;
  * Register the component file switcher commands
  */
 export function registerComponentFileSwitcherCommands(context: vscode.ExtensionContext): void {
-    Logger.debug('Registering component file switcher commands');
+    Logger.debug('Registering component file switcher commands', 'ComponentFileSwitcher.registerCommands');
 
     // Register the Alt+O/Option+O keyboard shortcut
     const switchComponentFileCmd = vscode.commands.registerCommand(
@@ -28,7 +29,10 @@ export function registerComponentFileSwitcherCommands(context: vscode.ExtensionC
     // Register command to send component data to the UI
     const refreshComponentDataCmd = vscode.commands.registerCommand(
         'salesforce-multitools-3.refreshComponentData',
-        () => refreshComponentData(),
+        () => {
+            Logger.debug('refreshComponentDataCmd called', 'ComponentFileSwitcher.registerCommands');
+            refreshComponentData();
+        },
     );
 
     // Set up file watcher for component directories
@@ -57,7 +61,7 @@ async function handleSwitchComponentFile(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
 
     if (!editor) {
-        Logger.debug('No active editor');
+        Logger.debug('No active editor', 'ComponentFileSwitcher.handleSwitchComponentFile');
         vscode.window.showInformationMessage('No active file to switch from');
         return;
     }
@@ -67,7 +71,10 @@ async function handleSwitchComponentFile(): Promise<void> {
 
     // Check if this is a Lightning component file
     if (!isLightningComponentFile(filePath)) {
-        Logger.debug(`${filePath} is not a Lightning component file`);
+        Logger.debug(
+            `${filePath} is not a Lightning component file`,
+            'ComponentFileSwitcher.handleSwitchComponentFile',
+        );
         vscode.window.showInformationMessage('This file is not part of an LWC or Aura component');
         return;
     }
@@ -77,7 +84,7 @@ async function handleSwitchComponentFile(): Promise<void> {
         const componentFiles = await getComponentFiles(filePath);
 
         if (componentFiles.length === 0) {
-            Logger.warn(`No component files found for ${filePath}`);
+            Logger.warn(`No component files found for ${filePath}`, 'ComponentFileSwitcher.handleSwitchComponentFile');
             vscode.window.showInformationMessage('No component files found');
             return;
         }
@@ -86,7 +93,7 @@ async function handleSwitchComponentFile(): Promise<void> {
         const otherFiles = componentFiles.filter((file) => file.name !== currentFileName);
 
         if (otherFiles.length === 0) {
-            Logger.info('No other files to switch to');
+            Logger.info('No other files to switch to', 'ComponentFileSwitcher.handleSwitchComponentFile');
             vscode.window.showInformationMessage('No other files to switch to');
             return;
         }
@@ -111,7 +118,10 @@ async function handleSwitchComponentFile(): Promise<void> {
         );
 
         if (!selectedFile) {
-            Logger.error('Selected file not found in component files');
+            Logger.error(
+                'Selected file not found in component files',
+                'ComponentFileSwitcher.handleSwitchComponentFile',
+            );
             return;
         }
 
@@ -120,9 +130,13 @@ async function handleSwitchComponentFile(): Promise<void> {
         await vscode.window.showTextDocument(document);
 
         // Refresh component data in UI
+        Logger.debug('handleSwitchComponentFile called', 'ComponentFileSwitcher.handleSwitchComponentFile');
         refreshComponentData();
     } catch (error) {
-        Logger.error(`Error handling component file switch: ${error}`);
+        Logger.error(
+            `Error handling component file switch: ${error}`,
+            'ComponentFileSwitcher.handleSwitchComponentFile',
+        );
         vscode.window.showErrorMessage(`Error switching component file: ${error}`);
     }
 }
@@ -141,6 +155,7 @@ function setupFileWatcher(): void {
 
     // File created, deleted, or changed in component directory
     const fileChangeHandler = () => {
+        Logger.debug('fileChangeHandler called', 'ComponentFileSwitcher.setupFileWatcher');
         refreshComponentData();
     };
 
@@ -169,12 +184,31 @@ function setupActiveEditorChangeListener(): void {
     }
 
     // Text document change (for unsaved indicators)
-    const textDocumentChangeEvent = vscode.workspace.onDidChangeTextDocument(() => {
+    const textDocumentChangeEvent = vscode.workspace.onDidChangeTextDocument((event) => {
+        // Skip non-regular files
+        if (event.document.uri.scheme !== 'file' || !isRegularFilePath(event.document.uri.fsPath)) {
+            return;
+        }
+
+        Logger.debug(
+            'textDocumentChangeEvent called for file: ' + event.document.uri.fsPath,
+            'ComponentFileSwitcher.setupActiveEditorChangeListener',
+        );
         refreshComponentData();
     });
 
     // Active editor change
-    const activeEditorChangeEvent = vscode.window.onDidChangeActiveTextEditor(() => {
+    const activeEditorChangeEvent = vscode.window.onDidChangeActiveTextEditor((editor) => {
+        // Skip non-regular file editors
+        if (!isRegularFileEditor(editor)) {
+            return;
+        }
+
+        // We know editor is defined at this point since isRegularFileEditor checks for null/undefined
+        Logger.debug(
+            'activeEditorChangeEvent called for file: ' + editor!.document.uri.fsPath,
+            'ComponentFileSwitcher.setupActiveEditorChangeListener',
+        );
         refreshComponentData();
     });
 
@@ -191,9 +225,22 @@ function setupActiveEditorChangeListener(): void {
  */
 export async function refreshComponentData(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
+    Logger.debug('refreshComponentData called', 'ComponentFileSwitcher.refreshComponentData');
 
     if (!editor) {
         // No active editor, clear component data
+        sendComponentDataMessage({
+            componentName: null,
+            componentType: ComponentType.UNKNOWN,
+            fileName: '',
+            files: [],
+        });
+        return;
+    }
+
+    // Skip non-regular file editors
+    if (!isRegularFileEditor(editor)) {
+        // Non-file document, clear component data
         sendComponentDataMessage({
             componentName: null,
             componentType: ComponentType.UNKNOWN,
@@ -232,7 +279,7 @@ export async function refreshComponentData(): Promise<void> {
             files: componentFiles,
         });
     } catch (error) {
-        Logger.error(`Error refreshing component data: ${error}`);
+        Logger.error(`Error refreshing component data: ${error}`, 'ComponentFileSwitcher.refreshComponentData');
     }
 }
 

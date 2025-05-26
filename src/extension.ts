@@ -19,7 +19,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Early return if .sfdx/sfdx-config.json does not exist in the workspace root
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
-        Logger.warn('No workspace folder found. Extension will not activate.');
+        Logger.warn('No workspace folder found. Extension will not activate.', 'if');
         return;
     }
     const sfdxConfigPath = vscode.Uri.joinPath(workspaceFolders[0].uri, '.sfdx', 'sfdx-config.json');
@@ -31,7 +31,7 @@ export function activate(context: vscode.ExtensionContext) {
         },
         () => {
             // File does not exist, log and return
-            Logger.warn('.sfdx/sfdx-config.json not found in workspace root. Extension will not activate.');
+            Logger.warn('.sfdx/sfdx-config.json not found in workspace root. Extension will not activate.', 'if');
         },
     );
 }
@@ -45,9 +45,9 @@ async function continueActivation(context: vscode.ExtensionContext) {
     try {
         const expressServer = ExpressServer.getInstance();
         await expressServer.start();
-        Logger.info(`Express server started successfully`);
+        Logger.info(`Express server started successfully`, 'continueActivation');
     } catch (error) {
-        Logger.error('Failed to start Express server');
+        Logger.error('Failed to start Express server', 'catch');
         // Continue activation even if server fails to start
     }
 
@@ -65,14 +65,14 @@ async function continueActivation(context: vscode.ExtensionContext) {
     setTimeout(() => {
         // Initialize SFUtils directly rather than using CommandHandler
         SFUtils.initialize(true).catch((error: Error) => {
-            Logger.error('Error during initialization:', error);
+            Logger.error('Error during initialization:', 'catch', error);
         });
     }, 1000);
 
     // Register cleanup for deactivation
     registerCleanup(context);
 
-    Logger.info('Salesforce Multitool extension activated successfully');
+    Logger.info('Salesforce Multitool extension activated successfully', 'catch');
 }
 
 /**
@@ -83,8 +83,6 @@ function initializeLogger(context: vscode.ExtensionContext): void {
     const configLogLevel = ConfigUtils.getLogLevel();
 
     // Use config level if set, otherwise use development mode to determine level
-    // const logLevel = configLogLevel !== undefined ? configLogLevel : isDevelopment ? LogLevel.DEBUG : LogLevel.INFO;
-
     let logLevel: LogLevel;
 
     if (isDevelopment) {
@@ -95,11 +93,15 @@ function initializeLogger(context: vscode.ExtensionContext): void {
         logLevel = LogLevel.INFO;
     }
 
-    Logger.initialize(logLevel);
-    Logger.info(`Salesforce Multitool extension is now active (${isDevelopment ? 'development' : 'production'} mode)`);
+    // Initialize with the log level and development mode flag
+    Logger.initialize(logLevel, isDevelopment);
+    Logger.info(
+        `Salesforce Multitool extension is now active (${isDevelopment ? 'development' : 'production'} mode)`,
+        'if',
+    );
 
     if (isDevelopment) {
-        Logger.debug('DEBUG logging enabled for development');
+        Logger.debug('DEBUG logging enabled for development', 'if');
     }
 }
 

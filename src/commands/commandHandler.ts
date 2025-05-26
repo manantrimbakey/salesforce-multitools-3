@@ -38,7 +38,7 @@ export class CommandHandler {
 
         context.subscriptions.push(refreshConnectionCmd, openSidebarCmd, showComponentFileSwitcherCmd);
 
-        Logger.debug('All commands registered');
+        Logger.debug('All commands registered', 'CommandHandler.register');
     }
 
     /**
@@ -50,7 +50,7 @@ export class CommandHandler {
             await SFUtils.initialize(true);
             vscode.window.showInformationMessage('Salesforce connection refreshed');
         } catch (error) {
-            Logger.error('Error refreshing connection:', error);
+            Logger.error('Error refreshing connection:', 'CommandHandler.handleRefreshConnection()', error);
             vscode.window.showErrorMessage(`Failed to refresh connection: ${error}`);
         }
     }

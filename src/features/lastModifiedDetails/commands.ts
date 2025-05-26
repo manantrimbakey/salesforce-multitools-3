@@ -2,10 +2,11 @@ import * as vscode from 'vscode';
 import { Logger } from '../../utils/logger';
 import { getMetadataInfoFromFilePath } from '../../utils/metadataUtils';
 import { getFileLastModifiedInfo } from './lastModifiedService';
-import { getLastModifiedStoragePath } from './lastModifiedStorage';
-import { ConfigUtils } from '../../utils/config';
-import { FormattedLastModifiedInfo } from './lastModifiedTypes';
 import { SFUtils } from '../../utils/sfutils';
+import { FormattedLastModifiedInfo } from './lastModifiedTypes';
+import { ConfigUtils } from '../../utils/config';
+import { getStoredLastModifiedInfo, storeLastModifiedInfo } from './lastModifiedStorage';
+import { isRegularFileEditor } from '../../utils/fileUtils';
 
 // Status bar item to show last modified info
 let lastModifiedStatusBar: vscode.StatusBarItem;
@@ -15,6 +16,11 @@ let autoRefreshTimer: NodeJS.Timeout | undefined;
 
 // CodeLens provider instance - made global so it can be accessed from commands
 let codeLensProvider: LastModifiedCodeLensProvider;
+
+// Debounce tracking for refresh operations
+let lastRefreshTime = 0;
+let pendingRefresh: NodeJS.Timeout | undefined;
+const DEBOUNCE_DELAY = 1000; // 1 second debounce
 
 /**
  * Register all commands related to the Last Modified Details feature
@@ -26,16 +32,13 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
     lastModifiedStatusBar.command = 'salesforce-multitools-3.refreshLastModifiedInfo';
     context.subscriptions.push(lastModifiedStatusBar);
 
-    // Register the command to get last modified info
-    const getLastModifiedInfoCmd = vscode.commands.registerCommand(
-        'salesforce-multitools-3.getLastModifiedInfo',
-        handleGetLastModifiedInfo,
-    );
-
-    // Register the command to refresh last modified info
+    // Register the single unified command to refresh last modified info
     const refreshLastModifiedInfoCmd = vscode.commands.registerCommand(
         'salesforce-multitools-3.refreshLastModifiedInfo',
-        handleGetLastModifiedInfo,
+        (forceRefresh = false) => {
+            // When command is directly invoked, force a refresh bypassing debounce
+            refreshLastModifiedInfo(forceRefresh);
+        },
     );
 
     // Register the code lens provider
@@ -75,10 +78,22 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
         codeLensProvider,
     );
 
-    // Register event for active editor change to update status bar
+    // Register event for active editor change to update status bar and fetch new data
     const activeEditorChangeEvent = vscode.window.onDidChangeActiveTextEditor((editor) => {
-        updateStatusBarBasedOnEditor(editor);
-        startAutoRefreshTimer();
+        if (isValidEditor(editor)) {
+            refreshLastModifiedInfo();
+        } else {
+            lastModifiedStatusBar.hide();
+        }
+    });
+
+    // Register event for document save to trigger refresh
+    const documentSaveEvent = vscode.workspace.onDidSaveTextDocument((document) => {
+        const editor = vscode.window.activeTextEditor;
+        if (editor && editor.document === document && isValidEditor(editor)) {
+            // Always force refresh after save
+            refreshLastModifiedInfo(true);
+        }
     });
 
     // Register event for configuration changes
@@ -90,16 +105,19 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
     });
 
     // Update status bar on startup if editor is already open
-    updateStatusBarBasedOnEditor(vscode.window.activeTextEditor);
+    const editor = vscode.window.activeTextEditor;
+    if (isValidEditor(editor)) {
+        refreshLastModifiedInfo();
+    }
 
     // Start the auto-refresh timer
     startAutoRefreshTimer();
 
     context.subscriptions.push(
-        getLastModifiedInfoCmd,
         refreshLastModifiedInfoCmd,
         codeLensRegistration,
         activeEditorChangeEvent,
+        documentSaveEvent,
         configChangeEvent,
         {
             dispose: () => {
@@ -108,60 +126,46 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
                     clearInterval(autoRefreshTimer);
                     autoRefreshTimer = undefined;
                 }
+
+                // Clear any pending refresh
+                if (pendingRefresh) {
+                    clearTimeout(pendingRefresh);
+                    pendingRefresh = undefined;
+                }
             },
         },
     );
 
-    Logger.debug('Last Modified Details commands registered');
+    Logger.debug(
+        'Last Modified Details commands registered',
+        'LastModifiedDetailsCommands.registerLastModifiedCommands',
+    );
 }
 
-// Update statusbar display with org context
+/**
+ * Checks if the editor is valid for last modified details
+ * @param editor The editor to check
+ * @returns True if the editor is valid, false otherwise
+ */
+function isValidEditor(editor?: vscode.TextEditor): boolean {
+    if (!isRegularFileEditor(editor)) {
+        return false;
+    }
+
+    // Check if it's a Salesforce file by extracting metadata info
+    const metadataInfo = getMetadataInfoFromFilePath(editor!.document.uri.fsPath);
+    return !!metadataInfo;
+}
+
+/**
+ * Update statusbar display with org context
+ * @param info The last modified info
+ * @param connection The Salesforce connection
+ */
 function updateStatusBarText(info: FormattedLastModifiedInfo, connection: any): void {
     const orgUsername = connection?.username || 'Unknown org';
     lastModifiedStatusBar.text = `$(history) Modified: ${info.lastModifiedDate} by ${info.lastModifiedBy}`;
     lastModifiedStatusBar.tooltip = `Last modified on ${info.lastModifiedDate} by ${info.lastModifiedBy}\nOrg: ${orgUsername}\nClick to refresh`;
-}
-
-/**
- * Update status bar based on current active editor
- */
-async function updateStatusBarBasedOnEditor(editor?: vscode.TextEditor): Promise<void> {
-    if (!editor) {
-        lastModifiedStatusBar.hide();
-        return;
-    }
-
-    const filePath = editor.document.uri.fsPath;
-
-    Logger.debug(`Updating status bar based on editor: ${filePath}`);
-    const metadataInfo = getMetadataInfoFromFilePath(filePath);
-
-    if (metadataInfo) {
-        lastModifiedStatusBar.text = '$(history) Loading Salesforce metadata...';
-        lastModifiedStatusBar.show();
-
-        try {
-            // Always fetch from Salesforce
-            const info = await getFileLastModifiedInfo(filePath);
-            const connection = await SFUtils.getConnection();
-
-            if (info) {
-                updateStatusBarText(info, connection);
-                lastModifiedStatusBar.show();
-            } else {
-                lastModifiedStatusBar.text = `$(history) Not a recognized Salesforce file`;
-                lastModifiedStatusBar.tooltip = `Could not retrieve last modified information from Salesforce`;
-                lastModifiedStatusBar.show();
-            }
-        } catch (error) {
-            Logger.error('Error updating status bar with last modified info:', error);
-            lastModifiedStatusBar.text = `$(history) Click to get last modified info`;
-            lastModifiedStatusBar.tooltip = `Error fetching last modified info. Click to try again.`;
-            lastModifiedStatusBar.show();
-        }
-    } else {
-        lastModifiedStatusBar.hide();
-    }
 }
 
 /**
@@ -179,84 +183,167 @@ function startAutoRefreshTimer(): void {
 
     // If interval is 0, auto-refresh is disabled
     if (interval <= 0) {
-        Logger.debug('Auto-refresh for last modified details is disabled');
+        Logger.debug(
+            'Auto-refresh for last modified details is disabled',
+            'LastModifiedDetailsCommands.startAutoRefreshTimer',
+        );
         return;
     }
 
-    Logger.debug(`Starting auto-refresh for last modified details with interval: ${interval / 1000} seconds`);
+    Logger.debug(
+        `Starting auto-refresh for last modified details with interval: ${interval / 1000} seconds`,
+        'LastModifiedDetailsCommands.startAutoRefreshTimer',
+    );
 
     // Create a new timer that will refresh the last modified info
-    autoRefreshTimer = setInterval(async () => {
+    autoRefreshTimer = setInterval(() => {
         const editor = vscode.window.activeTextEditor;
-        if (editor) {
-            const filePath = editor.document.uri.fsPath;
 
-            Logger.debug(`Auto-refreshing last modified details for ${filePath}`);
-            const metadataInfo = getMetadataInfoFromFilePath(filePath);
-
-            if (metadataInfo) {
-                Logger.debug(`Auto-refreshing last modified details for ${filePath}`);
-
-                // Always query the server directly for fresh data
-                try {
-                    // Get fresh data from Salesforce
-                    const info = await getFileLastModifiedInfo(filePath);
-                    const connection = await SFUtils.getConnection();
-
-                    if (info) {
-                        // Update status bar
-                        updateStatusBarText(info, connection);
-                        lastModifiedStatusBar.show();
-
-                        // Trigger CodeLens refresh with fresh server data
-                        codeLensProvider.refreshWithLatestInfo(editor.document.uri, info);
-                        Logger.debug('Auto-refresh completed successfully with fresh data from server');
-                    }
-                } catch (error) {
-                    Logger.error('Error during auto-refresh:', error);
-                }
-            }
+        // Only refresh if we have a valid editor and enough time has passed since last refresh
+        const currentTime = Date.now();
+        if (!isValidEditor(editor) || currentTime - lastRefreshTime < 2000) {
+            // 2 seconds minimum between auto-refreshes
+            return;
         }
+
+        refreshLastModifiedInfo();
     }, interval);
 }
 
 /**
- * Handle get last modified info command for the currently active Salesforce file
+ * Single unified command to fetch last modified info from Salesforce
+ * This command will:
+ * 1. Fetch the latest data from Salesforce
+ * 2. Compare with stored data and show notification if changed
+ * 3. Update the UI (CodeLens and status bar)
+ * 4. Store the data locally
+ *
+ * @param forceRefresh If true, bypass debouncing and always refresh
  */
-async function handleGetLastModifiedInfo(): Promise<void> {
+export async function refreshLastModifiedInfo(forceRefresh: boolean = false): Promise<void> {
+    // Clear any pending refresh
+    if (pendingRefresh) {
+        clearTimeout(pendingRefresh);
+        pendingRefresh = undefined;
+    }
+
     const editor = vscode.window.activeTextEditor;
-    if (!editor) {
+    if (!isValidEditor(editor) || !editor) {
         return;
     }
 
     const filePath = editor.document.uri.fsPath;
-    Logger.info(`Getting last modified info for: ${filePath}`);
 
+    // Implement debouncing unless this is a forced refresh
+    if (!forceRefresh) {
+        const now = Date.now();
+        if (now - lastRefreshTime < DEBOUNCE_DELAY) {
+            pendingRefresh = setTimeout(() => {
+                pendingRefresh = undefined;
+                refreshLastModifiedInfo();
+            }, DEBOUNCE_DELAY);
+            return;
+        }
+    }
+
+    // Update last refresh time
+    lastRefreshTime = Date.now();
+
+    Logger.info(`Getting last modified info for: ${filePath}`, 'LastModifiedDetailsCommands.refreshLastModifiedInfo');
     lastModifiedStatusBar.text = '$(sync~spin) Querying Salesforce metadata...';
     lastModifiedStatusBar.show();
 
     try {
-        const info = await getFileLastModifiedInfo(filePath);
-        const connection = await SFUtils.getConnection();
-
-        if (info) {
-            Logger.info(`Last modified info retrieved: ${JSON.stringify(info)}`);
-            updateStatusBarText(info, connection);
-            lastModifiedStatusBar.show();
-
-            // Refresh the CodeLens with latest info from server
-            codeLensProvider.refreshWithLatestInfo(editor.document.uri, info);
-        } else {
-            Logger.warn(`No Salesforce metadata found for file: ${filePath}`);
+        // Get metadata info for the current file
+        const metadataInfo = getMetadataInfoFromFilePath(filePath);
+        if (!metadataInfo) {
             lastModifiedStatusBar.text = `$(history) Not a recognized Salesforce file`;
             lastModifiedStatusBar.tooltip = `Could not retrieve last modified information`;
             lastModifiedStatusBar.show();
+            return;
         }
+
+        // Step 1: Fetch fresh data from Salesforce
+        const info = await getFileLastModifiedInfo(filePath);
+        const connection = await SFUtils.getConnection();
+
+        if (!info) {
+            lastModifiedStatusBar.text = `$(history) No metadata found for this file`;
+            lastModifiedStatusBar.tooltip = `Could not retrieve last modified information`;
+            lastModifiedStatusBar.show();
+            return;
+        }
+
+        // Step 2: Check if it was modified by someone else
+        await checkForExternalModifications(metadataInfo.type, metadataInfo.apiName, {
+            LastModifiedBy: { Name: info.lastModifiedBy },
+            LastModifiedDate: new Date(info.lastModifiedDate).toISOString(),
+            LastModifiedById: info.lastModifiedById,
+        });
+
+        // Step 3: Update the UI
+        updateStatusBarText(info, connection);
+        lastModifiedStatusBar.show();
+        codeLensProvider.refreshWithLatestInfo(editor.document.uri, info);
+
+        // Step 4: Store the data locally
+        await storeLastModifiedInfo(metadataInfo.type, metadataInfo.apiName, {
+            lastModifiedBy: info.lastModifiedBy,
+            lastModifiedDate: new Date(info.lastModifiedDate).toISOString(),
+            lastModifiedById: info.lastModifiedById,
+            retrievedAt: new Date().toISOString(),
+            orgId: connection.instanceUrl || '',
+            orgUsername: (await SFUtils.getDefaultUsername()) || '',
+        });
     } catch (error) {
-        Logger.error('Error getting file last modified info:', error);
+        Logger.error(
+            'Error getting file last modified info:',
+            'LastModifiedDetailsCommands.refreshLastModifiedInfo',
+            error,
+        );
         lastModifiedStatusBar.text = `$(history) Error querying metadata`;
         lastModifiedStatusBar.tooltip = `Error: ${error instanceof Error ? error.message : String(error)}\nClick to try again`;
         lastModifiedStatusBar.show();
+    }
+}
+
+/**
+ * Check if the file has been modified by someone else since our last check
+ * @param metadataType The type of metadata
+ * @param apiName The API name of the component
+ * @param currentData The current data from Salesforce
+ */
+async function checkForExternalModifications(metadataType: string, apiName: string, currentData: any): Promise<void> {
+    try {
+        // Get the stored last modified info
+        const storedInfo = await getStoredLastModifiedInfo(metadataType, apiName);
+        if (!storedInfo) {
+            return;
+        }
+
+        // Check if the modification date is different and by a different user
+        const storedDate = new Date(storedInfo.lastModifiedDate).getTime();
+        const currentDate = new Date(currentData.LastModifiedDate).getTime();
+        const storedId = storedInfo.lastModifiedById;
+        const currentId = currentData.LastModifiedById;
+
+        if (currentDate > storedDate && storedId !== currentId) {
+            vscode.window.showInformationMessage(
+                `This file was modified on Salesforce by ${currentData.LastModifiedBy.Name} since your last check.`,
+                'OK',
+            );
+            Logger.info(
+                `External modification detected for ${metadataType}:${apiName} by ${currentData.LastModifiedBy.Name}`,
+                'LastModifiedDetailsCommands.checkForExternalModifications',
+            );
+        }
+    } catch (error) {
+        // Don't let errors in the check interrupt the main flow
+        Logger.error(
+            'Error checking for external modifications:',
+            'LastModifiedDetailsCommands.checkForExternalModifications',
+            error,
+        );
     }
 }
 
@@ -268,7 +355,7 @@ class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
     private _onDidChangeCodeLenses: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
     public readonly onDidChangeCodeLenses: vscode.Event<void> = this._onDidChangeCodeLenses.event;
 
-    // Store the current document URI that needs to be refreshed
+    // Store the last modified info for each document
     private _pendingRefresh: Map<string, FormattedLastModifiedInfo> = new Map();
 
     /**
@@ -278,102 +365,62 @@ class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
      */
     public refreshWithLatestInfo(documentUri: vscode.Uri, info: FormattedLastModifiedInfo): void {
         const uriString = documentUri.toString();
-
-        // Store only temporarily to display the CodeLens until next server query
         this._pendingRefresh.set(uriString, info);
-
-        // Trigger a refresh
         this._onDidChangeCodeLenses.fire();
-        Logger.debug(`Triggered CodeLens refresh for ${uriString}`);
     }
 
     async provideCodeLenses(
         document: vscode.TextDocument,
         token: vscode.CancellationToken,
     ): Promise<vscode.CodeLens[]> {
-        Logger.debug(`Providing CodeLenses for ${document.uri}`);
-
-        const filePath = document.uri.fsPath;
-
-        // Check if it's an LWC or Aura file
-        const isLwc = filePath.includes('/lwc/');
-        const isAura = filePath.includes('/aura/');
-
-        Logger.debug(`File path: ${filePath}, isLwc: ${isLwc}, isAura: ${isAura}`);
-        const metadataInfo = getMetadataInfoFromFilePath(filePath);
-
-        if (!metadataInfo) {
-            Logger.debug(`No metadata info found for ${filePath}`);
+        // Skip non-file documents
+        if (document.uri.scheme !== 'file') {
             return [];
         }
 
-        Logger.debug(`Metadata type: ${metadataInfo.type}, API name: ${metadataInfo.apiName}`);
+        const filePath = document.uri.fsPath;
+        if (!getMetadataInfoFromFilePath(filePath)) {
+            return [];
+        }
 
         try {
-            // Check if we have pending refresh info
+            // Get cached info for this document
             const uriString = document.uri.toString();
             const pendingInfo = this._pendingRefresh.get(uriString);
-
-            // Always try to query Salesforce first
-            let info: FormattedLastModifiedInfo | null;
-
-            try {
-                Logger.debug(`Fetching last modified info from Salesforce for ${filePath}`);
-                info = await getFileLastModifiedInfo(filePath);
-
-                if (info) {
-                    Logger.debug(`Got info from Salesforce: ${JSON.stringify(info)}`);
-                    // Update pending refresh with latest server data
-                    this._pendingRefresh.set(uriString, info);
-                } else {
-                    Logger.debug(`No info returned from Salesforce for ${filePath}`);
-                    // If server returns no data but we have pending refresh info, use that temporarily
-                    info = pendingInfo || null;
-                }
-            } catch (error) {
-                Logger.warn(`Error fetching from Salesforce: ${error}`);
-                // On error, use pending refresh info if available, otherwise show error
-                info = pendingInfo || null;
-                if (!info) {
-                    throw error; // Re-throw to show error CodeLens
-                }
-            }
-
-            if (!info) {
-                Logger.debug(`No info available for ${filePath}, not showing CodeLens`);
+            if (!pendingInfo) {
                 return [];
             }
 
+            // Create CodeLens at the top of the document
             const position = new vscode.Position(0, 0);
             const range = new vscode.Range(position, position);
 
-            // Get org username to display in CodeLens
+            // Get org username for tooltip
             const connection = await SFUtils.getConnection();
             const orgUsername = connection?.getUsername() || '';
 
-            // Keep org info in tooltip but not in CodeLens title
-            const codeLens = new vscode.CodeLens(range, {
-                title: `$(history) Last modified: ${info.lastModifiedDate} by ${info.lastModifiedBy}`,
-                tooltip: `Last modified on ${info.lastModifiedDate} by ${info.lastModifiedBy}${orgUsername ? ` in org ${orgUsername}` : ''}\nClick to refresh`,
-                command: 'salesforce-multitools-3.refreshLastModifiedInfo',
-            });
-
-            Logger.debug(`Returning CodeLens for ${document.uri}`);
-            return [codeLens];
+            return [
+                new vscode.CodeLens(range, {
+                    title: `$(history) Last modified: ${pendingInfo.lastModifiedDate} by ${pendingInfo.lastModifiedBy}`,
+                    tooltip: `Last modified on ${pendingInfo.lastModifiedDate} by ${pendingInfo.lastModifiedBy}${
+                        orgUsername ? ` in org ${orgUsername}` : ''
+                    }\nClick to refresh`,
+                    command: 'salesforce-multitools-3.refreshLastModifiedInfo',
+                }),
+            ];
         } catch (error) {
-            Logger.error('Error getting code lens for last modified info:', error);
+            Logger.error('Error providing CodeLens:', 'LastModifiedDetailsCommands.provideCodeLenses', error);
 
-            // Return a CodeLens that indicates an error
+            // Return error CodeLens
             const position = new vscode.Position(0, 0);
             const range = new vscode.Range(position, position);
-
-            const codeLens = new vscode.CodeLens(range, {
-                title: `$(error) Error retrieving last modified details`,
-                tooltip: 'Click to try again',
-                command: 'salesforce-multitools-3.refreshLastModifiedInfo',
-            });
-
-            return [codeLens];
+            return [
+                new vscode.CodeLens(range, {
+                    title: `$(error) Error retrieving last modified details`,
+                    tooltip: 'Click to try again',
+                    command: 'salesforce-multitools-3.refreshLastModifiedInfo',
+                }),
+            ];
         }
     }
 }

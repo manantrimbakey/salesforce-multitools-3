@@ -69,7 +69,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             command: 'setActiveComponent',
             component: componentName,
         });
-        Logger.debug(`Set active component to: ${componentName}`);
+        Logger.debug(`Set active component to: ${componentName}`, 'SidebarProvider.setActiveComponent');
     }
 
     /**
@@ -156,9 +156,16 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                         try {
                             const document = await vscode.workspace.openTextDocument(message.filePath);
                             await vscode.window.showTextDocument(document);
-                            Logger.debug(`Opened file: ${message.filePath}`);
+                            Logger.debug(
+                                `Opened file: ${message.filePath}`,
+                                'SidebarProvider._setWebviewMessageListener',
+                            );
                         } catch (error) {
-                            Logger.error(`Error opening file: ${message.filePath}`, error);
+                            Logger.error(
+                                `Error opening file: ${message.filePath}`,
+                                'SidebarProvider._setWebviewMessageListener',
+                                error,
+                            );
                             vscode.window.showErrorMessage(`Failed to open file: ${error}`);
                         }
                     }
@@ -167,7 +174,10 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
                 case 'exampleRequest': {
                     // Handle example component requests
                     if (message.data && message.data.text) {
-                        Logger.debug(`Received message from example component: ${message.data.text}`);
+                        Logger.debug(
+                            `Received message from example component: ${message.data.text}`,
+                            'SidebarProvider._setWebviewMessageListener',
+                        );
 
                         // Echo back the message with some processing
                         this._sendMessage({
@@ -187,7 +197,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
      * Send initial data to the webview
      */
     private _sendInitialData() {
-        Logger.debug('Sending initial data to sidebar webview');
+        Logger.debug('Sending initial data to sidebar webview', 'SidebarProvider._sendInitialData');
 
         if (!this._view) {
             return;
@@ -215,7 +225,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             try {
                 this._view.webview.postMessage(message);
             } catch (error) {
-                Logger.error('Error sending message to webview:', error);
+                Logger.error('Error sending message to webview:', 'SidebarProvider._sendMessage', error);
             }
         }
     }
