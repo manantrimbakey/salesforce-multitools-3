@@ -53,7 +53,7 @@ export class ExpressServer {
                 const address = this.server?.address() as AddressInfo;
                 this.port = address.port;
                 this.baseUrl = `http://127.0.0.1:${this.port}`;
-                Logger.info(`Express server started`); // Don't log the URL/port
+                Logger.info(`Express server started`, 'ExpressServer.start'); // Don't log the URL/port
             });
 
             // Wait for the server to start
@@ -63,7 +63,7 @@ export class ExpressServer {
 
             return this.baseUrl;
         } catch (error) {
-            Logger.error('Failed to start Express server');
+            Logger.error('Failed to start Express server', 'ExpressServer.start', error);
             throw error;
         }
     }
@@ -80,7 +80,7 @@ export class ExpressServer {
 
             this.server.close((err) => {
                 if (err) {
-                    Logger.error('Error stopping Express server:', err);
+                    Logger.error('Error stopping Express server:', 'ExpressServer.stop', err);
                     reject(err);
                     return;
                 }
@@ -88,7 +88,7 @@ export class ExpressServer {
                 this.server = null;
                 this.port = 0;
                 this.baseUrl = '';
-                Logger.info('Express server stopped');
+                Logger.info('Express server stopped', 'ExpressServer.stop');
                 resolve();
             });
         });
@@ -148,7 +148,7 @@ export class ExpressServer {
 
         // Add logging middleware
         this.app.use((req, res, next) => {
-            Logger.debug(`Express request: ${req.method} ${req.url}`);
+            Logger.debug(`Express request: ${req.method} ${req.url}`, 'ExpressServer.setupMiddleware');
             next();
         });
     }
@@ -198,7 +198,7 @@ export class ExpressServer {
             try {
                 // Since SFUtils doesn't have fetchDebugLogs, we'll use VS Code command
                 // and define a simple handler for this API endpoint
-                Logger.debug('API request received for /api/debugLogs');
+                Logger.debug('API request received for /api/debugLogs', 'ExpressServer.setupDebugLogRoutes');
 
                 const sfconnection = await SFUtils.getConnection();
 
@@ -222,7 +222,7 @@ export class ExpressServer {
 
                 const logs = await sfconnection.query(query);
 
-                Logger.debug(`Retrieved ${logs.totalSize} debug logs`);
+                Logger.debug(`Retrieved ${logs.totalSize} debug logs`, 'ExpressServer.setupDebugLogRoutes');
 
                 let logRecords: any;
 
@@ -235,9 +235,7 @@ export class ExpressServer {
                 // Filter by log size if requested
                 if (logRecords.records && size && (sizeDirection === 'above' || sizeDirection === 'below')) {
                     logRecords.records = logRecords.records.filter((log: any) =>
-                        sizeDirection === 'above'
-                            ? log.LogLength > size
-                            : log.LogLength < size
+                        sizeDirection === 'above' ? log.LogLength > size : log.LogLength < size,
                     );
                     logRecords.totalSize = logRecords.records.length;
                 }
@@ -248,7 +246,7 @@ export class ExpressServer {
                     logs: logRecords,
                 });
             } catch (error: unknown) {
-                Logger.error('Error fetching debug logs via API:', error);
+                Logger.error('Error fetching debug logs via API:', 'ExpressServer.setupDebugLogRoutes', error);
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -260,7 +258,10 @@ export class ExpressServer {
         this.app.get('/api/users', async (req, res) => {
             try {
                 const searchTerm = req.query.search as string;
-                Logger.debug(`API request received for Salesforce users with search: ${searchTerm || 'none'}`);
+                Logger.debug(
+                    `API request received for Salesforce users with search: ${searchTerm || 'none'}`,
+                    'ExpressServer.setupDebugLogRoutes',
+                );
 
                 const sfconnection = await SFUtils.getConnection();
 
@@ -277,10 +278,13 @@ export class ExpressServer {
                 // Add sorting and limit - increase limit for better suggestions but not too many
                 query += ' ORDER BY Name LIMIT 25';
 
-                Logger.debug(`Executing user search query: ${query}`);
+                Logger.debug(`Executing user search query: ${query}`, 'ExpressServer.setupDebugLogRoutes');
                 const users = await sfconnection.query(query);
 
-                Logger.debug(`Retrieved ${users.totalSize} Salesforce users matching search "${searchTerm || 'none'}"`);
+                Logger.debug(
+                    `Retrieved ${users.totalSize} Salesforce users matching search "${searchTerm || 'none'}"`,
+                    'ExpressServer.setupDebugLogRoutes',
+                );
 
                 // Get the current user's info
                 const currentUserInfo = await sfconnection.identity();
@@ -291,7 +295,7 @@ export class ExpressServer {
                     currentUser: currentUserInfo,
                 });
             } catch (error: unknown) {
-                Logger.error('Error fetching Salesforce users via API:', error);
+                Logger.error('Error fetching Salesforce users via API:', 'ExpressServer.setupDebugLogRoutes', error);
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -303,7 +307,7 @@ export class ExpressServer {
         this.app.get('/api/debugLogs/:id/download', async (req, res) => {
             try {
                 const logId = req.params.id;
-                Logger.debug(`API request received for full debug log: ${logId}`);
+                Logger.debug(`API request received for full debug log: ${logId}`, 'ExpressServer.setupDebugLogRoutes');
 
                 try {
                     // Get the connection to Salesforce
@@ -333,7 +337,7 @@ export class ExpressServer {
                         size: Buffer.from(logContent).length,
                     });
                 } catch (sfError) {
-                    Logger.error(`Error fetching log content from Salesforce:`, sfError);
+                    Logger.error(`Error fetching log content from Salesforce:`, 'ExpressServer.getLogBody', sfError);
 
                     res.status(500).json({
                         success: false,
@@ -341,7 +345,7 @@ export class ExpressServer {
                     });
                 }
             } catch (error: unknown) {
-                Logger.error(`Error fetching debug log via API:`, error);
+                Logger.error(`Error fetching debug log via API:`, 'ExpressServer.getLogBody', error);
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -353,7 +357,10 @@ export class ExpressServer {
         this.app.get('/api/debugLogs/:id/methodName', async (req, res) => {
             try {
                 const logId = req.params.id;
-                Logger.debug(`API request received for debug log method name: ${logId}`);
+                Logger.debug(
+                    `API request received for debug log method name: ${logId}`,
+                    'ExpressServer.setupDebugLogRoutes',
+                );
 
                 try {
                     // Get the connection to Salesforce
@@ -372,7 +379,9 @@ export class ExpressServer {
                     const logBody = await this.getLogBody(logId, instanceUrl, accessToken, true);
 
                     // Find the first CODE_UNIT_STARTED line
-                    const codeUnitLine = logBody.split('\n').find(line => line.includes('|CODE_UNIT_STARTED|[EXTERNAL]|'));
+                    const codeUnitLine = logBody
+                        .split('\n')
+                        .find((line) => line.includes('|CODE_UNIT_STARTED|[EXTERNAL]|'));
                     let methodName = 'NO_METHOD_NAME_FOUND';
                     if (codeUnitLine) {
                         const parts = codeUnitLine.split('|');
@@ -397,7 +406,7 @@ export class ExpressServer {
                         logId,
                     });
                 } catch (sfError) {
-                    Logger.error(`Error extracting method name from log:`, sfError);
+                    Logger.error(`Error extracting method name from log:`, 'ExpressServer.getLogBody', sfError);
                     res.status(500).json({
                         success: false,
                         error: sfError instanceof Error ? sfError.message : String(sfError),
@@ -405,7 +414,7 @@ export class ExpressServer {
                     });
                 }
             } catch (error: unknown) {
-                Logger.error(`Error in method name API:`, error);
+                Logger.error(`Error in method name API:`, 'ExpressServer.getLogBody', error);
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -417,7 +426,7 @@ export class ExpressServer {
         this.app.delete('/api/debugLogs/:id', async (req, res) => {
             try {
                 const logId = req.params.id;
-                Logger.debug(`API request received to delete log: ${logId}`);
+                Logger.debug(`API request received to delete log: ${logId}`, 'ExpressServer.deleteDebugLog');
 
                 // Return a success response without actually deleting anything
                 res.json({
@@ -425,7 +434,7 @@ export class ExpressServer {
                     message: `This is a placeholder. Debug log deletion is not implemented in the server API yet.`,
                 });
             } catch (error: unknown) {
-                Logger.error(`Error deleting debug log via API:`, error);
+                Logger.error(`Error deleting debug log via API:`, 'ExpressServer.deleteDebugLog', error);
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -440,24 +449,28 @@ export class ExpressServer {
                 const sfconnection = await SFUtils.getConnection();
                 let query = 'SELECT Id FROM ApexLog';
 
-                Logger.debug(`Deleting debug logs for user: ${userName}`);
+                Logger.debug(`Deleting debug logs for user: ${userName}`, 'ExpressServer.bulkDeleteDebugLogs');
 
                 if (userName && userName !== 'all') {
                     query += ` WHERE LogUser.Name = '${userName.replace(/'/g, "\\'")}'`;
                 }
 
-                Logger.debug(`Executing query: ${query}`);
+                Logger.debug(`Executing query: ${query}`, 'ExpressServer.bulkDeleteDebugLogs');
 
                 const logs = await sfconnection.query(query);
 
-                Logger.debug(`Retrieved ${JSON.stringify(logs)} debug logs`);
+                Logger.debug(`Retrieved ${JSON.stringify(logs)} debug logs`, 'ExpressServer.bulkDeleteDebugLogs');
 
                 const logIds = logs.records.map((log: any) => log.Id);
-                let deleted = 0, failed = 0;
+                let deleted = 0,
+                    failed = 0;
                 const batchSize = 10;
                 for (let i = 0; i < logIds.length; i += batchSize) {
                     const batch = logIds.slice(i, i + batchSize);
-                    Logger.debug(`Deleting batch ${i / batchSize + 1}: ${batch.length} logs`);
+                    Logger.debug(
+                        `Deleting batch ${i / batchSize + 1}: ${batch.length} logs`,
+                        'ExpressServer.bulkDeleteDebugLogs',
+                    );
                     const results = await Promise.allSettled(
                         batch.map(async (logId) => {
                             try {
@@ -465,17 +478,21 @@ export class ExpressServer {
                                     url: `/services/data/v56.0/sobjects/ApexLog/${logId}`,
                                     method: 'DELETE',
                                 });
-                                Logger.debug(`Deleted log ${logId}`);
+                                Logger.debug(`Deleted log ${logId}`, 'ExpressServer.bulkDeleteDebugLogs');
                                 return 'deleted';
                             } catch (err) {
-                                Logger.error(`Failed to delete log ${logId}:`, err);
+                                Logger.error(
+                                    `Failed to delete log ${logId}:`,
+                                    'ExpressServer.bulkDeleteDebugLogs',
+                                    err,
+                                );
                                 return 'failed';
                             }
-                        })
+                        }),
                     );
-                    deleted += results.filter(r => r.status === 'fulfilled' && r.value === 'deleted').length;
-                    failed += results.filter(r => r.status === 'fulfilled' && r.value === 'failed').length;
-                    failed += results.filter(r => r.status === 'rejected').length;
+                    deleted += results.filter((r) => r.status === 'fulfilled' && r.value === 'deleted').length;
+                    failed += results.filter((r) => r.status === 'fulfilled' && r.value === 'failed').length;
+                    failed += results.filter((r) => r.status === 'rejected').length;
                 }
                 res.json({
                     success: true,
@@ -484,7 +501,7 @@ export class ExpressServer {
                     total: logIds.length,
                 });
             } catch (error) {
-                Logger.error('Error bulk deleting debug logs:', error);
+                Logger.error('Error bulk deleting debug logs:', 'ExpressServer.bulkDeleteDebugLogs', error);
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -511,7 +528,7 @@ export class ExpressServer {
         // Write the content to the file
         await fs.promises.writeFile(tempFilePath, content, 'utf8');
 
-        Logger.debug(`Saved log content to temporary file: ${tempFilePath}`);
+        Logger.debug(`Saved log content to temporary file: ${tempFilePath}`, 'ExpressServer.saveTempLogFile');
         return tempFilePath;
     }
 
@@ -542,7 +559,10 @@ export class ExpressServer {
         const { IncomingMessage } = require('http');
         const restApiUrl = `${instanceUrl}/services/data/v59.0/sobjects/ApexLog/${logId}/Body`;
 
-        Logger.debug(`Fetching ${limitToOneKb ? '1KB of' : 'full'} log body for ID: ${logId}`);
+        Logger.debug(
+            `Fetching ${limitToOneKb ? '1KB of' : 'full'} log body for ID: ${logId}`,
+            'ExpressServer.getLogBody',
+        );
 
         return new Promise((resolve, reject) => {
             let buff = Buffer.alloc(0);
@@ -629,7 +649,7 @@ export class ExpressServer {
 
                 res.json({ success: true, files });
             } catch (error: unknown) {
-                Logger.error(`Error listing directory via API:`, error);
+                Logger.error(`Error listing directory via API:`, 'ExpressServer.setupFileSwitcherRoutes', error);
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -661,7 +681,7 @@ export class ExpressServer {
                 vscode.commands.executeCommand('vscode.open', vscode.Uri.file(filePath));
                 res.json({ success: true });
             } catch (error: unknown) {
-                Logger.error(`Error opening file via API:`, error);
+                Logger.error(`Error opening file via API:`, 'ExpressServer.setupFileSwitcherRoutes', error);
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -686,7 +706,7 @@ export class ExpressServer {
                 const components = await MetadataUtils.findComponentFiles(currentFile);
                 res.json({ success: true, components });
             } catch (error: unknown) {
-                Logger.error('Error fetching component data via API:', error);
+                Logger.error('Error fetching component data via API:', 'ExpressServer.setupFileSwitcherRoutes', error);
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -711,7 +731,7 @@ export class ExpressServer {
         }
 
         this.app[method](path, handler);
-        Logger.debug(`Registered ${method.toUpperCase()} route: ${path}`);
+        Logger.debug(`Registered ${method.toUpperCase()} route: ${path}`, 'ExpressServer.registerRoute');
     }
 }
 
@@ -725,6 +745,6 @@ export async function disposeExpressServer(): Promise<void> {
             await server.stop();
         }
     } catch (err) {
-        Logger.error('Error disposing Express server:', err);
+        Logger.error('Error disposing Express server:', 'ExpressServer.disposeExpressServer', err);
     }
 }

@@ -136,7 +136,7 @@ export class FileSwitcherPanel {
      * Send initial data to the webview
      */
     private _sendInitialData() {
-        Logger.debug('Sending initial data to file switcher webview');
+        Logger.debug('Sending initial data to file switcher webview', 'FileSwitcherPanel._sendInitialData');
 
         // Get the workspace folder
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -160,12 +160,12 @@ export class FileSwitcherPanel {
      * List the contents of a directory
      */
     private async _listDirectoryContents(directoryPath: string) {
-        Logger.debug(`Listing directory contents: ${directoryPath}`);
+        Logger.debug(`Listing directory contents: ${directoryPath}`, 'FileSwitcherPanel._listDirectoryContents');
 
         try {
             // Make sure the directory exists
             if (!fs.existsSync(directoryPath)) {
-                Logger.warn(`Directory does not exist: ${directoryPath}`);
+                Logger.warn(`Directory does not exist: ${directoryPath}`, 'FileSwitcherPanel._listDirectoryContents');
                 this._sendMessage({
                     command: 'fileList',
                     currentDirectory: directoryPath,
@@ -211,9 +211,9 @@ export class FileSwitcherPanel {
                 files: fileEntries,
             });
 
-            Logger.debug(`Sent ${fileEntries.length} files to webview`);
+            Logger.debug(`Sent ${fileEntries.length} files to webview`, 'FileSwitcherPanel._listDirectoryContents');
         } catch (error) {
-            Logger.error('Error listing directory contents:', error);
+            Logger.error('Error listing directory contents:', 'FileSwitcherPanel._listDirectoryContents', error);
             this._sendMessage({
                 command: 'fileList',
                 currentDirectory: directoryPath,
@@ -228,13 +228,13 @@ export class FileSwitcherPanel {
         try {
             this._panel.webview.postMessage(message);
         } catch (error) {
-            Logger.error('Error sending message to webview:', error);
+            Logger.error('Error sending message to webview:', 'FileSwitcherPanel._sendMessage', error);
         }
     }
 
     private _openFile(filePath: string) {
         // Open a file in VS Code
-        Logger.debug(`Opening file: ${filePath}`);
+        Logger.debug(`Opening file: ${filePath}`, 'FileSwitcherPanel._openFile');
 
         // Make sure the file exists
         if (!fs.existsSync(filePath)) {
@@ -249,7 +249,7 @@ export class FileSwitcherPanel {
                 return vscode.window.showTextDocument(doc);
             })
             .then(undefined, (error) => {
-                Logger.error('Error opening file:', error);
+                Logger.error('Error opening file:', 'FileSwitcherPanel._openFile', error);
                 vscode.window.showErrorMessage(
                     `Error opening file: ${error instanceof Error ? error.message : String(error)}`,
                 );

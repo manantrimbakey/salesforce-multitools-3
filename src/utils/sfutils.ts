@@ -27,7 +27,7 @@ export class SFUtils {
 
         // Reset cached data if forcing refresh
         if (forceRefresh) {
-            Logger.debug('Force refreshing SFUtils static members');
+            Logger.debug('Force refreshing SFUtils static members', 'SFUtils.initialize');
             this.myLocalConfig = undefined as unknown as sfcore.ConfigFile;
             this.authInfos = undefined as unknown as sfcore.OrgAuthorization[];
             this.connection = undefined;
@@ -44,9 +44,9 @@ export class SFUtils {
             } as sfcore.LoggerOptions);
 
             this.isInitialized = true;
-            Logger.debug('SFUtils initialized successfully');
+            Logger.debug('SFUtils initialized successfully', 'SFUtils.initialize');
         } catch (error) {
-            Logger.error('Error initializing Salesforce utilities:', error);
+            Logger.error('Error initializing Salesforce utilities:', error, 'SFUtils.initialize');
         }
     }
 
@@ -57,14 +57,17 @@ export class SFUtils {
             await this.initLocalConfig();
 
             const localValue = this.myLocalConfig.get('defaultusername');
-            Logger.debug('Default username from config:', localValue);
+            Logger.debug('Default username from config:', 'SFUtils.getDefaultUsername', localValue);
 
             const authInfos = await this.listAllAuthorizations();
 
             const authInfo = authInfos.find((authInfo) => authInfo?.aliases?.includes(localValue as string));
 
             if (!authInfo) {
-                Logger.warn(`No authentication info found for username: ${JSON.stringify(localValue)}`);
+                Logger.warn(
+                    `No authentication info found for username: ${JSON.stringify(localValue)}`,
+                    'SFUtils.getDefaultUsername',
+                );
             }
 
             return authInfo?.username ?? '';
@@ -76,12 +79,12 @@ export class SFUtils {
 
         if (!this.connection) {
             const defaultusername = await this.getDefaultUsername();
-            Logger.debug('Getting connection for username:', defaultusername);
+            Logger.debug('Getting connection for username:', 'SFUtils.getConnection', defaultusername);
 
             this.connection = await sfcore.Connection.create({
                 authInfo: await sfcore.AuthInfo.create({ username: defaultusername }),
             });
-            Logger.info('Salesforce connection created successfully');
+            Logger.info('Salesforce connection created successfully', 'SFUtils.getConnection');
         }
         return this.connection;
     }
@@ -91,7 +94,7 @@ export class SFUtils {
             const rootPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
             const configPath = path.join(rootPath, '.sfdx', 'sfdx-config.json');
 
-            Logger.debug(`Initializing config file from: ${configPath}`);
+            Logger.debug(`Initializing config file from: ${configPath}`, 'SFUtils.initLocalConfig');
 
             try {
                 this.myLocalConfig = await sfcore.ConfigFile.create({
@@ -103,7 +106,7 @@ export class SFUtils {
                 // Setup file watcher for config changes
                 this.setupConfigWatcher(configPath);
             } catch (error) {
-                Logger.error('Failed to initialize config file:', error);
+                Logger.error('Failed to initialize config file:', error, 'SFUtils.initLocalConfig');
                 throw error;
             }
         }
@@ -119,7 +122,7 @@ export class SFUtils {
         try {
             this.configWatcher = fs.watch(configPath, (eventType) => {
                 if (eventType === 'change') {
-                    Logger.info('Config file changed, resetting cache');
+                    Logger.info('Config file changed, resetting cache', 'SFUtils.setupConfigWatcher');
                     // Reset the cached config so it will be reloaded on next request
                     this.myLocalConfig = undefined as unknown as sfcore.ConfigFile;
                     // Also reset the connection since it depends on config
@@ -129,17 +132,17 @@ export class SFUtils {
                     vscode.commands.executeCommand('salesforce-multitools-3.refreshConnection');
                 }
             });
-            Logger.debug(`File watcher set up for: ${configPath}`);
+            Logger.debug(`File watcher set up for: ${configPath}`, 'SFUtils.setupConfigWatcher');
         } catch (error) {
             // If the file doesn't exist yet or other errors
-            Logger.error('Error setting up config file watcher:', error);
+            Logger.error('Error setting up config file watcher:', error, 'SFUtils.setupConfigWatcher');
             throw error;
         }
     }
 
     private static async listAllAuthorizations() {
         if (!this.authInfos) {
-            Logger.debug('Loading all Salesforce authorizations');
+            Logger.debug('Loading all Salesforce authorizations', 'SFUtils.listAllAuthorizations');
             this.authInfos = await sfcore.AuthInfo.listAllAuthorizations();
         }
         return this.authInfos;
@@ -147,7 +150,7 @@ export class SFUtils {
 
     // Clean up watchers when extension is deactivated
     public static dispose() {
-        Logger.debug('Disposing SFUtils resources');
+        Logger.debug('Disposing SFUtils resources', 'SFUtils.dispose');
         if (this.configWatcher) {
             this.configWatcher.close();
             this.configWatcher = undefined;

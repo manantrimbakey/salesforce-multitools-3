@@ -19,6 +19,7 @@ When you're working with Lightning components:
     - For Aura: Controller.js takes priority, then the component file & CSS
 
 The sidebar provides a clean interface with:
+
 - Component name & type with LWC/Aura indicators
 - Files grouped by type for better organization
 - Unsaved files get a special indicator
@@ -29,7 +30,8 @@ The sidebar provides a clean interface with:
 ### 👀 Last Modified Details
 
 See who modified your code last and when, get notified and blame them!
-- Track who last modified each Salesforce component 
+
+- Track who last modified each Salesforce component
 - Displays timestamps of when changes were made
 - Integrates with CodeLens for in-line visibility
 - Automatic refresh at configurable intervals
@@ -39,6 +41,7 @@ See who modified your code last and when, get notified and blame them!
 ### 🔍 Debug Log Fetcher
 
 Fetch and analyze Salesforce debug logs with enhanced filtering and UI:
+
 - **Command**: Use `Salesforce Multitool: Open Debug Logs` or from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
 - User-specific log filtering with typeahead search
 - Interactive log viewer with method name tracking
