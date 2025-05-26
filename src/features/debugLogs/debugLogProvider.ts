@@ -13,7 +13,7 @@ export class DebugLogProvider {
      */
     public static async fetchDebugLogs(): Promise<any[]> {
         try {
-            Logger.debug('Fetching debug logs from Salesforce');
+            Logger.debug('Fetching debug logs from Salesforce', 'DebugLogProvider.fetchDebugLogs');
             const connection = await SFUtils.getConnection();
 
             // Query ApexLog records
@@ -33,10 +33,10 @@ export class DebugLogProvider {
                 requestId: log.RequestIdentifier,
             }));
 
-            Logger.debug(`Retrieved ${logs.length} debug logs`);
+            Logger.debug(`Retrieved ${logs.length} debug logs`, 'DebugLogProvider.fetchDebugLogs');
             return logs;
         } catch (error) {
-            Logger.error('Error fetching debug logs:', error);
+            Logger.error('Error fetching debug logs:', 'DebugLogProvider.fetchDebugLogs', error);
             throw error;
         }
     }
@@ -56,7 +56,7 @@ export class DebugLogProvider {
 
             return logBody;
         } catch (error) {
-            Logger.error(`Error fetching log content for ID ${logId}:`, error);
+            Logger.error(`Error fetching log content for ID ${logId}:`, 'DebugLogProvider.getDebugLogContent', error);
             throw error;
         }
     }
@@ -74,9 +74,9 @@ export class DebugLogProvider {
                 method: 'DELETE',
             });
 
-            Logger.debug(`Deleted debug log with ID: ${logId}`);
+            Logger.debug(`Deleted debug log with ID: ${logId}`, 'DebugLogProvider.deleteDebugLog');
         } catch (error) {
-            Logger.error(`Error deleting log with ID ${logId}:`, error);
+            Logger.error(`Error deleting log with ID ${logId}:`, 'DebugLogProvider.deleteDebugLog', error);
             throw error;
         }
     }
@@ -102,10 +102,10 @@ export class DebugLogProvider {
             // Write the log content to the file
             fs.writeFileSync(filePath, logContent);
 
-            Logger.debug(`Downloaded debug log to: ${filePath}`);
+            Logger.debug(`Downloaded debug log to: ${filePath}`, 'DebugLogProvider.downloadDebugLog');
             return filePath;
         } catch (error) {
-            Logger.error(`Error downloading log with ID ${logId}:`, error);
+            Logger.error(`Error downloading log with ID ${logId}:`, 'DebugLogProvider.downloadDebugLog', error);
             throw error;
         }
     }
@@ -130,9 +130,9 @@ export class DebugLogProvider {
                 viewColumn: vscode.ViewColumn.One,
             });
 
-            Logger.debug(`Opened debug log with ID: ${logId}`);
+            Logger.debug(`Opened debug log with ID: ${logId}`, 'DebugLogProvider.viewDebugLog');
         } catch (error) {
-            Logger.error(`Error viewing log with ID ${logId}:`, error);
+            Logger.error(`Error viewing log with ID ${logId}:`, 'DebugLogProvider.viewDebugLog', error);
             throw error;
         }
     }

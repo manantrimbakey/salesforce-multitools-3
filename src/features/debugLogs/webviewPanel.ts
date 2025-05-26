@@ -129,7 +129,7 @@ export class DebugLogWebviewPanel {
      * Send initial data to the webview
      */
     private static _sendInitialData(webview: vscode.Webview): void {
-        Logger.debug('Sending initial data to debug logs webview panel');
+        Logger.debug('Sending initial data to debug logs webview panel', 'DebugLogWebviewPanel._sendInitialData');
 
         // Get the workspace folder
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -152,7 +152,11 @@ export class DebugLogWebviewPanel {
         try {
             webview.postMessage(message);
         } catch (error) {
-            Logger.error('Error sending message to debug logs webview panel:', error);
+            Logger.error(
+                'Error sending message to debug logs webview panel:',
+                'DebugLogWebviewPanel._sendMessage',
+                error,
+            );
         }
     }
 }

@@ -36,7 +36,7 @@ export class ConfigWatcher {
         const newLogLevel = ConfigUtils.getLogLevel();
         if (newLogLevel !== undefined) {
             Logger.setLevel(newLogLevel);
-            Logger.info(`Log level changed to: ${LogLevel[newLogLevel]}`);
+            Logger.info(`Log level changed to: ${LogLevel[newLogLevel]}`, 'if');
         }
     }
 }
