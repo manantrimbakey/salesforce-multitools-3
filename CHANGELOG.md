@@ -2,6 +2,12 @@
 
 All notable changes to the "salesforce-multitools-3" extension will be documented in this file.
 
+## [0.3.1]
+
+### Updated
+
+- Fixed issue where last modified details were not being refreshed correctly and performance improvements
+
 ## [0.3.0]
 
 ### Updated
