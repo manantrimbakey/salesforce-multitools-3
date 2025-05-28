@@ -100,13 +100,52 @@ interface MethodNameCache {
 // Global cache that persists between renders
 const methodNameCache: MethodNameCache = {};
 
+// Rate limiter for API requests
+const activeRequests = new Set<string>();
+const MAX_CONCURRENT_REQUESTS = 3;
+const requestQueue: string[] = [];
+
+// Process the next item in the queue
+function processNextInQueue() {
+    if (requestQueue.length === 0 || activeRequests.size >= MAX_CONCURRENT_REQUESTS) {
+        return;
+    }
+
+    const logId = requestQueue.shift();
+    if (logId && !activeRequests.has(logId)) {
+        // Dispatch a custom event to trigger the fetch for this specific logId
+        window.dispatchEvent(new CustomEvent('process-method-name', { detail: { logId } }));
+    }
+}
+
 // Method Name Component
 function MethodName({ logId }: { logId: string }) {
     const [methodName, setMethodName] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [shouldFetch, setShouldFetch] = useState(false);
+    const [isQueued, setIsQueued] = useState(false);
     const ref = useRef<HTMLSpanElement | null>(null);
+    // Add timeout ref to track and cancel long-running requests
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Listen for the custom event to process this specific logId
+    useEffect(() => {
+        const handleProcessEvent = (event: Event) => {
+            // Check if this event is for this component
+            const customEvent = event as CustomEvent;
+            if (customEvent.detail?.logId === logId) {
+                setIsQueued(false);
+                setShouldFetch(true);
+            }
+        };
+
+        window.addEventListener('process-method-name', handleProcessEvent);
+
+        return () => {
+            window.removeEventListener('process-method-name', handleProcessEvent);
+        };
+    }, [logId]);
 
     useEffect(() => {
         // Use Intersection Observer to trigger fetch only when visible
@@ -116,7 +155,25 @@ function MethodName({ logId }: { logId: string }) {
             (entries) => {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting) {
-                        setShouldFetch(true);
+                        // Check if we already have a cached value
+                        const cachedData = methodNameCache[logId];
+                        const cacheExpiration = 30 * 60 * 1000; // 30 minutes in milliseconds
+                        const now = Date.now();
+
+                        if (cachedData && now - cachedData.timestamp < cacheExpiration) {
+                            setMethodName(cachedData.methodName);
+                            return;
+                        }
+
+                        // If we're already at max concurrent requests, queue this one
+                        if (activeRequests.size >= MAX_CONCURRENT_REQUESTS) {
+                            if (!requestQueue.includes(logId) && !activeRequests.has(logId)) {
+                                requestQueue.push(logId);
+                                setIsQueued(true);
+                            }
+                        } else if (!activeRequests.has(logId)) {
+                            setShouldFetch(true);
+                        }
                     }
                 });
             },
@@ -125,12 +182,27 @@ function MethodName({ logId }: { logId: string }) {
         observer.observe(node);
         return () => {
             observer.unobserve(node);
+            // If this component is unmounted while in the queue, remove it
+            const queueIndex = requestQueue.indexOf(logId);
+            if (queueIndex > -1) {
+                requestQueue.splice(queueIndex, 1);
+            }
         };
-    }, []);
+    }, [logId]);
 
     useEffect(() => {
         if (!shouldFetch) return;
         let cancelled = false;
+
+        // Add to active requests set
+        activeRequests.add(logId);
+
+        // Clear any existing timeout
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+        }
+
         const fetchMethodName = async () => {
             // Check if we have a cached value that's less than 30 minutes old
             const cachedData = methodNameCache[logId];
@@ -139,14 +211,38 @@ function MethodName({ logId }: { logId: string }) {
 
             if (cachedData && now - cachedData.timestamp < cacheExpiration) {
                 setMethodName(cachedData.methodName);
+                activeRequests.delete(logId);
+                processNextInQueue();
                 return;
             }
 
             if (!window.callServerApi) return;
             setLoading(true);
             setError(null);
+
+            // Set a timeout to prevent the spinner from being stuck
+            timeoutRef.current = setTimeout(() => {
+                if (!cancelled) {
+                    setLoading(false);
+                    setError('Request timed out');
+                    // Add to cache to prevent immediate retry
+                    methodNameCache[logId] = {
+                        methodName: 'TIMEOUT',
+                        timestamp: now,
+                    };
+                }
+                activeRequests.delete(logId);
+                processNextInQueue();
+            }, 10000); // 10 second timeout
+
             try {
                 const response: MethodNameResponse = await window.callServerApi(`/api/debugLogs/${logId}/methodName`);
+                // Clear the timeout since we got a response
+                if (timeoutRef.current) {
+                    clearTimeout(timeoutRef.current);
+                    timeoutRef.current = null;
+                }
+
                 if (response?.success) {
                     const newMethodName = response.methodName;
                     if (!cancelled) setMethodName(newMethodName);
@@ -157,20 +253,42 @@ function MethodName({ logId }: { logId: string }) {
                 } else {
                     if (!cancelled) setError('Failed to fetch method name');
                 }
-            } catch {
+            } catch (error) {
+                // Clear the timeout since we got an error
+                if (timeoutRef.current) {
+                    clearTimeout(timeoutRef.current);
+                    timeoutRef.current = null;
+                }
+
+                console.error('Error fetching method name:', error);
                 if (!cancelled) setError('Error fetching method name');
             } finally {
                 if (!cancelled) setLoading(false);
+                activeRequests.delete(logId);
+                processNextInQueue();
             }
         };
+
         fetchMethodName();
+
         return () => {
             cancelled = true;
+            // Clear timeout on cleanup
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+                timeoutRef.current = null;
+            }
+            // Remove from active requests and process next in queue
+            activeRequests.delete(logId);
+            processNextInQueue();
         };
     }, [logId, shouldFetch]);
 
     if (loading) {
         return <CircularProgress size={16} />;
+    }
+    if (isQueued) {
+        return <span style={{ color: 'gray', fontStyle: 'italic' }}>Queued...</span>;
     }
     if (error) {
         return (
@@ -781,3 +899,4 @@ export default function DebugLogFetcher() {
         </Card>
     );
 }
+
