@@ -2,7 +2,7 @@
 
 All notable changes to the "salesforce-multitools-3" extension will be documented in this file.
 
-## [0.5.0]
+## [0.4.1]
 
 ### Fixes
 
