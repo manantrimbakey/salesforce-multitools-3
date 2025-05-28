@@ -2,6 +2,14 @@
 
 All notable changes to the "salesforce-multitools-3" extension will be documented in this file.
 
+## [0.5.0]
+
+### Fixes
+
+- Throttled the concurrent method name fetching
+- Improved the functionality to fetch method names from the log
+- Enabled storage of log in project folder itself
+
 ## [0.4.0]
 
 ### Updated
