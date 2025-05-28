@@ -5,6 +5,9 @@ import * as vscode from 'vscode';
 import cors from 'cors';
 import { Logger } from './logger';
 import { SFUtils } from './sfutils';
+
+const LOG_EVENTS = ['CODE_UNIT_STARTED', 'METHOD_ENTRY'];
+
 /**
  * ExpressServer class for handling HTTP requests within the extension
  * Implemented as a singleton to ensure only one server instance
@@ -374,13 +377,11 @@ export class ExpressServer {
                 try {
                     // Check if we already have the log file stored
                     const storedLogPath = await this.getStoredLogPath(logId);
-                    let logBody: string;
+                    let methodName: string;
 
                     if (await this.fileExists(storedLogPath)) {
-                        // Read the first 1KB from the stored log file
-                        const fs = require('fs').promises;
-                        const fileContent = await fs.readFile(storedLogPath, { encoding: 'utf8', flag: 'r' });
-                        logBody = fileContent.substring(0, 1024);
+                        // Read the log file in batches until we find a method name
+                        methodName = await this.extractMethodNameFromStoredLog(storedLogPath);
                         Logger.debug(
                             `Using stored log file for method name: ${storedLogPath}`,
                             'ExpressServer.setupDebugLogRoutes',
@@ -396,29 +397,16 @@ export class ExpressServer {
                             throw new Error('No valid access token available');
                         }
 
-                        // Use the getLogBody method to get log content - limit to 1KB
-                        logBody = await this.getLogBody(logId, instanceUrl, accessToken, true);
-                    }
+                        // Fetch first 10KB of log data
+                        const initialLogContent = await this.getLogBody(logId, instanceUrl, accessToken, true, 10240);
+                        methodName = this.extractMethodNameFromLog(initialLogContent);
 
-                    // Find the first CODE_UNIT_STARTED line
-                    const codeUnitLine = logBody
-                        .split('\n')
-                        .find((line) => line.includes('|CODE_UNIT_STARTED|[EXTERNAL]|'));
-                    let methodName = 'NO_METHOD_NAME_FOUND';
-                    if (codeUnitLine) {
-                        const parts = codeUnitLine.split('|');
-                        let rawName = parts[parts.length - 1].trim();
-                        // Format Apex method names
-                        if (rawName.startsWith('apex://')) {
-                            // Example: apex://NotesManagerController/ACTION$getLatestInProgressTask
-                            const match = rawName.match(/^apex:\/\/([^/]+)\/ACTION\$(.+)$/);
-                            if (match) {
-                                methodName = `${match[1]}.${match[2]}`;
-                            } else {
-                                methodName = rawName; // fallback
-                            }
-                        } else {
-                            methodName = rawName;
+                        // If method name not found, log it but don't fetch more
+                        if (methodName === 'NO_METHOD_NAME_FOUND') {
+                            Logger.debug(
+                                'Method name not found in first 10KB, stopping search',
+                                'ExpressServer.setupDebugLogRoutes',
+                            );
                         }
                     }
 
@@ -677,19 +665,99 @@ export class ExpressServer {
     }
 
     /**
+     * Extract method name from a stored log file by reading in batches
+     * @param filePath Path to the stored log file
+     * @returns The extracted method name
+     */
+    private async extractMethodNameFromStoredLog(filePath: string): Promise<string> {
+        const fs = require('fs');
+        const stream = fs.createReadStream(filePath, {
+            encoding: 'utf8',
+            highWaterMark: 1024, // Read 1KB at a time
+        });
+
+        let methodName = 'NO_METHOD_NAME_FOUND';
+        let buffer = '';
+        let foundMethod = false;
+        let bytesProcessed = 0;
+        const MAX_BYTES_TO_PROCESS = 50 * 1024; // 50KB maximum to process
+
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                stream.destroy();
+                Logger.warn(
+                    `Timeout reached while processing log file: ${filePath}`,
+                    'ExpressServer.extractMethodNameFromStoredLog',
+                );
+                resolve('PROCESSING_TIMEOUT');
+            }, 5000); // 5 second timeout
+
+            stream.on('data', (chunk: string) => {
+                buffer += chunk;
+                bytesProcessed += chunk.length;
+
+                // Process the current buffer
+                const extractedName = this.extractMethodNameFromLog(buffer);
+                if (extractedName !== 'NO_METHOD_NAME_FOUND') {
+                    methodName = extractedName;
+                    foundMethod = true;
+                    stream.destroy(); // Stop reading
+                }
+
+                // Safety check - stop processing if we've read too much data
+                if (bytesProcessed > MAX_BYTES_TO_PROCESS) {
+                    Logger.warn(
+                        `Reached maximum bytes to process (${MAX_BYTES_TO_PROCESS}) for log file: ${filePath}`,
+                        'ExpressServer.extractMethodNameFromStoredLog',
+                    );
+                    stream.destroy(); // Stop reading
+                }
+            });
+
+            stream.on('end', () => {
+                clearTimeout(timeout);
+                // If we've read the entire file and didn't find a method, try one more time with the full buffer
+                if (!foundMethod) {
+                    const finalExtractedName = this.extractMethodNameFromLog(buffer);
+                    if (finalExtractedName !== 'NO_METHOD_NAME_FOUND') {
+                        methodName = finalExtractedName;
+                    }
+                }
+                resolve(methodName);
+            });
+
+            stream.on('error', (err: Error) => {
+                clearTimeout(timeout);
+                Logger.error(
+                    `Error reading log file: ${filePath}`,
+                    'ExpressServer.extractMethodNameFromStoredLog',
+                    err,
+                );
+                reject(err);
+            });
+
+            stream.on('close', () => {
+                clearTimeout(timeout);
+                resolve(methodName);
+            });
+        });
+    }
+
+    /**
      * Retrieves the body of an Apex log from the Salesforce REST API.
      *
      * This method constructs a URL to access the log body for a given log ID,
      * makes an HTTPS GET request to the Salesforce API, and returns the log body
      * as a string. The method handles the response by accumulating data chunks
      * and resolving the promise with the complete log body once the response ends.
-     * If limitToOneKb is true, it will stop receiving data after 1KB to limit
+     * If limitSize is true, it will stop receiving data after maxSize bytes to limit
      * network usage for method name extraction.
      *
      * @param {string} logId - The ID of the log whose body is to be retrieved.
      * @param {string} instanceUrl - The Salesforce instance URL
      * @param {string} authToken - The access token for authentication
-     * @param {boolean} limitToOneKb - Whether to limit download to 1KB
+     * @param {boolean} limitSize - Whether to limit download size
+     * @param {number} maxSize - Maximum size in bytes to download (default: 1024)
      * @returns {Promise<string>} A promise that resolves to the log body as a string.
      * @throws {Error} If there is an error during the HTTPS request.
      */
@@ -697,14 +765,15 @@ export class ExpressServer {
         logId: string,
         instanceUrl: string,
         authToken: string,
-        limitToOneKb: boolean = false,
+        limitSize: boolean = false,
+        maxSize: number = 1024,
     ): Promise<string> {
         const https = require('https');
         const { IncomingMessage } = require('http');
         const restApiUrl = `${instanceUrl}/services/data/v59.0/sobjects/ApexLog/${logId}/Body`;
 
         Logger.debug(
-            `Fetching ${limitToOneKb ? '1KB of' : 'full'} log body for ID: ${logId}`,
+            `Fetching ${limitSize ? maxSize / 1024 + 'KB of' : 'full'} log body for ID: ${logId}`,
             'ExpressServer.getLogBody',
         );
 
@@ -733,10 +802,10 @@ export class ExpressServer {
 
                         response.on('data', (chunk: Uint8Array) => {
                             buff = Buffer.concat([buff, chunk]);
-                            if (limitToOneKb && buff.length > 1024) {
-                                // If we're limiting to 1KB and we've got enough data, stop receiving
+                            if (limitSize && buff.length > maxSize) {
+                                // If we're limiting size and we've got enough data, stop receiving
                                 response.destroy();
-                                return resolve(buff.toString().substring(0, 1024));
+                                return resolve(buff.toString().substring(0, maxSize));
                             }
                         });
 
@@ -768,6 +837,97 @@ export class ExpressServer {
                     reject(error);
                 });
         });
+    }
+
+    /**
+     * Extract method name from debug log content
+     * @param logBody The content of the debug log
+     * @returns The extracted method name or a default message if not found
+     */
+    private extractMethodNameFromLog(logBody: string): string {
+        let methodName = 'NO_METHOD_NAME_FOUND';
+
+        const logLines = logBody.split('\n');
+        for (const line of logLines) {
+            const parts = line.split('|');
+            if (parts?.length && LOG_EVENTS?.includes(parts[1])) {
+                const extractedName =
+                    parts[1] === 'CODE_UNIT_STARTED'
+                        ? this.processCodeUnitStartedLine(parts)
+                        : this.processMethodEntryLine(parts);
+
+                if (extractedName) {
+                    methodName = extractedName;
+                    break;
+                }
+            }
+        }
+
+        return methodName;
+    }
+
+    private processCodeUnitStartedLine(parts: string[]): string | null {
+        // 00:30:32.0 (198512)|CODE_UNIT_STARTED|[EXTERNAL]|apex://CometD_Controller/ACTION$getSessionId
+        // 00:28:49.0 (210089)|CODE_UNIT_STARTED|[EXTERNAL]|01qVN000000tgzW|GuideCXTrigger on BeyndProject trigger event BeforeUpdate|__sfdc_trigger/GuideCXTrigger
+        // 00:30:22.117 (117180945)|CODE_UNIT_STARTED|[EXTERNAL]|01q5f000002NEFh|Opportunity on Opportunity trigger event BeforeUpdate|__sfdc_trigger/Opportunity
+        // 00:28:49.0 (194084)|CODE_UNIT_STARTED|[EXTERNAL]|TRIGGERS -- this should be ignored
+        // 00:21:32.0 (247348)|CODE_UNIT_STARTED|[EXTERNAL]|Flow:Opportunity
+
+        if (parts.length < 4) return null;
+
+        // Ignore lines with just TRIGGERS
+        if (parts[parts.length - 1].trim() === 'TRIGGERS') {
+            return null;
+        }
+
+        const lastPart = parts[parts.length - 1].trim();
+
+        // Format Apex method names for apex:// format
+        if (lastPart.startsWith('apex://')) {
+            const match = lastPart.match(/^apex:\/\/([^/]+)\/ACTION\$(.+)$/);
+            if (match) {
+                return `${match[1]}.${match[2]}`;
+            }
+        }
+
+        // Match Flow pattern
+        if (lastPart.startsWith('Flow:')) {
+            return lastPart; // Return the full "Flow:FlowName" format
+        }
+
+        // Check for trigger pattern with description
+        // Example: 01q5f000002NEFh|Opportunity on Opportunity trigger event BeforeUpdate|__sfdc_trigger/Opportunity
+        if (parts.length >= 6 && lastPart.includes('__sfdc_trigger/')) {
+            // Extract and return the trigger description part (second to last part)
+            return parts[parts.length - 2].trim();
+        }
+
+        // No fallback to raw name - if we can't identify a specific pattern, return null
+        return null;
+    }
+
+    private processMethodEntryLine(parts: string[]): string | null {
+        // 00:22:12.0 (575653256)|METHOD_ENTRY|[20]|01p6T000003kGEp|MDMDRUtility.invokeMethod(String, Map<String,ANY>, Map<String,ANY>, Map<String,ANY>)
+        // 00:22:14.7 (2160790012)|METHOD_ENTRY|[23]|01pEm000008zqxx|PreSalesConsentValueValidation.validateConsentValues(List<ANY>)
+        // 00:22:14.7 (2161081130)|METHOD_ENTRY|[76]||System.Pattern.compile(String) --- dont match the System class methods
+        // 00:22:14.7 (2161235559)|METHOD_ENTRY|[78]||System.Matcher.matches() --- dont match the System class methods
+
+        if (parts.length < 5) return null;
+
+        const methodPart = parts[parts.length - 1].trim();
+
+        // Skip System class methods
+        if (methodPart.startsWith('System.')) {
+            return null;
+        }
+
+        // Check if we have a class.method format
+        const methodMatch = methodPart.match(/^([^.]+)\.([^(]+)/);
+        if (methodMatch) {
+            return `${methodMatch[1]}.${methodMatch[2]}`;
+        }
+
+        return null;
     }
 
     /**
@@ -921,3 +1081,4 @@ export async function disposeExpressServer(): Promise<void> {
         Logger.error('Error disposing Express server:', 'ExpressServer.disposeExpressServer', err);
     }
 }
+
