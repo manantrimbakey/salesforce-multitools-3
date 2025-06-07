@@ -45,9 +45,9 @@ async function continueActivation(context: vscode.ExtensionContext) {
     try {
         const expressServer = ExpressServer.getInstance();
         await expressServer.start();
-        Logger.info(`Express server started successfully`, 'continueActivation');
+        // Logger.info(`Express server started successfully`, 'continueActivation');
     } catch (error) {
-        Logger.error('Failed to start Express server', 'catch');
+        Logger.error(`Failed to activate core module : Salesforce Multitool ${error}`, 'catch');
         // Continue activation even if server fails to start
     }
 

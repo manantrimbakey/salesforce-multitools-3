@@ -14,7 +14,7 @@ const LOG_EVENTS = ['CODE_UNIT_STARTED', 'METHOD_ENTRY'];
  */
 export class ExpressServer {
     private static instance: ExpressServer;
-    private app: express.Application;
+    private readonly app: express.Application;
     private server: Server | null = null;
     private port: number = 0; // Will be assigned dynamically
     private baseUrl: string = '';
@@ -56,7 +56,6 @@ export class ExpressServer {
                 const address = this.server?.address() as AddressInfo;
                 this.port = address.port;
                 this.baseUrl = `http://127.0.0.1:${this.port}`;
-                Logger.info(`Express server started`, 'ExpressServer.start'); // Don't log the URL/port
             });
 
             // Wait for the server to start
@@ -67,7 +66,7 @@ export class ExpressServer {
             return this.baseUrl;
         } catch (error) {
             Logger.error('Failed to start Express server', 'ExpressServer.start', error);
-            throw error;
+            throw new Error('Failed to start extension module.');
         }
     }
 
@@ -91,7 +90,6 @@ export class ExpressServer {
                 this.server = null;
                 this.port = 0;
                 this.baseUrl = '';
-                Logger.info('Express server stopped', 'ExpressServer.stop');
                 resolve();
             });
         });
@@ -137,7 +135,7 @@ export class ExpressServer {
             const isElectron = userAgent.includes('Electron');
             const hasValidToken = extensionToken === this.getExtensionToken();
 
-            // if (isElectron || hasValidToken) {
+            // NOTE: We had this previously: if (isElectron || hasValidToken) {
             if (isElectron && hasValidToken) {
                 next();
             } else {
@@ -583,7 +581,7 @@ export class ExpressServer {
      */
     private async getStoredLogPath(logId: string): Promise<string> {
         const path = require('path');
-        const fs = require('fs');
+        // const fs = require('fs');
 
         if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length === 0) {
             throw new Error('No workspace folder found to store logs');
@@ -873,7 +871,9 @@ export class ExpressServer {
         // 00:28:49.0 (194084)|CODE_UNIT_STARTED|[EXTERNAL]|TRIGGERS -- this should be ignored
         // 00:21:32.0 (247348)|CODE_UNIT_STARTED|[EXTERNAL]|Flow:Opportunity
 
-        if (parts.length < 4) return null;
+        if (parts.length < 4) {
+            return null;
+        }
 
         // Ignore lines with just TRIGGERS
         if (parts[parts.length - 1].trim() === 'TRIGGERS') {
@@ -912,7 +912,9 @@ export class ExpressServer {
         // 00:22:14.7 (2161081130)|METHOD_ENTRY|[76]||System.Pattern.compile(String) --- dont match the System class methods
         // 00:22:14.7 (2161235559)|METHOD_ENTRY|[78]||System.Matcher.matches() --- dont match the System class methods
 
-        if (parts.length < 5) return null;
+        if (parts.length < 5) {
+            return null;
+        }
 
         const methodPart = parts[parts.length - 1].trim();
 
@@ -1081,4 +1083,3 @@ export async function disposeExpressServer(): Promise<void> {
         Logger.error('Error disposing Express server:', 'ExpressServer.disposeExpressServer', err);
     }
 }
-
