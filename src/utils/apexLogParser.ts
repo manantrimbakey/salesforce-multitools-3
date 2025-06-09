@@ -17,6 +17,70 @@
 // 00:22:14.7 (2161235559)|METHOD_ENTRY|[78]||System.Matcher.matches() --- dont match the System class methods
 
 import { fileExists, readFileContent, splitIntoLines } from './fileUtils';
+const EXECUTION_STARTED = 'EXECUTION_STARTED';
+const EXECUTION_FINISHED = 'EXECUTION_FINISHED';
+const CODE_UNIT_STARTED = 'CODE_UNIT_STARTED';
+const CODE_UNIT_FINISHED = 'CODE_UNIT_FINISHED';
+const METHOD_ENTRY = 'METHOD_ENTRY';
+const METHOD_EXIT = 'METHOD_EXIT';
+const CONSTRUCTOR_ENTRY = 'CONSTRUCTOR_ENTRY';
+const CONSTRUCTOR_EXIT = 'CONSTRUCTOR_EXIT';
+const DML_BEGIN = 'DML_BEGIN';
+const DML_END = 'DML_END';
+const SOQL_EXECUTE_BEGIN = 'SOQL_EXECUTE_BEGIN';
+const SOQL_EXECUTE_END = 'SOQL_EXECUTE_END';
+const SYSTEM_METHOD_ENTRY = 'SYSTEM_METHOD_ENTRY';
+const SYSTEM_METHOD_EXIT = 'SYSTEM_METHOD_EXIT';
+const SYSTEM_MODE_ENTER = 'SYSTEM_MODE_ENTER';
+const SYSTEM_MODE_EXIT = 'SYSTEM_MODE_EXIT';
+
+const OPENERS = new Set([
+    EXECUTION_STARTED,
+    CODE_UNIT_STARTED,
+    METHOD_ENTRY,
+    CONSTRUCTOR_ENTRY,
+    DML_BEGIN,
+    SOQL_EXECUTE_BEGIN,
+    SYSTEM_METHOD_ENTRY,
+]);
+
+const CLOSERS = new Set([
+    CODE_UNIT_FINISHED,
+    EXECUTION_FINISHED,
+    METHOD_EXIT,
+    SOQL_EXECUTE_END,
+    CONSTRUCTOR_EXIT,
+    DML_END,
+    SYSTEM_METHOD_EXIT,
+]);
+
+const CLOSING_VS_OPENING = new Map<string, string>([
+    [METHOD_EXIT, METHOD_ENTRY],
+    [EXECUTION_FINISHED, EXECUTION_STARTED],
+    [CODE_UNIT_FINISHED, CODE_UNIT_STARTED],
+    [CONSTRUCTOR_EXIT, CONSTRUCTOR_ENTRY],
+    [DML_END, DML_BEGIN],
+    [SOQL_EXECUTE_END, SOQL_EXECUTE_BEGIN],
+    [SYSTEM_METHOD_EXIT, SYSTEM_METHOD_ENTRY],
+    [SYSTEM_MODE_EXIT, SYSTEM_MODE_ENTER],
+]);
+
+const OPENING_VS_CLOSING = new Map<string, string>([
+    [METHOD_ENTRY, METHOD_EXIT],
+    [EXECUTION_STARTED, EXECUTION_FINISHED],
+    [CODE_UNIT_STARTED, CODE_UNIT_FINISHED],
+    [CONSTRUCTOR_ENTRY, CONSTRUCTOR_EXIT],
+    [DML_BEGIN, DML_END],
+    [SOQL_EXECUTE_BEGIN, SOQL_EXECUTE_END],
+    [SYSTEM_METHOD_ENTRY, SYSTEM_METHOD_EXIT],
+    [SYSTEM_MODE_ENTER, SYSTEM_MODE_EXIT],
+]);
+
+interface ApexLogNode {
+    event: string;
+    details: string;
+    children: ApexLogNode[] | null;
+}
 
 export class ApexLogParser {
     private readonly logFilePath: string;
@@ -38,11 +102,96 @@ export class ApexLogParser {
         return splitIntoLines(logLines);
     }
 
-    private processLogLines(logLines: string[]): void {
+    private processLogLines(logLines: string[]): ApexLogNode {
+        const rootNodes: ApexLogNode[] = [];
+
         for (const line of logLines) {
-            const parts = line.split('|');
-            const methodName = parts[parts.length - 1];
-            console.log(methodName);
+            const parts = line.split('|') ?? [];
+
+            if (!this.isLogEventExists(parts)) {
+                continue;
+            }
+
+            const event = parts[1];
+
+            if (this.isClosingEvent(parts)) {
+                // Pop the last node from the stack
+                const closedNode = this.pop();
+                if (closedNode) {
+                    const parent = this.peek();
+                    if (parent) {
+                        // Add as child to parent node
+                        if (!parent.children) {
+                            parent.children = [];
+                        }
+                        parent.children.push(closedNode);
+                    } else {
+                        // This is a root-level node
+                        rootNodes.push(closedNode);
+                    }
+                }
+            } else {
+                // This is an opening event - create new node and push to stack
+                const newNode: ApexLogNode = {
+                    event: event,
+                    details: parts.slice(2).join('|'), // Everything after the event type
+                    children: null,
+                };
+                this.push(newNode);
+            }
         }
+
+        // Handle any remaining unclosed nodes in the stack
+        while (!this.isEmpty()) {
+            const remainingNode = this.pop();
+            if (remainingNode) {
+                rootNodes.push(remainingNode);
+            }
+        }
+
+        // Store the result (you might want to add a class property to store this)
+        // For now, we'll clear the stack to ensure clean state
+        this.clear();
+
+        return rootNodes;
+    }
+
+    private isLogEventExists(parts: string[]): boolean {
+        let eventExists = false;
+
+        const partsLength = parts.length;
+
+        if (partsLength < 2) {
+            return false;
+        }
+
+        return OPENERS.has(parts[1]) || CLOSERS.has(parts[1]);
+    }
+
+    private isClosingEvent(parts: string[]): boolean {
+        return CLOSERS.has(parts[1]);
+    }
+
+    private stack: ApexLogNode[] = [];
+
+    private push(node: ApexLogNode): void {
+        this.stack.push(node);
+    }
+
+    private pop(): ApexLogNode | undefined {
+        return this.stack.pop();
+    }
+
+    private peek(): ApexLogNode | undefined {
+        return this.stack[this.stack.length - 1];
+    }
+
+    private isEmpty(): boolean {
+        return this.stack.length === 0;
+    }
+
+    private clear(): void {
+        this.stack = [];
     }
 }
+
