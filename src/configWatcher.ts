@@ -27,7 +27,7 @@ export class ConfigWatcher {
         if (event.affectsConfiguration('salesforceMultitools-3.logLevel')) {
             this.updateLogLevel();
         }
-        
+
         if (event.affectsConfiguration('salesforceMultitools-3.lastModifiedAutoRefreshInterval')) {
             this.updateAutoRefreshInterval();
         }
@@ -52,9 +52,9 @@ export class ConfigWatcher {
         const newInterval = ConfigUtils.getLastModifiedAutoRefreshInterval();
         Logger.info(
             `Auto-refresh interval changed to: ${newInterval > 0 ? newInterval / 1000 + ' seconds' : 'disabled'}`,
-            'updateAutoRefreshInterval'
+            'updateAutoRefreshInterval',
         );
-        
+
         // Trigger the restart of the auto-refresh timer
         vscode.commands.executeCommand('salesforce-multitools-3.restartAutoRefreshTimer');
     }

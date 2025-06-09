@@ -7,7 +7,7 @@ import { Logger } from '../../utils/logger';
 /**
  * Debug log provider for Salesforce logs
  */
-export class DebugLogProvider {  
+export class DebugLogProvider {
     /**
      * Fetch debug logs from Salesforce
      */
