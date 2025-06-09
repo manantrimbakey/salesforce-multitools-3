@@ -95,3 +95,42 @@ export function isRegularFileEditor(editor?: vscode.TextEditor): boolean {
 
     return isRegularFilePath(editor.document.uri.fsPath);
 }
+
+/**
+ * Check if a file exists at the given path
+ * @param filePath The path to check
+ * @returns Promise resolving to true if file exists, false otherwise
+ */
+export async function fileExists(filePath: string): Promise<boolean> {
+    try {
+        await fs.promises.access(filePath);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Read file content asynchronously
+ * @param filePath Path to the file
+ * @returns Promise resolving to file content as string
+ * @throws Error if file cannot be read
+ */
+export async function readFileContent(filePath: string): Promise<string> {
+    try {
+        return await fs.promises.readFile(filePath, 'utf-8');
+    } catch (error) {
+        Logger.error(`Error reading file: ${filePath}`, 'FileUtils.readFileContent', error);
+        throw error;
+    }
+}
+
+/**
+ * Split file content into lines using various newline characters
+ * @param content File content to split
+ * @returns Array of lines
+ */
+export function splitIntoLines(content: string): string[] {
+    // Handle different types of line endings (CR, LF, CRLF)
+    return content.split(/\r\n|\r|\n/);
+}
