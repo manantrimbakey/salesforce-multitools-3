@@ -104,6 +104,11 @@
                 "title": "Open Debug Logs",
                 "category": "Salesforce Multitool",
                 "icon": "$(list-selection)"
+            },
+            {
+                "command": "salesforce-multitools-3.restartAutoRefreshTimer",
+                "title": "Restart Auto-Refresh Timer",
+                "category": "Salesforce Multitool"
             }
         ],
         "keybindings": [

@@ -41,6 +41,15 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
         },
     );
 
+    // Register a command to restart the auto-refresh timer (can be called by configWatcher)
+    const restartAutoRefreshTimerCmd = vscode.commands.registerCommand(
+        'salesforce-multitools-3.restartAutoRefreshTimer',
+        () => {
+            Logger.debug('Restarting auto-refresh timer due to configuration change', 'restartAutoRefreshTimer');
+            startAutoRefreshTimer();
+        },
+    );
+
     // Register the code lens provider
     codeLensProvider = new LastModifiedCodeLensProvider();
 
@@ -96,13 +105,8 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
         }
     });
 
-    // Register event for configuration changes
-    const configChangeEvent = vscode.workspace.onDidChangeConfiguration((event) => {
-        if (event.affectsConfiguration('salesforceMultitool.lastModifiedAutoRefreshInterval')) {
-            // Restart the auto-refresh timer with the new interval
-            startAutoRefreshTimer();
-        }
-    });
+    // Configuration changes are now handled centrally by ConfigWatcher
+    // No need for duplicate configuration watching here
 
     // Update status bar on startup if editor is already open
     const editor = vscode.window.activeTextEditor;
@@ -115,10 +119,10 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
 
     context.subscriptions.push(
         refreshLastModifiedInfoCmd,
+        restartAutoRefreshTimerCmd,
         codeLensRegistration,
         activeEditorChangeEvent,
         documentSaveEvent,
-        configChangeEvent,
         {
             dispose: () => {
                 // Clear the auto-refresh timer when the extension is deactivated
