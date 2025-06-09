@@ -3,3 +3,6 @@ dist
 node_modules
 .vscode-test/
 *.vsix
+*.log
+07L000000000000MAT_parsed.json
+07L000000000000MAT_summary.json

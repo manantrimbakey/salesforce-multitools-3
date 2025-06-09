@@ -44,3 +44,7 @@ pnpm-lock.yaml
 node_modules/**
 
 asset/**
+*.log
+07L000000000000MAT_parsed.json
+07L000000000000MAT_summary.json
+standalone-parser-test.ts
