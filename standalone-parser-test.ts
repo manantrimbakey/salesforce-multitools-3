@@ -1,3 +1,16 @@
+// Command to compile : npx tsc standalone-parser-test.ts --target es2020 --module commonjs --outDir ./dist
+
+/**
+ * # Parse a log file and output to JSON
+ * node ./dist/standalone-parser-test.js mylog.log parsed-output.json
+ *
+ * # Show help
+ * node ./dist/standalone-parser-test.js
+ *
+ * # Error handling
+ * node ./dist/standalone-parser-test.js nonexistent.log output.json
+ */
+
 import * as fs from 'fs';
 
 // Standalone file utilities (no VSCode dependencies)
@@ -146,9 +159,9 @@ class StandaloneApexLogParser {
         // Pattern: [lineNumber]|classId|meaningfulDetails
         // or: [EXTERNAL]|classId|meaningfulDetails
         // or: [lineNumber]||meaningfulDetails (when no classId)
-        
+
         const parts = rawDetails.split('|');
-        
+
         if (parts.length >= 3) {
             // Skip [lineNumber] and classId, take the rest
             // Join remaining parts in case there are more pipes in the details
@@ -157,7 +170,7 @@ class StandaloneApexLogParser {
             // Pattern: [lineNumber]|meaningfulDetails
             return parts[1];
         }
-        
+
         // If we can't parse properly, return the original
         return rawDetails;
     }
@@ -186,23 +199,23 @@ class StandaloneApexLogParser {
         // [EXTERNAL]|01p000000000001|ExampleTrigger on ExampleProject trigger event BeforeUpdate|__sfdc_trigger/ExampleTrigger
         // [EXTERNAL]|Flow:Opportunity
         // [EXTERNAL]|TRIGGERS
-        
+
         const parts = rawDetails.split('|');
-        
+
         if (parts.length >= 2) {
             const mainContent = parts.slice(1).join('|');
-            
+
             // Handle apex:// format
             if (mainContent.startsWith('apex://')) {
                 const apexPath = mainContent.replace('apex://', '');
                 return `Apex Controller: ${apexPath}`;
             }
-            
+
             // Handle Flow format
             if (mainContent.startsWith('Flow:')) {
                 return `Flow: ${mainContent.replace('Flow:', '')}`;
             }
-            
+
             // Handle trigger format (has "trigger event" in it)
             if (mainContent.includes('trigger event')) {
                 const triggerMatch = mainContent.match(/(\w+)\s+on\s+\w+\s+trigger\s+event\s+(\w+)/);
@@ -210,20 +223,20 @@ class StandaloneApexLogParser {
                     return `Trigger: ${triggerMatch[1]} (${triggerMatch[2]})`;
                 }
             }
-            
+
             // Handle simple cases like "TRIGGERS"
             if (parts.length === 2 && !mainContent.includes('|')) {
                 return mainContent;
             }
-            
+
             // For complex cases with class IDs, extract the meaningful part
             if (parts.length >= 3) {
                 return parts.slice(2).join('|');
             }
-            
+
             return mainContent;
         }
-        
+
         return rawDetails;
     }
 
@@ -232,16 +245,16 @@ class StandaloneApexLogParser {
         // [20]|01p000000000001|ExampleUtility.invokeMethod(String, Map<String,ANY>, Map<String,ANY>, Map<String,ANY>)
         // [23]|01p000000000001|ExampleValidation.validateConsentValues(List<ANY>)
         // [76]||System.Pattern.compile(String)
-        
+
         const parts = rawDetails.split('|');
-        
+
         if (parts.length >= 3) {
             const methodSignature = parts.slice(2).join('|');
             return methodSignature;
         } else if (parts.length === 2) {
             return parts[1];
         }
-        
+
         return rawDetails;
     }
 
@@ -250,43 +263,43 @@ class StandaloneApexLogParser {
         // [15]|01p000000000001|<init>()|Example_Wrapper
         // [24]|01p000000000001|<init>(String,String,String)|Example_QueryBuilder
         // [EXTERNAL]|01p000000000001|<init>()|Example_AccessBase
-        
+
         const parts = rawDetails.split('|');
-        
+
         if (parts.length >= 3) {
             const constructorDetails = parts.slice(2).join('|');
-            
+
             // Parse constructor format: <init>(params)|ClassName
             const constructorMatch = constructorDetails.match(/<init>\(([^)]*)\)\|(.+)/);
             if (constructorMatch) {
                 const params = constructorMatch[1];
                 const className = constructorMatch[2];
-                
+
                 if (params) {
                     return `${className} Constructor(${params})`;
                 } else {
                     return `${className} Constructor()`;
                 }
             }
-            
+
             return constructorDetails;
         }
-        
+
         return rawDetails;
     }
 
     private formatSoqlDetails(rawDetails: string): string {
         // Examples:
         // [115]|Aggregations:0|SELECT Id,Account_Owner__c,OwnerId FROM Account WHERE id = :accountId
-        
+
         const parts = rawDetails.split('|');
-        
+
         if (parts.length >= 3) {
             // Skip line number and aggregation info, get the SQL
             const sqlQuery = parts.slice(2).join('|');
             return `SOQL: ${sqlQuery}`;
         }
-        
+
         return this.extractMeaningfulDetails(rawDetails);
     }
 
@@ -338,7 +351,7 @@ class StandaloneApexLogParser {
         if (child.event === METHOD_ENTRY && this.isSystemClassMethod(child.details)) {
             return;
         }
-        
+
         if (!parent.children) {
             parent.children = [];
         }
@@ -407,37 +420,35 @@ class StandaloneApexLogParser {
 }
 
 // Test function
-async function testLogParser() {
+async function parseLogFile() {
     try {
-        const parser = new StandaloneApexLogParser('07L000000000000MAT.log');
+        // Get command line arguments
+        const args = process.argv.slice(2);
+
+        if (args.length !== 2) {
+            console.error('Usage: node standalone-parser-test.js <input-log-file> <output-json-file>');
+            console.error('Example: node standalone-parser-test.js 07L000000000000MAT.log output.json');
+            process.exit(1);
+        }
+
+        const inputFilePath = args[0];
+        const outputFilePath = args[1];
+
+        // Check if input file exists
+        if (!(await fileExists(inputFilePath))) {
+            console.error(`Error: Input file not found: ${inputFilePath}`);
+            process.exit(1);
+        }
+
+        const parser = new StandaloneApexLogParser(inputFilePath);
         const logRoot = await parser.parseLog();
-        
-        console.log('=== APEX LOG PARSING RESULTS ===');
-        console.log(`Root Event: ${logRoot.event}`);
-        console.log(`Root Details: ${logRoot.details}`);
-        console.log(`Number of top-level entries: ${logRoot.children?.length || 0}`);
-        
-        // Write the parsed structure to a JSON file (complete details)
-        const outputFileName = '07L000000000000MAT_parsed.json';
-        await fs.promises.writeFile(outputFileName, JSON.stringify(logRoot, null, 2), 'utf-8');
-        console.log(`\n✅ Parsed log structure written to: ${outputFileName}`);
-        
-        // Also create a simplified summary file (but with complete details)
-        const summary = {
-            totalTopLevelEntries: logRoot.children?.length || 0,
-            topLevelEntries: logRoot.children?.map(child => ({
-                event: child.event,
-                details: child.details, // Complete details, no trimming
-                childrenCount: child.children?.length || 0
-            })) || []
-        };
-        
-        const summaryFileName = '07L000000000000MAT_summary.json';
-        await fs.promises.writeFile(summaryFileName, JSON.stringify(summary, null, 2), 'utf-8');
-        console.log(`📋 Summary written to: ${summaryFileName}`);
-        
+
+        // Write the parsed structure to the specified output file
+        await fs.promises.writeFile(outputFilePath, JSON.stringify(logRoot, null, 2), 'utf-8');
+        console.log(`✅ Parsed log structure written to: ${outputFilePath}`);
     } catch (error) {
         console.error('Error parsing log:', error);
+        process.exit(1);
     }
 }
 
@@ -445,10 +456,10 @@ function printNodeTree(node: ApexLogNode, depth: number, maxDepth: number): void
     if (depth > maxDepth) {
         return;
     }
-    
+
     const indent = '  '.repeat(depth);
     console.log(`${indent}${node.event}: ${node.details}`); // Complete details, no trimming
-    
+
     if (node.children) {
         node.children.forEach((child: ApexLogNode) => {
             printNodeTree(child, depth + 1, maxDepth);
@@ -456,5 +467,5 @@ function printNodeTree(node: ApexLogNode, depth: number, maxDepth: number): void
     }
 }
 
-// Run the test
-testLogParser();
+// Run the parser
+parseLogFile();
