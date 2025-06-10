@@ -51,6 +51,10 @@ const SOQL_EXECUTE_BEGIN = 'SOQL_EXECUTE_BEGIN';
 const SOQL_EXECUTE_END = 'SOQL_EXECUTE_END';
 const SYSTEM_MODE_ENTER = 'SYSTEM_MODE_ENTER';
 const SYSTEM_MODE_EXIT = 'SYSTEM_MODE_EXIT';
+// Exception and debug events
+const FATAL_ERROR = 'FATAL_ERROR';
+const EXCEPTION_THROWN = 'EXCEPTION_THROWN';
+const USER_DEBUG = 'USER_DEBUG';
 
 const OPENERS = new Set([
     EXECUTION_STARTED,
@@ -59,6 +63,7 @@ const OPENERS = new Set([
     CONSTRUCTOR_ENTRY,
     DML_BEGIN,
     SOQL_EXECUTE_BEGIN,
+    SYSTEM_MODE_ENTER,
 ]);
 
 const CLOSERS = new Set([
@@ -68,7 +73,11 @@ const CLOSERS = new Set([
     SOQL_EXECUTE_END,
     CONSTRUCTOR_EXIT,
     DML_END,
+    SYSTEM_MODE_EXIT,
 ]);
+
+// Standalone events (don't have opening/closing pairs)
+const STANDALONE_EVENTS = new Set([FATAL_ERROR, EXCEPTION_THROWN, USER_DEBUG]);
 
 const CLOSING_VS_OPENING = new Map<string, string>([
     [METHOD_EXIT, METHOD_ENTRY],
@@ -85,6 +94,10 @@ interface ApexLogNode {
     lineNumber?: number;
     details: string;
     children: ApexLogNode[] | null;
+    // Additional fields for exceptions and debugging
+    exceptionType?: string;
+    debugLevel?: string;
+    severity?: 'ERROR' | 'FATAL' | 'WARNING' | 'INFO' | 'DEBUG';
 }
 
 class StandaloneApexLogParser {
@@ -142,6 +155,8 @@ class StandaloneApexLogParser {
             this.handleClosingEvent(event, rootNode);
         } else if (this.isOpeningEvent(event)) {
             this.handleOpeningEvent(event, lineNumber, cleanDetails);
+        } else if (this.isStandaloneEvent(event)) {
+            this.handleStandaloneEvent(event, lineNumber, rawDetails, rootNode);
         }
     }
 
@@ -188,6 +203,12 @@ class StandaloneApexLogParser {
                 return this.formatSoqlDetails(rawDetails);
             case DML_BEGIN:
                 return this.formatDmlDetails(rawDetails);
+            case FATAL_ERROR:
+                return this.formatFatalErrorDetails(rawDetails);
+            case EXCEPTION_THROWN:
+                return this.formatExceptionDetails(rawDetails);
+            case USER_DEBUG:
+                return this.formatUserDebugDetails(rawDetails);
             default:
                 return this.extractMeaningfulDetails(rawDetails);
         }
@@ -309,6 +330,34 @@ class StandaloneApexLogParser {
         return `DML: ${basicDetails}`;
     }
 
+    private formatFatalErrorDetails(rawDetails: string): string {
+        // FATAL_ERROR format: System.NullPointerException: Attempt to de-reference a null object
+        // No line number prefix for FATAL_ERROR events
+        return `Fatal Error: ${rawDetails}`;
+    }
+
+    private formatExceptionDetails(rawDetails: string): string {
+        // Handle EXCEPTION_THROWN events
+        const basicDetails = this.extractMeaningfulDetails(rawDetails);
+        return `Exception: ${basicDetails}`;
+    }
+
+    private formatUserDebugDetails(rawDetails: string): string {
+        // USER_DEBUG format: [lineNumber]|debugLevel|message
+        // Example: [131]|INFO|Nebula Logger - Version Number: v4.15.8
+        const parts = rawDetails.split('|');
+
+        if (parts.length >= 3) {
+            const debugLevel = parts[1];
+            const message = parts.slice(2).join('|');
+            return `Debug [${debugLevel}]: ${message}`;
+        } else if (parts.length === 2) {
+            return `Debug: ${parts[1]}`;
+        }
+
+        return `Debug: ${rawDetails}`;
+    }
+
     private handleClosingEvent(event: string, rootNode: ApexLogNode): void {
         const closedNode = this.closeMatchingNode(event);
         if (!closedNode) {
@@ -338,6 +387,73 @@ class StandaloneApexLogParser {
             children: null,
         };
         this.push(newNode);
+    }
+
+    private handleStandaloneEvent(
+        event: string,
+        lineNumber: number | undefined,
+        rawDetails: string,
+        rootNode: ApexLogNode,
+    ): void {
+        const cleanDetails = this.formatEventDetails(event, rawDetails);
+
+        const standaloneNode: ApexLogNode = {
+            event: event,
+            lineNumber: lineNumber,
+            details: cleanDetails,
+            children: null,
+        };
+
+        // Add additional metadata for exceptions and debug events
+        if (event === FATAL_ERROR) {
+            standaloneNode.severity = 'FATAL';
+            standaloneNode.exceptionType = this.extractExceptionType(rawDetails);
+        } else if (event === EXCEPTION_THROWN) {
+            standaloneNode.severity = 'ERROR';
+            standaloneNode.exceptionType = this.extractExceptionType(rawDetails);
+        } else if (event === USER_DEBUG) {
+            const debugLevel = this.extractDebugLevel(rawDetails);
+            standaloneNode.debugLevel = debugLevel;
+            standaloneNode.severity = this.mapDebugLevelToSeverity(debugLevel);
+        }
+
+        // Add to the current context or root
+        const parent = this.peek();
+        if (parent) {
+            this.addChildToParent(parent, standaloneNode);
+        } else {
+            this.addChildToParent(rootNode, standaloneNode);
+        }
+    }
+
+    private extractExceptionType(rawDetails: string): string {
+        // Extract exception type from messages like "System.NullPointerException: Attempt to de-reference a null object"
+        const exceptionMatch = rawDetails.match(/^(System\.\w+Exception|\w+Exception)/);
+        return exceptionMatch ? exceptionMatch[1] : 'Unknown';
+    }
+
+    private extractDebugLevel(rawDetails: string): string {
+        // Extract debug level from USER_DEBUG format: [lineNumber]|debugLevel|message
+        const parts = rawDetails.split('|');
+        if (parts.length >= 2) {
+            return parts[1];
+        }
+        return 'DEBUG';
+    }
+
+    private mapDebugLevelToSeverity(debugLevel: string): 'ERROR' | 'FATAL' | 'WARNING' | 'INFO' | 'DEBUG' {
+        switch (debugLevel?.toUpperCase()) {
+            case 'ERROR':
+                return 'ERROR';
+            case 'WARN':
+            case 'WARNING':
+                return 'WARNING';
+            case 'INFO':
+                return 'INFO';
+            case 'DEBUG':
+            default:
+                return 'DEBUG';
+        }
     }
 
     private isSystemClassMethod(details: string): boolean {
@@ -375,7 +491,7 @@ class StandaloneApexLogParser {
         if (parts.length < 2) {
             return false;
         }
-        return this.isOpeningEvent(parts[1]) || this.isClosingEvent(parts[1]);
+        return this.isOpeningEvent(parts[1]) || this.isClosingEvent(parts[1]) || this.isStandaloneEvent(parts[1]);
     }
 
     private isOpeningEvent(event: string): boolean {
@@ -384,6 +500,10 @@ class StandaloneApexLogParser {
 
     private isClosingEvent(event: string): boolean {
         return CLOSERS.has(event);
+    }
+
+    private isStandaloneEvent(event: string): boolean {
+        return STANDALONE_EVENTS.has(event);
     }
 
     private closeMatchingNode(closingEvent: string): ApexLogNode | null {
@@ -446,10 +566,65 @@ async function parseLogFile() {
         // Write the parsed structure to the specified output file
         await fs.promises.writeFile(outputFilePath, JSON.stringify(logRoot, null, 2), 'utf-8');
         console.log(`✅ Parsed log structure written to: ${outputFilePath}`);
+
+        // Print summary statistics
+        const stats = calculateLogStatistics(logRoot);
+        console.log('\n📊 Log Statistics:');
+        console.log(`   Total Events: ${stats.totalEvents}`);
+        console.log(`   Fatal Errors: ${stats.fatalErrors}`);
+        console.log(`   Exceptions: ${stats.exceptions}`);
+        console.log(`   Debug Messages: ${stats.debugMessages}`);
+        console.log(`   Method Calls: ${stats.methodCalls}`);
+        console.log(`   SOQL Queries: ${stats.soqlQueries}`);
+        console.log(`   DML Operations: ${stats.dmlOperations}`);
     } catch (error) {
         console.error('Error parsing log:', error);
         process.exit(1);
     }
+}
+
+function calculateLogStatistics(node: ApexLogNode): any {
+    const stats = {
+        totalEvents: 0,
+        fatalErrors: 0,
+        exceptions: 0,
+        debugMessages: 0,
+        methodCalls: 0,
+        soqlQueries: 0,
+        dmlOperations: 0,
+    };
+
+    function traverse(currentNode: ApexLogNode) {
+        stats.totalEvents++;
+
+        switch (currentNode.event) {
+            case 'FATAL_ERROR':
+                stats.fatalErrors++;
+                break;
+            case 'EXCEPTION_THROWN':
+                stats.exceptions++;
+                break;
+            case 'USER_DEBUG':
+                stats.debugMessages++;
+                break;
+            case 'METHOD_ENTRY':
+                stats.methodCalls++;
+                break;
+            case 'SOQL_EXECUTE_BEGIN':
+                stats.soqlQueries++;
+                break;
+            case 'DML_BEGIN':
+                stats.dmlOperations++;
+                break;
+        }
+
+        if (currentNode.children) {
+            currentNode.children.forEach(traverse);
+        }
+    }
+
+    traverse(node);
+    return stats;
 }
 
 function printNodeTree(node: ApexLogNode, depth: number, maxDepth: number): void {
@@ -458,7 +633,24 @@ function printNodeTree(node: ApexLogNode, depth: number, maxDepth: number): void
     }
 
     const indent = '  '.repeat(depth);
-    console.log(`${indent}${node.event}: ${node.details}`); // Complete details, no trimming
+    let nodeDisplay = `${indent}${node.event}: ${node.details}`;
+
+    // Add severity indicators for exceptions and errors
+    if (node.severity) {
+        const severityIcon =
+            node.severity === 'FATAL'
+                ? '💀'
+                : node.severity === 'ERROR'
+                  ? '❌'
+                  : node.severity === 'WARNING'
+                    ? '⚠️'
+                    : node.severity === 'INFO'
+                      ? 'ℹ️'
+                      : '🐛';
+        nodeDisplay = `${severityIcon} ${nodeDisplay}`;
+    }
+
+    console.log(nodeDisplay);
 
     if (node.children) {
         node.children.forEach((child: ApexLogNode) => {
@@ -469,3 +661,4 @@ function printNodeTree(node: ApexLogNode, depth: number, maxDepth: number): void
 
 // Run the parser
 parseLogFile();
+

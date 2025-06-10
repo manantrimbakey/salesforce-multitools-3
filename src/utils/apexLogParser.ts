@@ -17,6 +17,7 @@
 // 00:22:14.7 (2161235559)|METHOD_ENTRY|[78]||System.Matcher.matches() --- dont match the System class methods
 
 import { fileExists, readFileContent, splitIntoLines } from './fileUtils';
+
 const EXECUTION_STARTED = 'EXECUTION_STARTED';
 const EXECUTION_FINISHED = 'EXECUTION_FINISHED';
 const CODE_UNIT_STARTED = 'CODE_UNIT_STARTED';
@@ -31,6 +32,10 @@ const SOQL_EXECUTE_BEGIN = 'SOQL_EXECUTE_BEGIN';
 const SOQL_EXECUTE_END = 'SOQL_EXECUTE_END';
 const SYSTEM_MODE_ENTER = 'SYSTEM_MODE_ENTER';
 const SYSTEM_MODE_EXIT = 'SYSTEM_MODE_EXIT';
+// Exception and debug events
+const FATAL_ERROR = 'FATAL_ERROR';
+const EXCEPTION_THROWN = 'EXCEPTION_THROWN';
+const USER_DEBUG = 'USER_DEBUG';
 
 const OPENERS = new Set([
     EXECUTION_STARTED,
@@ -39,6 +44,7 @@ const OPENERS = new Set([
     CONSTRUCTOR_ENTRY,
     DML_BEGIN,
     SOQL_EXECUTE_BEGIN,
+    SYSTEM_MODE_ENTER,
 ]);
 
 const CLOSERS = new Set([
@@ -48,7 +54,11 @@ const CLOSERS = new Set([
     SOQL_EXECUTE_END,
     CONSTRUCTOR_EXIT,
     DML_END,
+    SYSTEM_MODE_EXIT,
 ]);
+
+// Standalone events (don't have opening/closing pairs)
+const STANDALONE_EVENTS = new Set([FATAL_ERROR, EXCEPTION_THROWN, USER_DEBUG]);
 
 const CLOSING_VS_OPENING = new Map<string, string>([
     [METHOD_EXIT, METHOD_ENTRY],
@@ -65,6 +75,10 @@ interface ApexLogNode {
     lineNumber?: number;
     details: string;
     children: ApexLogNode[] | null;
+    // Additional fields for exceptions and debugging
+    exceptionType?: string;
+    debugLevel?: string;
+    severity?: 'ERROR' | 'FATAL' | 'WARNING' | 'INFO' | 'DEBUG';
 }
 
 export class ApexLogParser {
@@ -123,6 +137,8 @@ export class ApexLogParser {
             this.handleClosingEvent(event, rootNode);
         } else if (this.isOpeningEvent(event)) {
             this.handleOpeningEvent(event, lineNumber, cleanDetails);
+        } else if (this.isStandaloneEvent(event)) {
+            this.handleStandaloneEvent(event, lineNumber, rawDetails, rootNode);
         }
     }
 
@@ -140,9 +156,9 @@ export class ApexLogParser {
         // Pattern: [lineNumber]|classId|meaningfulDetails
         // or: [EXTERNAL]|classId|meaningfulDetails
         // or: [lineNumber]||meaningfulDetails (when no classId)
-        
+
         const parts = rawDetails.split('|');
-        
+
         if (parts.length >= 3) {
             // Skip [lineNumber] and classId, take the rest
             // Join remaining parts in case there are more pipes in the details
@@ -151,7 +167,7 @@ export class ApexLogParser {
             // Pattern: [lineNumber]|meaningfulDetails
             return parts[1];
         }
-        
+
         // If we can't parse properly, return the original
         return rawDetails;
     }
@@ -169,6 +185,12 @@ export class ApexLogParser {
                 return this.formatSoqlDetails(rawDetails);
             case DML_BEGIN:
                 return this.formatDmlDetails(rawDetails);
+            case FATAL_ERROR:
+                return this.formatFatalErrorDetails(rawDetails);
+            case EXCEPTION_THROWN:
+                return this.formatExceptionDetails(rawDetails);
+            case USER_DEBUG:
+                return this.formatUserDebugDetails(rawDetails);
             default:
                 return this.extractMeaningfulDetails(rawDetails);
         }
@@ -180,23 +202,23 @@ export class ApexLogParser {
         // [EXTERNAL]|01p000000000001|ExampleTrigger on ExampleProject trigger event BeforeUpdate|__sfdc_trigger/ExampleTrigger
         // [EXTERNAL]|Flow:Opportunity
         // [EXTERNAL]|TRIGGERS
-        
+
         const parts = rawDetails.split('|');
-        
+
         if (parts.length >= 2) {
             const mainContent = parts.slice(1).join('|');
-            
+
             // Handle apex:// format
             if (mainContent.startsWith('apex://')) {
                 const apexPath = mainContent.replace('apex://', '');
                 return `Apex Controller: ${apexPath}`;
             }
-            
+
             // Handle Flow format
             if (mainContent.startsWith('Flow:')) {
                 return `Flow: ${mainContent.replace('Flow:', '')}`;
             }
-            
+
             // Handle trigger format (has "trigger event" in it)
             if (mainContent.includes('trigger event')) {
                 const triggerMatch = mainContent.match(/(\w+)\s+on\s+\w+\s+trigger\s+event\s+(\w+)/);
@@ -204,20 +226,20 @@ export class ApexLogParser {
                     return `Trigger: ${triggerMatch[1]} (${triggerMatch[2]})`;
                 }
             }
-            
+
             // Handle simple cases like "TRIGGERS"
             if (parts.length === 2 && !mainContent.includes('|')) {
                 return mainContent;
             }
-            
+
             // For complex cases with class IDs, extract the meaningful part
             if (parts.length >= 3) {
                 return parts.slice(2).join('|');
             }
-            
+
             return mainContent;
         }
-        
+
         return rawDetails;
     }
 
@@ -226,16 +248,16 @@ export class ApexLogParser {
         // [20]|01p000000000001|ExampleUtility.invokeMethod(String, Map<String,ANY>, Map<String,ANY>, Map<String,ANY>)
         // [23]|01p000000000001|ExampleValidation.validateConsentValues(List<ANY>)
         // [76]||System.Pattern.compile(String)
-        
+
         const parts = rawDetails.split('|');
-        
+
         if (parts.length >= 3) {
             const methodSignature = parts.slice(2).join('|');
             return methodSignature;
         } else if (parts.length === 2) {
             return parts[1];
         }
-        
+
         return rawDetails;
     }
 
@@ -244,43 +266,43 @@ export class ApexLogParser {
         // [15]|01p000000000001|<init>()|Example_Wrapper
         // [24]|01p000000000001|<init>(String,String,String)|Example_QueryBuilder
         // [EXTERNAL]|01p000000000001|<init>()|Example_AccessBase
-        
+
         const parts = rawDetails.split('|');
-        
+
         if (parts.length >= 3) {
             const constructorDetails = parts.slice(2).join('|');
-            
+
             // Parse constructor format: <init>(params)|ClassName
             const constructorMatch = constructorDetails.match(/<init>\(([^)]*)\)\|(.+)/);
             if (constructorMatch) {
                 const params = constructorMatch[1];
                 const className = constructorMatch[2];
-                
+
                 if (params) {
                     return `${className} Constructor(${params})`;
                 } else {
                     return `${className} Constructor()`;
                 }
             }
-            
+
             return constructorDetails;
         }
-        
+
         return rawDetails;
     }
 
     private formatSoqlDetails(rawDetails: string): string {
         // Examples:
         // [115]|Aggregations:0|SELECT Id,Account_Owner__c,OwnerId FROM Account WHERE id = :accountId
-        
+
         const parts = rawDetails.split('|');
-        
+
         if (parts.length >= 3) {
             // Skip line number and aggregation info, get the SQL
             const sqlQuery = parts.slice(2).join('|');
             return `SOQL: ${sqlQuery}`;
         }
-        
+
         return this.extractMeaningfulDetails(rawDetails);
     }
 
@@ -290,14 +312,52 @@ export class ApexLogParser {
         return `DML: ${basicDetails}`;
     }
 
+    private formatFatalErrorDetails(rawDetails: string): string {
+        // FATAL_ERROR format: System.NullPointerException: Attempt to de-reference a null object
+        // No line number prefix for FATAL_ERROR events
+        return `Fatal Error: ${rawDetails}`;
+    }
+
+    private formatExceptionDetails(rawDetails: string): string {
+        // Handle EXCEPTION_THROWN events
+        const basicDetails = this.extractMeaningfulDetails(rawDetails);
+        return `Exception: ${basicDetails}`;
+    }
+
+    private formatUserDebugDetails(rawDetails: string): string {
+        // USER_DEBUG format: [lineNumber]|debugLevel|message
+        // Example: [131]|INFO|Nebula Logger - Version Number: v4.15.8
+        const parts = rawDetails.split('|');
+
+        if (parts.length >= 3) {
+            const debugLevel = parts[1];
+            const message = parts.slice(2).join('|');
+            return `Debug [${debugLevel}]: ${message}`;
+        } else if (parts.length === 2) {
+            return `Debug: ${parts[1]}`;
+        }
+
+        return `Debug: ${rawDetails}`;
+    }
+
     private handleClosingEvent(event: string, rootNode: ApexLogNode): void {
         const closedNode = this.closeMatchingNode(event);
         if (!closedNode) {
             return;
         }
 
-        // Skip System class methods even when closing
+        // Handle System class methods specially - preserve their children but don't add the method itself
         if (closedNode.event === METHOD_ENTRY && this.isSystemClassMethod(closedNode.details)) {
+            // Add the children of the System method to the parent instead of the method itself
+            if (closedNode.children && closedNode.children.length > 0) {
+                const parent = this.peek();
+                const targetParent = parent || rootNode;
+
+                // Add each child of the System method to the parent
+                closedNode.children.forEach((child) => {
+                    this.addChildToParent(targetParent, child);
+                });
+            }
             return;
         }
 
@@ -320,6 +380,73 @@ export class ApexLogParser {
             children: null,
         };
         this.push(newNode);
+    }
+
+    private handleStandaloneEvent(
+        event: string,
+        lineNumber: number | undefined,
+        rawDetails: string,
+        rootNode: ApexLogNode,
+    ): void {
+        const cleanDetails = this.formatEventDetails(event, rawDetails);
+
+        const standaloneNode: ApexLogNode = {
+            event: event,
+            lineNumber: lineNumber,
+            details: cleanDetails,
+            children: null,
+        };
+
+        // Add additional metadata for exceptions and debug events
+        if (event === FATAL_ERROR) {
+            standaloneNode.severity = 'FATAL';
+            standaloneNode.exceptionType = this.extractExceptionType(rawDetails);
+        } else if (event === EXCEPTION_THROWN) {
+            standaloneNode.severity = 'ERROR';
+            standaloneNode.exceptionType = this.extractExceptionType(rawDetails);
+        } else if (event === USER_DEBUG) {
+            const debugLevel = this.extractDebugLevel(rawDetails);
+            standaloneNode.debugLevel = debugLevel;
+            standaloneNode.severity = this.mapDebugLevelToSeverity(debugLevel);
+        }
+
+        // Add to the current context or root
+        const parent = this.peek();
+        if (parent) {
+            this.addChildToParent(parent, standaloneNode);
+        } else {
+            this.addChildToParent(rootNode, standaloneNode);
+        }
+    }
+
+    private extractExceptionType(rawDetails: string): string {
+        // Extract exception type from messages like "System.NullPointerException: Attempt to de-reference a null object"
+        const exceptionMatch = rawDetails.match(/^(System\.\w+Exception|\w+Exception)/);
+        return exceptionMatch ? exceptionMatch[1] : 'Unknown';
+    }
+
+    private extractDebugLevel(rawDetails: string): string {
+        // Extract debug level from USER_DEBUG format: [lineNumber]|debugLevel|message
+        const parts = rawDetails.split('|');
+        if (parts.length >= 2) {
+            return parts[1];
+        }
+        return 'DEBUG';
+    }
+
+    private mapDebugLevelToSeverity(debugLevel: string): 'ERROR' | 'FATAL' | 'WARNING' | 'INFO' | 'DEBUG' {
+        switch (debugLevel?.toUpperCase()) {
+            case 'ERROR':
+                return 'ERROR';
+            case 'WARN':
+            case 'WARNING':
+                return 'WARNING';
+            case 'INFO':
+                return 'INFO';
+            case 'DEBUG':
+            default:
+                return 'DEBUG';
+        }
     }
 
     private addChildToParent(parent: ApexLogNode, child: ApexLogNode): void {
@@ -351,7 +478,7 @@ export class ApexLogParser {
         if (parts.length < 2) {
             return false;
         }
-        return this.isOpeningEvent(parts[1]) || this.isClosingEvent(parts[1]);
+        return this.isOpeningEvent(parts[1]) || this.isClosingEvent(parts[1]) || this.isStandaloneEvent(parts[1]);
     }
 
     private isOpeningEvent(event: string): boolean {
@@ -360,6 +487,10 @@ export class ApexLogParser {
 
     private isClosingEvent(event: string): boolean {
         return CLOSERS.has(event);
+    }
+
+    private isStandaloneEvent(event: string): boolean {
+        return STANDALONE_EVENTS.has(event);
     }
 
     private closeMatchingNode(closingEvent: string): ApexLogNode | null {
@@ -400,3 +531,4 @@ export class ApexLogParser {
         return details.includes('System.');
     }
 }
+
