@@ -51,6 +51,8 @@ const SOQL_EXECUTE_BEGIN = 'SOQL_EXECUTE_BEGIN';
 const SOQL_EXECUTE_END = 'SOQL_EXECUTE_END';
 const SYSTEM_MODE_ENTER = 'SYSTEM_MODE_ENTER';
 const SYSTEM_MODE_EXIT = 'SYSTEM_MODE_EXIT';
+const SYSTEM_METHOD_ENTRY = 'SYSTEM_METHOD_ENTRY';
+const SYSTEM_METHOD_EXIT = 'SYSTEM_METHOD_EXIT';
 // Exception and debug events
 const FATAL_ERROR = 'FATAL_ERROR';
 const EXCEPTION_THROWN = 'EXCEPTION_THROWN';
@@ -64,6 +66,7 @@ const OPENERS = new Set([
     DML_BEGIN,
     SOQL_EXECUTE_BEGIN,
     SYSTEM_MODE_ENTER,
+    SYSTEM_METHOD_ENTRY,
 ]);
 
 const CLOSERS = new Set([
@@ -74,6 +77,7 @@ const CLOSERS = new Set([
     CONSTRUCTOR_EXIT,
     DML_END,
     SYSTEM_MODE_EXIT,
+    SYSTEM_METHOD_EXIT,
 ]);
 
 // Standalone events (don't have opening/closing pairs)
@@ -87,6 +91,7 @@ const CLOSING_VS_OPENING = new Map<string, string>([
     [DML_END, DML_BEGIN],
     [SOQL_EXECUTE_END, SOQL_EXECUTE_BEGIN],
     [SYSTEM_MODE_EXIT, SYSTEM_MODE_ENTER],
+    [SYSTEM_METHOD_EXIT, SYSTEM_METHOD_ENTRY],
 ]);
 
 interface ApexLogNode {
@@ -100,12 +105,21 @@ interface ApexLogNode {
     severity?: 'ERROR' | 'FATAL' | 'WARNING' | 'INFO' | 'DEBUG';
 }
 
+interface ApexLogParserOptions {
+    ignoreSystemMethods?: boolean;
+}
+
 class StandaloneApexLogParser {
     private readonly logFilePath: string;
+    private readonly options: ApexLogParserOptions;
     private stack: ApexLogNode[] = [];
 
-    constructor(logFilePath: string) {
+    constructor(logFilePath: string, options: ApexLogParserOptions = {}) {
         this.logFilePath = logFilePath;
+        this.options = {
+            ignoreSystemMethods: true, // Default to ignoring System methods
+            ...options,
+        };
     }
 
     public async parseLog(): Promise<ApexLogNode> {
@@ -364,8 +378,25 @@ class StandaloneApexLogParser {
             return;
         }
 
-        // Skip System class methods even when closing
-        if (closedNode.event === METHOD_ENTRY && this.isSystemClassMethod(closedNode.details)) {
+        // Handle System method filtering based on configuration
+        const shouldIgnoreSystemMethods =
+            this.options.ignoreSystemMethods &&
+            // Filter SYSTEM_METHOD_ENTRY/EXIT events
+            (closedNode.event === SYSTEM_METHOD_ENTRY ||
+                // Filter System class method calls (METHOD_ENTRY with System. in details)
+                (closedNode.event === METHOD_ENTRY && this.isSystemClassMethod(closedNode.details)));
+
+        if (shouldIgnoreSystemMethods) {
+            // Add the children of the System method to the parent instead of the method itself
+            if (closedNode.children && closedNode.children.length > 0) {
+                const parent = this.peek();
+                const targetParent = parent || rootNode;
+
+                // Add each child of the System method to the parent
+                closedNode.children.forEach((child) => {
+                    this.addChildToParent(targetParent, child);
+                });
+            }
             return;
         }
 
@@ -463,8 +494,15 @@ class StandaloneApexLogParser {
     }
 
     private addChildToParent(parent: ApexLogNode, child: ApexLogNode): void {
-        // Skip adding System class methods as children
-        if (child.event === METHOD_ENTRY && this.isSystemClassMethod(child.details)) {
+        // Skip adding System methods as children only if ignoreSystemMethods is enabled
+        const shouldIgnoreSystemMethods =
+            this.options.ignoreSystemMethods &&
+            // Filter SYSTEM_METHOD_ENTRY events
+            (child.event === SYSTEM_METHOD_ENTRY ||
+                // Filter System class method calls (METHOD_ENTRY with System. in details)
+                (child.event === METHOD_ENTRY && this.isSystemClassMethod(child.details)));
+
+        if (shouldIgnoreSystemMethods) {
             return;
         }
 
@@ -478,8 +516,15 @@ class StandaloneApexLogParser {
         while (!this.isEmpty()) {
             const remainingNode = this.pop();
             if (remainingNode) {
-                // Skip System class methods even in remaining nodes
-                if (remainingNode.event === METHOD_ENTRY && this.isSystemClassMethod(remainingNode.details)) {
+                // Skip System methods in remaining nodes only if ignoreSystemMethods is enabled
+                const shouldIgnoreSystemMethods =
+                    this.options.ignoreSystemMethods &&
+                    // Filter SYSTEM_METHOD_ENTRY events
+                    (remainingNode.event === SYSTEM_METHOD_ENTRY ||
+                        // Filter System class method calls (METHOD_ENTRY with System. in details)
+                        (remainingNode.event === METHOD_ENTRY && this.isSystemClassMethod(remainingNode.details)));
+
+                if (shouldIgnoreSystemMethods) {
                     continue;
                 }
                 this.addChildToParent(rootNode, remainingNode);
@@ -539,20 +584,269 @@ class StandaloneApexLogParser {
     }
 }
 
+interface FlowChartOptions {
+    includeLineNumbers?: boolean;
+    maxDepth?: number;
+    includeDetails?: boolean;
+}
+
+class ApexLogFlowChartGenerator {
+    private nodeCounter: number = 0;
+    private options: FlowChartOptions;
+
+    constructor(options: FlowChartOptions = {}) {
+        this.options = {
+            includeLineNumbers: false,
+            maxDepth: 10,
+            includeDetails: false,
+            ...options,
+        };
+    }
+
+    public generateFlowChart(logRoot: ApexLogNode): string {
+        this.nodeCounter = 0;
+        const mermaidLines: string[] = ['graph TD'];
+
+        const rootId = this.generateNode(logRoot, 0, mermaidLines);
+
+        if (logRoot.children && logRoot.children.length > 0) {
+            this.processChildren(rootId, logRoot.children, 1, mermaidLines);
+        }
+
+        return mermaidLines.join('\n');
+    }
+
+    private generateNode(node: ApexLogNode, depth: number, mermaidLines: string[]): string {
+        if (depth > this.options.maxDepth!) {
+            return '';
+        }
+
+        const nodeId = `node${this.nodeCounter++}`;
+        let nodeLabel = node.event;
+
+        if (this.options.includeLineNumbers && node.lineNumber) {
+            nodeLabel = `[${node.lineNumber}] ${nodeLabel}`;
+        }
+
+        if (this.options.includeDetails && node.details) {
+            // Truncate details if too long and sanitize for Mermaid
+            let details = node.details.length > 30 ? node.details.substring(0, 30) + '...' : node.details;
+
+            // Sanitize problematic characters for Mermaid
+            details = details
+                .replace(/"/g, "'") // Replace double quotes with single quotes
+                .replace(/\[/g, '(') // Replace square brackets with parentheses
+                .replace(/\]/g, ')')
+                .replace(/\{/g, '(') // Replace curly brackets with parentheses
+                .replace(/\}/g, ')')
+                .replace(/\\/g, '') // Remove backslashes
+                .replace(/\n/g, ' ') // Replace newlines with spaces
+                .replace(/\r/g, ' '); // Replace carriage returns with spaces
+
+            nodeLabel += `<br/>${details}`;
+        }
+
+        mermaidLines.push(`    ${nodeId}["${nodeLabel}"]`);
+        return nodeId;
+    }
+
+    private processChildren(parentId: string, children: ApexLogNode[], depth: number, mermaidLines: string[]): void {
+        if (depth > this.options.maxDepth!) {
+            return;
+        }
+
+        for (const child of children) {
+            const childId = this.generateNode(child, depth, mermaidLines);
+            if (childId) {
+                mermaidLines.push(`    ${parentId} --> ${childId}`);
+
+                if (child.children && child.children.length > 0) {
+                    this.processChildren(childId, child.children, depth + 1, mermaidLines);
+                }
+            }
+        }
+    }
+}
+
+interface ReactFlowOptions {
+    includeLineNumbers?: boolean;
+    maxDepth?: number;
+    includeDetails?: boolean;
+    nodeSpacing?: number;
+    levelSpacing?: number;
+}
+
+interface ReactFlowNode {
+    id: string;
+    type: string;
+    position: { x: number; y: number };
+    data: {
+        label: string;
+        event: string;
+        lineNumber?: number;
+        details?: string;
+        severity?: string;
+    };
+}
+
+interface ReactFlowEdge {
+    id: string;
+    source: string;
+    target: string;
+    type?: string;
+}
+
+interface ReactFlowData {
+    nodes: ReactFlowNode[];
+    edges: ReactFlowEdge[];
+}
+
+class ApexLogReactFlowGenerator {
+    private nodeCounter: number = 0;
+    private options: ReactFlowOptions;
+    private nodes: ReactFlowNode[] = [];
+    private edges: ReactFlowEdge[] = [];
+    private levelCounts: Map<number, number> = new Map();
+
+    constructor(options: ReactFlowOptions = {}) {
+        this.options = {
+            includeLineNumbers: false,
+            maxDepth: 10,
+            includeDetails: false,
+            nodeSpacing: 200,
+            levelSpacing: 150,
+            ...options,
+        };
+    }
+
+    public generateReactFlow(logRoot: ApexLogNode): ReactFlowData {
+        this.nodeCounter = 0;
+        this.nodes = [];
+        this.edges = [];
+        this.levelCounts.clear();
+
+        this.processNode(logRoot, 0, null, 0);
+
+        return {
+            nodes: this.nodes,
+            edges: this.edges,
+        };
+    }
+
+    private processNode(node: ApexLogNode, depth: number, parentId: string | null, positionInLevel: number): string {
+        if (depth > this.options.maxDepth!) {
+            return '';
+        }
+
+        const nodeId = `node_${this.nodeCounter++}`;
+
+        // Calculate position
+        const x = positionInLevel * this.options.nodeSpacing!;
+        const y = depth * this.options.levelSpacing!;
+
+        // Create node label
+        let label = node.event;
+        if (this.options.includeLineNumbers && node.lineNumber) {
+            label = `[${node.lineNumber}] ${label}`;
+        }
+
+        // Determine node type based on event
+        const nodeType = this.getNodeType(node.event);
+
+        // Create React Flow node
+        const reactFlowNode: ReactFlowNode = {
+            id: nodeId,
+            type: nodeType,
+            position: { x, y },
+            data: {
+                label,
+                event: node.event,
+                lineNumber: node.lineNumber,
+                details: this.options.includeDetails ? node.details : undefined,
+                severity: node.severity,
+            },
+        };
+
+        this.nodes.push(reactFlowNode);
+
+        // Create edge from parent if exists
+        if (parentId) {
+            const edge: ReactFlowEdge = {
+                id: `edge_${parentId}_${nodeId}`,
+                source: parentId,
+                target: nodeId,
+                type: 'smoothstep',
+            };
+            this.edges.push(edge);
+        }
+
+        // Process children
+        if (node.children && node.children.length > 0 && depth < this.options.maxDepth!) {
+            node.children.forEach((child, index) => {
+                const childLevelCount = this.levelCounts.get(depth + 1) || 0;
+                this.processNode(child, depth + 1, nodeId, childLevelCount + index);
+                this.levelCounts.set(depth + 1, childLevelCount + index + 1);
+            });
+        }
+
+        return nodeId;
+    }
+
+    private getNodeType(event: string): string {
+        // Map Apex events to React Flow node types
+        switch (event) {
+            case 'APEX_LOG_ROOT':
+                return 'input';
+            case 'EXECUTION_STARTED':
+                return 'default';
+            case 'FATAL_ERROR':
+            case 'EXCEPTION_THROWN':
+                return 'output';
+            case 'METHOD_ENTRY':
+            case 'CONSTRUCTOR_ENTRY':
+                return 'default';
+            case 'CODE_UNIT_STARTED':
+                return 'default';
+            case 'USER_DEBUG':
+                return 'default';
+            case 'SOQL_EXECUTE_BEGIN':
+            case 'DML_BEGIN':
+                return 'default';
+            case 'SYSTEM_MODE_ENTER':
+                return 'default';
+            default:
+                return 'default';
+        }
+    }
+}
+
 // Test function
 async function parseLogFile() {
     try {
         // Get command line arguments
         const args = process.argv.slice(2);
 
-        if (args.length !== 2) {
-            console.error('Usage: node standalone-parser-test.js <input-log-file> <output-json-file>');
+        if (args.length < 2 || args.length > 5) {
+            console.error(
+                'Usage: node standalone-parser-test.js <input-log-file> <output-json-file> [--include-system-methods] [--flow-chart] [--react-flow]',
+            );
             console.error('Example: node standalone-parser-test.js 07L000000000000MAT.log output.json');
+            console.error(
+                'Example: node standalone-parser-test.js 07L000000000000MAT.log output.json --include-system-methods',
+            );
+            console.error('Example: node standalone-parser-test.js 07L000000000000MAT.log output.json --flow-chart');
+            console.error('Example: node standalone-parser-test.js 07L000000000000MAT.log output.json --react-flow');
+            console.error(
+                'Example: node standalone-parser-test.js 07L000000000000MAT.log output.json --include-system-methods --flow-chart --react-flow',
+            );
             process.exit(1);
         }
 
         const inputFilePath = args[0];
         const outputFilePath = args[1];
+        const includeSystemMethods = args.includes('--include-system-methods');
+        const generateFlowChart = args.includes('--flow-chart');
+        const generateReactFlow = args.includes('--react-flow');
 
         // Check if input file exists
         if (!(await fileExists(inputFilePath))) {
@@ -560,12 +854,54 @@ async function parseLogFile() {
             process.exit(1);
         }
 
-        const parser = new StandaloneApexLogParser(inputFilePath);
+        const parserOptions = {
+            ignoreSystemMethods: !includeSystemMethods,
+        };
+
+        const parser = new StandaloneApexLogParser(inputFilePath, parserOptions);
         const logRoot = await parser.parseLog();
 
         // Write the parsed structure to the specified output file
         await fs.promises.writeFile(outputFilePath, JSON.stringify(logRoot, null, 2), 'utf-8');
         console.log(`✅ Parsed log structure written to: ${outputFilePath}`);
+
+        // Generate flow chart if requested
+        if (generateFlowChart) {
+            const flowChartGenerator = new ApexLogFlowChartGenerator({
+                includeLineNumbers: true,
+                maxDepth: 5,
+                includeDetails: true,
+            });
+            const flowChart = flowChartGenerator.generateFlowChart(logRoot);
+
+            const flowChartPath = outputFilePath.replace('.json', '_flowchart.md');
+            const flowChartContent = `# Apex Log Flow Chart\n\n\`\`\`mermaid\n${flowChart}\n\`\`\`\n`;
+
+            await fs.promises.writeFile(flowChartPath, flowChartContent, 'utf-8');
+            console.log(`📊 Flow chart written to: ${flowChartPath}`);
+        }
+
+        // Generate React Flow data if requested
+        if (generateReactFlow) {
+            const reactFlowGenerator = new ApexLogReactFlowGenerator({
+                includeLineNumbers: true,
+                maxDepth: 5,
+                includeDetails: true,
+                nodeSpacing: 250,
+                levelSpacing: 120,
+            });
+            const reactFlowData = reactFlowGenerator.generateReactFlow(logRoot);
+
+            const reactFlowPath = outputFilePath.replace('.json', '_reactflow.json');
+            await fs.promises.writeFile(reactFlowPath, JSON.stringify(reactFlowData, null, 2), 'utf-8');
+            console.log(`⚛️  React Flow data written to: ${reactFlowPath}`);
+        }
+
+        if (includeSystemMethods) {
+            console.log('🔧 System methods included in parsing');
+        } else {
+            console.log('🚫 System methods ignored in parsing (default)');
+        }
 
         // Print summary statistics
         const stats = calculateLogStatistics(logRoot);

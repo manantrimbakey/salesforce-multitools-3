@@ -32,6 +32,8 @@ const SOQL_EXECUTE_BEGIN = 'SOQL_EXECUTE_BEGIN';
 const SOQL_EXECUTE_END = 'SOQL_EXECUTE_END';
 const SYSTEM_MODE_ENTER = 'SYSTEM_MODE_ENTER';
 const SYSTEM_MODE_EXIT = 'SYSTEM_MODE_EXIT';
+const SYSTEM_METHOD_ENTRY = 'SYSTEM_METHOD_ENTRY';
+const SYSTEM_METHOD_EXIT = 'SYSTEM_METHOD_EXIT';
 // Exception and debug events
 const FATAL_ERROR = 'FATAL_ERROR';
 const EXCEPTION_THROWN = 'EXCEPTION_THROWN';
@@ -45,6 +47,7 @@ const OPENERS = new Set([
     DML_BEGIN,
     SOQL_EXECUTE_BEGIN,
     SYSTEM_MODE_ENTER,
+    SYSTEM_METHOD_ENTRY,
 ]);
 
 const CLOSERS = new Set([
@@ -55,6 +58,7 @@ const CLOSERS = new Set([
     CONSTRUCTOR_EXIT,
     DML_END,
     SYSTEM_MODE_EXIT,
+    SYSTEM_METHOD_EXIT,
 ]);
 
 // Standalone events (don't have opening/closing pairs)
@@ -68,6 +72,7 @@ const CLOSING_VS_OPENING = new Map<string, string>([
     [DML_END, DML_BEGIN],
     [SOQL_EXECUTE_END, SOQL_EXECUTE_BEGIN],
     [SYSTEM_MODE_EXIT, SYSTEM_MODE_ENTER],
+    [SYSTEM_METHOD_EXIT, SYSTEM_METHOD_ENTRY],
 ]);
 
 interface ApexLogNode {
@@ -81,12 +86,21 @@ interface ApexLogNode {
     severity?: 'ERROR' | 'FATAL' | 'WARNING' | 'INFO' | 'DEBUG';
 }
 
+export interface ApexLogParserOptions {
+    ignoreSystemMethods?: boolean;
+}
+
 export class ApexLogParser {
     private readonly logFilePath: string;
+    private readonly options: ApexLogParserOptions;
     private stack: ApexLogNode[] = [];
 
-    constructor(logFilePath: string) {
+    constructor(logFilePath: string, options: ApexLogParserOptions = {}) {
         this.logFilePath = logFilePath;
+        this.options = {
+            ignoreSystemMethods: true, // Default to ignoring System methods
+            ...options,
+        };
     }
 
     public async parseLog(): Promise<ApexLogNode> {
@@ -346,8 +360,15 @@ export class ApexLogParser {
             return;
         }
 
-        // Handle System class methods specially - preserve their children but don't add the method itself
-        if (closedNode.event === METHOD_ENTRY && this.isSystemClassMethod(closedNode.details)) {
+        // Handle System method filtering based on configuration
+        const shouldIgnoreSystemMethods =
+            this.options.ignoreSystemMethods &&
+            // Filter SYSTEM_METHOD_ENTRY/EXIT events
+            (closedNode.event === SYSTEM_METHOD_ENTRY ||
+                // Filter System class method calls (METHOD_ENTRY with System. in details)
+                (closedNode.event === METHOD_ENTRY && this.isSystemClassMethod(closedNode.details)));
+
+        if (shouldIgnoreSystemMethods) {
             // Add the children of the System method to the parent instead of the method itself
             if (closedNode.children && closedNode.children.length > 0) {
                 const parent = this.peek();
@@ -450,8 +471,15 @@ export class ApexLogParser {
     }
 
     private addChildToParent(parent: ApexLogNode, child: ApexLogNode): void {
-        // Skip adding System class methods as children
-        if (child.event === METHOD_ENTRY && this.isSystemClassMethod(child.details)) {
+        // Skip adding System methods as children only if ignoreSystemMethods is enabled
+        const shouldIgnoreSystemMethods =
+            this.options.ignoreSystemMethods &&
+            // Filter SYSTEM_METHOD_ENTRY events
+            (child.event === SYSTEM_METHOD_ENTRY ||
+                // Filter System class method calls (METHOD_ENTRY with System. in details)
+                (child.event === METHOD_ENTRY && this.isSystemClassMethod(child.details)));
+
+        if (shouldIgnoreSystemMethods) {
             return;
         }
 
@@ -465,8 +493,15 @@ export class ApexLogParser {
         while (!this.isEmpty()) {
             const remainingNode = this.pop();
             if (remainingNode) {
-                // Skip System class methods even in remaining nodes
-                if (remainingNode.event === METHOD_ENTRY && this.isSystemClassMethod(remainingNode.details)) {
+                // Skip System methods in remaining nodes only if ignoreSystemMethods is enabled
+                const shouldIgnoreSystemMethods =
+                    this.options.ignoreSystemMethods &&
+                    // Filter SYSTEM_METHOD_ENTRY events
+                    (remainingNode.event === SYSTEM_METHOD_ENTRY ||
+                        // Filter System class method calls (METHOD_ENTRY with System. in details)
+                        (remainingNode.event === METHOD_ENTRY && this.isSystemClassMethod(remainingNode.details)));
+
+                if (shouldIgnoreSystemMethods) {
                     continue;
                 }
                 this.addChildToParent(rootNode, remainingNode);
