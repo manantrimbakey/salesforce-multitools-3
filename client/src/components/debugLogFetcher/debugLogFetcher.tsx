@@ -33,7 +33,8 @@ import DownloadIcon from '@mui/icons-material/Download';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import StopIcon from '@mui/icons-material/Stop';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 
@@ -78,6 +79,9 @@ declare type User = {
     Id: string;
     Name: string;
     Username?: string;
+    TraceFlagId?: string;
+    TraceFlagActive?: boolean;
+    TraceFlagExpirationDate?: string;
 };
 
 declare type UsersResponse = {
@@ -316,6 +320,14 @@ interface DeleteLogsResponse {
     error?: string;
 }
 
+// Add types for trace flag responses
+interface TraceFlagResponse {
+    success: boolean;
+    traceFlagId?: string;
+    error?: string;
+    message?: string;
+}
+
 export default function DebugLogFetcher() {
     const [logs, setLogs] = useState<Log[]>([]);
     const [loading, setLoading] = useState(false);
@@ -333,6 +345,7 @@ export default function DebugLogFetcher() {
     const [pendingDelete, setPendingDelete] = useState<{ userName: string | null } | null>(null);
     const [logSize, setLogSize] = useState<string>('');
     const [logSizeDirection, setLogSizeDirection] = useState<'above' | 'below'>('above');
+    const [traceFlagOperations, setTraceFlagOperations] = useState<Set<string>>(new Set());
 
     // Fetch users for the autocomplete dropdown
     const fetchUsers = async (searchTerm: string = '') => {
@@ -347,18 +360,37 @@ export default function DebugLogFetcher() {
             if (response?.success) {
                 setUsers(response.users || []);
 
+                // Update selectedUser if it exists in the new users list
+                if (selectedUser && selectedUser.Id !== 'all' && selectedUser.Id !== 'current') {
+                    const updatedSelectedUser = response.users.find((u) => u.Id === selectedUser.Id);
+                    if (updatedSelectedUser) {
+                        setSelectedUser(updatedSelectedUser);
+                    }
+                }
+
                 // Set current user information
                 if (response.currentUser && !currentUser) {
                     setCurrentUser(response.currentUser);
 
-                    // Create a user object from the current user info
-                    const currentUserObj = {
-                        Id: 'current',
-                        Name: response.currentUser.display_name,
-                    };
+                    // Find the actual current user in the users list by username
+                    const actualCurrentUser = response.users.find(
+                        (user) => user.Username === response.currentUser.username,
+                    );
 
-                    // Set as selected user on first load
-                    setSelectedUser(currentUserObj);
+                    if (actualCurrentUser) {
+                        // Set the actual current user as selected user on first load
+                        setSelectedUser(actualCurrentUser);
+                    } else {
+                        // Fallback: create a user object that can work with trace flags
+                        const currentUserObj = {
+                            Id: 'current',
+                            Name: response.currentUser.display_name,
+                            Username: response.currentUser.username,
+                            TraceFlagActive: false,
+                            TraceFlagId: undefined,
+                        };
+                        setSelectedUser(currentUserObj);
+                    }
                 }
             }
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -488,20 +520,121 @@ export default function DebugLogFetcher() {
         fetchLogs(selectedUser ? selectedUser.Name : 'all', logSize, direction);
     };
 
+    // Start logging for user (create trace flag)
+    const handleStartLogging = async (userId: string) => {
+        if (!window.callServerApi) return;
+
+        setTraceFlagOperations((prev) => new Set(prev).add(userId));
+        try {
+            const response: TraceFlagResponse = await window.callServerApi('/api/traceFlags/start', 'POST', { userId });
+
+            if (response?.success) {
+                setSnackbar({
+                    open: true,
+                    message: `Started logging for user. Trace flag created successfully.`,
+                    severity: 'success',
+                });
+                // Immediately update selected user for reactive UI
+                if (selectedUser && selectedUser.Id === userId) {
+                    const expirationDate = new Date();
+                    expirationDate.setHours(expirationDate.getHours() + 1);
+
+                    setSelectedUser({
+                        ...selectedUser,
+                        TraceFlagId: response.traceFlagId,
+                        TraceFlagActive: true,
+                        TraceFlagExpirationDate: expirationDate.toISOString(),
+                    });
+                }
+                // Refresh users to update trace flag status in background
+                fetchUsers();
+            } else {
+                setSnackbar({
+                    open: true,
+                    message: 'Failed to start logging: ' + (response.error || 'Unknown error'),
+                    severity: 'error',
+                });
+            }
+        } catch (error) {
+            setSnackbar({
+                open: true,
+                message: 'Error starting logging: ' + (error instanceof Error ? error.message : String(error)),
+                severity: 'error',
+            });
+        } finally {
+            setTraceFlagOperations((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(userId);
+                return newSet;
+            });
+        }
+    };
+
+    // Stop logging for user (delete trace flag)
+    const handleStopLogging = async (userId: string, traceFlagId: string) => {
+        if (!window.callServerApi) return;
+
+        setTraceFlagOperations((prev) => new Set(prev).add(userId));
+        try {
+            const response: TraceFlagResponse = await window.callServerApi('/api/traceFlags/stop', 'POST', {
+                userId,
+                traceFlagId,
+            });
+
+            if (response?.success) {
+                setSnackbar({
+                    open: true,
+                    message: `Stopped logging for user. Trace flag removed successfully.`,
+                    severity: 'success',
+                });
+                // Immediately update selected user for reactive UI
+                if (selectedUser && selectedUser.Id === userId) {
+                    setSelectedUser({
+                        ...selectedUser,
+                        TraceFlagId: undefined,
+                        TraceFlagActive: false,
+                        TraceFlagExpirationDate: undefined,
+                    });
+                }
+                // Refresh users to update trace flag status in background
+                fetchUsers();
+            } else {
+                setSnackbar({
+                    open: true,
+                    message: 'Failed to stop logging: ' + (response.error || 'Unknown error'),
+                    severity: 'error',
+                });
+            }
+        } catch (error) {
+            setSnackbar({
+                open: true,
+                message: 'Error stopping logging: ' + (error instanceof Error ? error.message : String(error)),
+                severity: 'error',
+            });
+        } finally {
+            setTraceFlagOperations((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(userId);
+                return newSet;
+            });
+        }
+    };
+
     // Initial data load
     useEffect(() => {
         // Fetch users first to get current user
         fetchUsers();
         // Logs will be fetched after current user is set
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Fetch logs when current user is set or log size filter changes
+    // Fetch logs when current user is set
     useEffect(() => {
         if (selectedUser) {
             fetchLogs(selectedUser.Name, logSize, logSizeDirection);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentUser]);
+    }, [currentUser]); // Only depend on currentUser to avoid infinite loops with fetchLogs
 
     // Format the date to be more readable
     const formatDate = (dateString: string) => {
@@ -518,6 +651,32 @@ export default function DebugLogFetcher() {
     // Format log length to show KB
     const formatLogLength = (length: number) => {
         return `${length.toLocaleString()} bytes`;
+    };
+
+    // Format trace flag expiration time
+    const formatExpirationTime = (expirationDate: string) => {
+        if (!expirationDate) return '';
+        try {
+            const expDate = new Date(expirationDate);
+            const now = new Date();
+            const diffMs = expDate.getTime() - now.getTime();
+
+            if (diffMs <= 0) {
+                return 'Expired';
+            }
+
+            const diffMinutes = Math.floor(diffMs / (1000 * 60));
+            const diffHours = Math.floor(diffMinutes / 60);
+            const remainingMinutes = diffMinutes % 60;
+
+            if (diffHours > 0) {
+                return `Expires in ${diffHours}h ${remainingMinutes}m`;
+            } else {
+                return `Expires in ${diffMinutes}m`;
+            }
+        } catch {
+            return 'Invalid date';
+        }
     };
 
     return (
@@ -549,12 +708,86 @@ export default function DebugLogFetcher() {
                         getOptionLabel={(option) => option.Name}
                         renderOption={(props, option) => (
                             <li {...props}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                    <Typography variant="body1">{option.Name}</Typography>
-                                    {option.Id !== 'all' && option.Id !== 'current' && 'Username' in option && (
-                                        <Typography variant="caption" color="text.secondary">
-                                            {(option as User).Username}
-                                        </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
+                                    <Box sx={{ flexGrow: 1 }}>
+                                        <Typography variant="body1">{option.Name}</Typography>
+                                        {option.Id !== 'all' && 'Username' in option && (
+                                            <Typography variant="caption" color="text.secondary">
+                                                {(option as User).Username}
+                                            </Typography>
+                                        )}
+                                        {option.Id !== 'all' && 'TraceFlagActive' in option && (
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.2 }}>
+                                                <Typography
+                                                    variant="caption"
+                                                    color={
+                                                        (option as User).TraceFlagActive
+                                                            ? 'success.main'
+                                                            : 'text.disabled'
+                                                    }
+                                                >
+                                                    {(option as User).TraceFlagActive
+                                                        ? '● Logging Active'
+                                                        : '○ Logging Inactive'}
+                                                </Typography>
+                                                {(option as User).TraceFlagActive &&
+                                                    (option as User).TraceFlagExpirationDate && (
+                                                        <Typography
+                                                            variant="caption"
+                                                            color="text.secondary"
+                                                            sx={{ fontSize: '0.65rem' }}
+                                                        >
+                                                            {formatExpirationTime(
+                                                                (option as User).TraceFlagExpirationDate!,
+                                                            )}
+                                                        </Typography>
+                                                    )}
+                                            </Box>
+                                        )}
+                                    </Box>
+                                    {option.Id !== 'all' && 'TraceFlagActive' in option && (
+                                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                            {(option as User).TraceFlagActive ? (
+                                                <Tooltip title="Stop logging for this user">
+                                                    <IconButton
+                                                        size="small"
+                                                        color="error"
+                                                        disabled={traceFlagOperations.has(option.Id)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleStopLogging(
+                                                                option.Id,
+                                                                (option as User).TraceFlagId || '',
+                                                            );
+                                                        }}
+                                                    >
+                                                        {traceFlagOperations.has(option.Id) ? (
+                                                            <CircularProgress size={16} />
+                                                        ) : (
+                                                            <StopIcon fontSize="small" />
+                                                        )}
+                                                    </IconButton>
+                                                </Tooltip>
+                                            ) : (
+                                                <Tooltip title="Start logging for this user">
+                                                    <IconButton
+                                                        size="small"
+                                                        color="success"
+                                                        disabled={traceFlagOperations.has(option.Id)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleStartLogging(option.Id);
+                                                        }}
+                                                    >
+                                                        {traceFlagOperations.has(option.Id) ? (
+                                                            <CircularProgress size={16} />
+                                                        ) : (
+                                                            <PlayArrowIcon fontSize="small" />
+                                                        )}
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                        </Box>
                                     )}
                                 </Box>
                             </li>
@@ -664,6 +897,89 @@ export default function DebugLogFetcher() {
                         </IconButton>
                     </Tooltip>
                 </Grid>
+
+                {/* Divider */}
+                <Divider orientation="vertical" flexItem />
+
+                {/* Start/Stop logging for selected user */}
+                {selectedUser && selectedUser.Id !== 'all' && (
+                    <>
+                        <Grid sx={{ height: '100%' }}>
+                            {'TraceFlagActive' in selectedUser && (selectedUser as User).TraceFlagActive ? (
+                                <Tooltip title={`Stop logging for ${selectedUser.Name}`}>
+                                    <IconButton
+                                        color="error"
+                                        size="small"
+                                        disabled={loading || traceFlagOperations.has(selectedUser.Id)}
+                                        onClick={() =>
+                                            handleStopLogging(selectedUser.Id, (selectedUser as User).TraceFlagId || '')
+                                        }
+                                        sx={{
+                                            backgroundColor: 'error.main',
+                                            color: 'common.white',
+                                            borderRadius: 1,
+                                            '&:hover': {
+                                                backgroundColor: 'error.dark',
+                                            },
+                                            boxShadow: 1,
+                                            height: '100%',
+                                        }}
+                                    >
+                                        {traceFlagOperations.has(selectedUser.Id) ? (
+                                            <CircularProgress size={18} color="inherit" />
+                                        ) : (
+                                            <StopIcon />
+                                        )}
+                                    </IconButton>
+                                </Tooltip>
+                            ) : (
+                                <Tooltip title={`Start logging for ${selectedUser.Name}`}>
+                                    <IconButton
+                                        color="success"
+                                        size="small"
+                                        disabled={loading || traceFlagOperations.has(selectedUser.Id)}
+                                        onClick={() => handleStartLogging(selectedUser.Id)}
+                                        sx={{
+                                            backgroundColor: 'success.main',
+                                            color: 'common.white',
+                                            borderRadius: 1,
+                                            '&:hover': {
+                                                backgroundColor: 'success.dark',
+                                            },
+                                            boxShadow: 1,
+                                            height: '100%',
+                                        }}
+                                    >
+                                        {traceFlagOperations.has(selectedUser.Id) ? (
+                                            <CircularProgress size={18} color="inherit" />
+                                        ) : (
+                                            <PlayArrowIcon />
+                                        )}
+                                    </IconButton>
+                                </Tooltip>
+                            )}
+                        </Grid>
+
+                        {/* Show expiration time for selected user with active trace flag */}
+                        {'TraceFlagActive' in selectedUser &&
+                            (selectedUser as User).TraceFlagActive &&
+                            (selectedUser as User).TraceFlagExpirationDate && (
+                                <Grid sx={{ height: '100%', display: 'flex', alignItems: 'center' }}>
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{
+                                            fontSize: '0.7rem',
+                                            fontWeight: 500,
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                    >
+                                        {formatExpirationTime((selectedUser as User).TraceFlagExpirationDate!)}
+                                    </Typography>
+                                </Grid>
+                            )}
+                    </>
+                )}
 
                 {/* Spacer */}
                 <Grid sx={{ flexGrow: 1, height: '100%' }}></Grid>
