@@ -287,12 +287,48 @@ export class ExpressServer {
                     'ExpressServer.setupDebugLogRoutes',
                 );
 
+                // Get trace flag information for these users
+                const userIds = users.records.map((user: any) => user.Id);
+                let usersWithTraceFlags = users.records;
+
+                if (userIds.length > 0) {
+                    try {
+                        // Import DebugLogProvider
+                        const { DebugLogProvider } = await import('../features/debugLogs/debugLogProvider.js');
+
+                        const traceFlagMap = await DebugLogProvider.getActiveTraceFlagsForUsers(userIds);
+
+                        // Merge trace flag information with user data
+                        usersWithTraceFlags = users.records.map((user: any) => {
+                            const traceFlag = traceFlagMap.get(user.Id);
+                            return {
+                                ...user,
+                                TraceFlagId: traceFlag?.Id || null,
+                                TraceFlagActive: !!traceFlag,
+                                TraceFlagExpirationDate: traceFlag?.ExpirationDate || null,
+                            };
+                        });
+
+                        Logger.debug(
+                            `Added trace flag information for ${usersWithTraceFlags.length} users`,
+                            'ExpressServer.setupDebugLogRoutes',
+                        );
+                    } catch (traceFlagError) {
+                        Logger.error(
+                            'Error getting trace flag information:',
+                            'ExpressServer.setupDebugLogRoutes',
+                            traceFlagError,
+                        );
+                        // Continue without trace flag info if there's an error
+                    }
+                }
+
                 // Get the current user's info
                 const currentUserInfo = await sfconnection.identity();
 
                 res.json({
                     success: true,
-                    users: users.records,
+                    users: usersWithTraceFlags,
                     currentUser: currentUserInfo,
                 });
             } catch (error: unknown) {
@@ -544,6 +580,77 @@ export class ExpressServer {
                 }
             } catch (error) {
                 Logger.error(`Error in exists API:`, 'ExpressServer.setupDebugLogRoutes', error);
+                res.status(500).json({
+                    success: false,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        });
+
+        // Start logging for a user (create trace flag)
+        this.app.post('/api/traceFlags/start', async (req, res) => {
+            try {
+                const { userId } = req.body;
+                Logger.debug(
+                    `API request received to start logging for user: ${userId}`,
+                    'ExpressServer.startTraceFlag',
+                );
+
+                if (!userId) {
+                    res.status(400).json({
+                        success: false,
+                        error: 'User ID is required',
+                    });
+                    return;
+                }
+
+                // Import DebugLogProvider
+                const { DebugLogProvider } = await import('../features/debugLogs/debugLogProvider.js');
+
+                const traceFlagId = await DebugLogProvider.createTraceFlag(userId);
+
+                res.json({
+                    success: true,
+                    traceFlagId,
+                    message: 'Trace flag created successfully',
+                });
+            } catch (error: unknown) {
+                Logger.error(`Error creating trace flag via API:`, 'ExpressServer.startTraceFlag', error);
+                res.status(500).json({
+                    success: false,
+                    error: error instanceof Error ? error.message : String(error),
+                });
+            }
+        });
+
+        // Stop logging for a user (delete trace flag)
+        this.app.post('/api/traceFlags/stop', async (req, res) => {
+            try {
+                const { userId, traceFlagId } = req.body;
+                Logger.debug(
+                    `API request received to stop logging for user: ${userId}, traceFlagId: ${traceFlagId}`,
+                    'ExpressServer.stopTraceFlag',
+                );
+
+                if (!userId || !traceFlagId) {
+                    res.status(400).json({
+                        success: false,
+                        error: 'User ID and Trace Flag ID are required',
+                    });
+                    return;
+                }
+
+                // Import DebugLogProvider
+                const { DebugLogProvider } = await import('../features/debugLogs/debugLogProvider.js');
+
+                await DebugLogProvider.deleteTraceFlag(traceFlagId);
+
+                res.json({
+                    success: true,
+                    message: 'Trace flag deleted successfully',
+                });
+            } catch (error: unknown) {
+                Logger.error(`Error deleting trace flag via API:`, 'ExpressServer.stopTraceFlag', error);
                 res.status(500).json({
                     success: false,
                     error: error instanceof Error ? error.message : String(error),
@@ -1083,3 +1190,4 @@ export async function disposeExpressServer(): Promise<void> {
         Logger.error('Error disposing Express server:', 'ExpressServer.disposeExpressServer', err);
     }
 }
+
