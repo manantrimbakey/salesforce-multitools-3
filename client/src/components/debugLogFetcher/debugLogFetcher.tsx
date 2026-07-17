@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, LinearProgress } from '@mui/material';
 import type { User } from './types';
 import { useDebugLogs, useUsers, useTraceFlags } from './hooks';
@@ -20,13 +20,15 @@ export default function DebugLogFetcher() {
     const [pendingDelete, setPendingDelete] = useState<{ userName: string | null } | null>(null);
     const [logSize, setLogSize] = useState<string>('');
     const [logSizeDirection, setLogSizeDirection] = useState<'above' | 'below'>('above');
+    const didAutoSelectUser = useRef(false);
 
     useEffect(() => {
         fetchUsers();
     }, [fetchUsers]);
 
     useEffect(() => {
-        if (currentUser && !selectedUser) {
+        if (currentUser && !selectedUser && !didAutoSelectUser.current) {
+            didAutoSelectUser.current = true;
             const actualCurrentUser = users.find((user) => user.Username === currentUser.username);
             if (actualCurrentUser) {
                 setSelectedUser(actualCurrentUser);
