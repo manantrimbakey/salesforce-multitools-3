@@ -46,7 +46,7 @@ export class SFUtils {
             this.isInitialized = true;
             Logger.debug('SFUtils initialized successfully', 'SFUtils.initialize');
         } catch (error) {
-            Logger.error('Error initializing Salesforce utilities:', error, 'SFUtils.initialize');
+            Logger.error('Error initializing Salesforce utilities:', 'SFUtils.initialize', error);
         }
     }
 
@@ -106,7 +106,7 @@ export class SFUtils {
                 // Setup file watcher for config changes
                 this.setupConfigWatcher(configPath);
             } catch (error) {
-                Logger.error('Failed to initialize config file:', error, 'SFUtils.initLocalConfig');
+                Logger.error('Failed to initialize config file:', 'SFUtils.initLocalConfig', error);
                 throw error;
             }
         }

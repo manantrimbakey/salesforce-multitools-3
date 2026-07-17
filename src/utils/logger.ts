@@ -55,7 +55,7 @@ export class Logger {
      * @param methodName Optional method name for development mode
      * @param args Additional arguments to log
      */
-    public static debug(message: string, methodName?: string, ...args: any[]) {
+    public static debug(message: string | (() => string), methodName?: string, ...args: any[]) {
         this.log(LogLevel.DEBUG, message, methodName, ...args);
     }
 
@@ -65,7 +65,7 @@ export class Logger {
      * @param methodName Optional method name for development mode
      * @param args Additional arguments to log
      */
-    public static info(message: string, methodName?: string, ...args: any[]) {
+    public static info(message: string | (() => string), methodName?: string, ...args: any[]) {
         this.log(LogLevel.INFO, message, methodName, ...args);
     }
 
@@ -75,7 +75,7 @@ export class Logger {
      * @param methodName Optional method name for development mode
      * @param args Additional arguments to log
      */
-    public static warn(message: string, methodName?: string, ...args: any[]) {
+    public static warn(message: string | (() => string), methodName?: string, ...args: any[]) {
         this.log(LogLevel.WARN, message, methodName, ...args);
     }
 
@@ -85,7 +85,7 @@ export class Logger {
      * @param methodNameOrArg Optional method name or first argument
      * @param args Additional arguments to log
      */
-    public static error(message: string | Error, methodNameOrArg?: string | any, ...args: any[]) {
+    public static error(message: string | Error | (() => string), methodNameOrArg?: string | any, ...args: any[]) {
         // Handle the case where methodNameOrArg might be the first argument rather than a method name
         let methodName: string | undefined;
         let actualArgs: any[] = args;
@@ -120,7 +120,7 @@ export class Logger {
      * @param methodName Optional method name
      * @param args Additional arguments to log
      */
-    private static log(level: LogLevel, message: string, methodName?: string, ...args: any[]) {
+    private static log(level: LogLevel, message: string | (() => string), methodName?: string, ...args: any[]) {
         if (!this.outputChannel) {
             this.initialize();
         }
@@ -129,7 +129,8 @@ export class Logger {
             return;
         }
 
-        const formattedMessage = this.formatMessage(level, message, methodName);
+        const resolvedMessage = typeof message === 'function' ? message() : message;
+        const formattedMessage = this.formatMessage(level, resolvedMessage, methodName);
 
         // Add to output channel
         this.outputChannel.appendLine(formattedMessage);
@@ -146,7 +147,7 @@ export class Logger {
         }
 
         // Only include method name in console logs if in development mode
-        const consoleMessage = this.isDevelopmentMode ? formattedMessage : this.formatMessage(level, message);
+        const consoleMessage = this.isDevelopmentMode ? formattedMessage : this.formatMessage(level, resolvedMessage);
 
         // Also log to console
         switch (level) {

@@ -299,12 +299,8 @@ function sendComponentDataMessage(data: {
     );
 
     // Post message to webview
-    vscode.window.visibleTextEditors.forEach((editor) => {
-        if (editor.document.uri.scheme === 'file') {
-            vscode.commands.executeCommand('salesforceMultitools.sidebar.sendMessage', {
-                command: 'componentFileSwitcherRefresh',
-                data,
-            });
-        }
+    vscode.commands.executeCommand('salesforceMultitools.sidebar.sendMessage', {
+        command: 'componentFileSwitcherRefresh',
+        data,
     });
 }

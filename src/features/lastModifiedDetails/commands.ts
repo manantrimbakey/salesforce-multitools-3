@@ -7,6 +7,7 @@ import { FormattedLastModifiedInfo } from './lastModifiedTypes';
 import { ConfigUtils } from '../../utils/config';
 import { getStoredLastModifiedInfo, storeLastModifiedInfo } from './lastModifiedStorage';
 import { isRegularFileEditor } from '../../utils/fileUtils';
+import { LastModifiedCodeLensProvider } from './LastModifiedCodeLensProvider';
 
 // Status bar item to show last modified info
 let lastModifiedStatusBar: vscode.StatusBarItem;
@@ -264,8 +265,9 @@ export async function refreshLastModifiedInfo(forceRefresh: boolean = false): Pr
         }
 
         // Step 1: Fetch fresh data from Salesforce
-        const info = await getFileLastModifiedInfo(filePath);
+        await SFUtils.initialize();
         const connection = await SFUtils.getConnection();
+        const info = await getFileLastModifiedInfo(filePath, connection);
 
         if (!info) {
             lastModifiedStatusBar.text = `$(history) No metadata found for this file`;
@@ -377,80 +379,4 @@ async function checkForExternalModifications(metadataType: string, apiName: stri
     }
 }
 
-/**
- * CodeLens provider for displaying last modified information
- */
-class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
-    // Event emitter for CodeLens changes
-    private _onDidChangeCodeLenses: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
-    public readonly onDidChangeCodeLenses: vscode.Event<void> = this._onDidChangeCodeLenses.event;
 
-    // Store the last modified info for each document
-    private _pendingRefresh: Map<string, FormattedLastModifiedInfo> = new Map();
-
-    /**
-     * Refresh CodeLens with latest info from server
-     * @param documentUri The document URI
-     * @param info The latest info from server
-     */
-    public refreshWithLatestInfo(documentUri: vscode.Uri, info: FormattedLastModifiedInfo): void {
-        const uriString = documentUri.toString();
-        this._pendingRefresh.set(uriString, info);
-        this._onDidChangeCodeLenses.fire();
-    }
-
-    async provideCodeLenses(
-        document: vscode.TextDocument,
-        token: vscode.CancellationToken,
-    ): Promise<vscode.CodeLens[]> {
-        // Skip non-file documents
-        if (document.uri.scheme !== 'file') {
-            return [];
-        }
-
-        const filePath = document.uri.fsPath;
-        if (!getMetadataInfoFromFilePath(filePath)) {
-            return [];
-        }
-
-        try {
-            // Get cached info for this document
-            const uriString = document.uri.toString();
-            const pendingInfo = this._pendingRefresh.get(uriString);
-            if (!pendingInfo) {
-                return [];
-            }
-
-            // Create CodeLens at the top of the document
-            const position = new vscode.Position(0, 0);
-            const range = new vscode.Range(position, position);
-
-            // Get org username for tooltip
-            const connection = await SFUtils.getConnection();
-            const orgUsername = connection?.getUsername() || '';
-
-            return [
-                new vscode.CodeLens(range, {
-                    title: `$(history) Last modified: ${pendingInfo.formattedDate} by ${pendingInfo.lastModifiedBy}`,
-                    tooltip: `Last modified on ${pendingInfo.formattedDate} by ${pendingInfo.lastModifiedBy}${
-                        orgUsername ? ` in org ${orgUsername}` : ''
-                    }\nClick to refresh`,
-                    command: 'salesforce-multitools-3.refreshLastModifiedInfo',
-                }),
-            ];
-        } catch (error) {
-            Logger.error('Error providing CodeLens:', 'LastModifiedDetailsCommands.provideCodeLenses', error);
-
-            // Return error CodeLens
-            const position = new vscode.Position(0, 0);
-            const range = new vscode.Range(position, position);
-            return [
-                new vscode.CodeLens(range, {
-                    title: `$(error) Error retrieving last modified details`,
-                    tooltip: 'Click to try again',
-                    command: 'salesforce-multitools-3.refreshLastModifiedInfo',
-                }),
-            ];
-        }
-    }
-}

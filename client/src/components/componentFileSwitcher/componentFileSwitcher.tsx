@@ -16,9 +16,9 @@ import JavascriptIcon from '@mui/icons-material/Javascript';
 import SettingsIcon from '@mui/icons-material/Settings';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import HtmlIcon from '@mui/icons-material/Html';
-import { useVSCodeApi } from '../../App';
+import { messenger } from '../../vscode/messenger';
+import { useHostEvent } from '../../vscode/useHostEvent';
 
-// Interface for the component file data
 interface ComponentFile {
     path: string;
     name: string;
@@ -28,10 +28,8 @@ interface ComponentFile {
     isUnsaved: boolean;
 }
 
-// Component types
 type ComponentType = 'LWC' | 'AURA' | 'UNKNOWN';
 
-// Component data from the extension
 interface ComponentData {
     componentName: string | null;
     componentType: ComponentType;
@@ -40,9 +38,6 @@ interface ComponentData {
 }
 
 export default function ComponentFileSwitcher() {
-    // Get VS Code API from context
-    const vscode = useVSCodeApi();
-
     const [componentData, setComponentData] = useState<ComponentData>({
         componentName: null,
         componentType: 'UNKNOWN',
@@ -50,36 +45,24 @@ export default function ComponentFileSwitcher() {
         files: [],
     });
 
+    useHostEvent('componentFileSwitcherRefresh', (data) => {
+        setComponentData(data);
+    });
+
     useEffect(() => {
-        const handleMessage = (event: MessageEvent) => {
-            const message = event.data;
+        messenger.postMessage({ command: 'refreshTheme' });
+    }, []);
 
-            // Handle component file switcher refresh
-            if (message.command === 'componentFileSwitcherRefresh') {
-                setComponentData(message.data);
-            }
-        };
-
-        // Add message event listener
-        window.addEventListener('message', handleMessage);
-
-        // Request theme on mount - this is critical for proper theming
-        vscode.postMessage({ command: 'refreshTheme' });
-
-        // Cleanup
-        return () => window.removeEventListener('message', handleMessage);
-    }, [vscode]);
-
-    // Handle click on a component file
     const handleFileClick = (filePath: string) => {
-        // Send message to extension to open the file
-        vscode.postMessage({
+        messenger.postMessage({
             command: 'openFile',
             filePath,
         });
+        // We also have files:open channel if needed, but postMessage is fine if the host supports it.
+        // Wait, SidebarProvider.ts registers 'files:open'. Let's use messenger.callHost instead for safety if we changed the host to use the new channel registry.
+        messenger.callHost('files:open', { filePath }).catch(console.error);
     };
 
-    // Get icon based on file type
     const getFileIcon = (type: string) => {
         switch (type) {
             case 'JavaScript':
@@ -98,7 +81,6 @@ export default function ComponentFileSwitcher() {
         }
     };
 
-    // Group files by type for better organization
     const filesByType = componentData.files.reduce(
         (acc, file) => {
             const type = file.type;
@@ -111,7 +93,6 @@ export default function ComponentFileSwitcher() {
         {} as Record<string, ComponentFile[]>,
     );
 
-    // If no component detected, show empty state
     if (componentData.componentType === 'UNKNOWN' || !componentData.componentName) {
         return (
             <Card
@@ -141,7 +122,6 @@ export default function ComponentFileSwitcher() {
         );
     }
 
-    // Display the component info and files
     return (
         <Card
             sx={{

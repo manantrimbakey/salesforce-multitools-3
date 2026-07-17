@@ -1,238 +1,113 @@
 import * as vscode from 'vscode';
-import { WebviewUtils } from '../../utils/webview';
+import { BaseWebviewHost } from '../../webview/BaseWebviewHost';
 import { Logger } from '../../utils/logger';
-import { handleDebugLogWebviewCommand } from '../debugLogs/commands';
-import { configureWebviewForServer } from '../../utils/webviewUtils';
 
-/**
- * Provider for the Salesforce Multitools sidebar
- */
-export class SidebarProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = 'salesforceMultitools.sidebar';
+import { registerDebugLogChannels } from '../debugLogs/channels';
+import { WebviewMessenger } from '../../webview/WebviewMessenger';
 
-    private _view?: vscode.WebviewView;
-    private _extensionUri: vscode.Uri;
-    private _activeComponent: string = 'componentFileSwitcher'; // Default component
-
-    constructor(private context: vscode.ExtensionContext) {
-        this._extensionUri = context.extensionUri;
+class SidebarHost extends BaseWebviewHost {
+    constructor(
+        webview: vscode.Webview,
+        extensionUri: vscode.Uri,
+        defaultComponent: string
+    ) {
+        super(webview, extensionUri, defaultComponent);
+        registerDebugLogChannels(this.messenger);
+        this.registerSidebarChannels();
     }
 
-    /**
-     * Register the sidebar view
-     */
+    private registerSidebarChannels() {
+        this.messenger.registerHandler('files:open', async (payload: any) => {
+            const { filePath } = payload;
+            if (filePath) {
+                try {
+                    const document = await vscode.workspace.openTextDocument(filePath);
+                    await vscode.window.showTextDocument(document);
+                    Logger.debug(`Opened file: ${filePath}`, 'SidebarHost');
+                    return { success: true };
+                } catch (error) {
+                    Logger.error(`Error opening file: ${filePath}`, 'SidebarHost', error);
+                    vscode.window.showErrorMessage(`Failed to open file: ${error}`);
+                    throw error;
+                }
+            }
+            return { success: false, error: 'No filePath provided' };
+        });
+
+        // Add additional channels like components:get, file:lastModified here if they were previously handled
+        // We will move them to messenger later.
+    }
+
+    protected async onMessage(message: any) {
+
+        switch (message.command) {
+            case 'requestData':
+                this.messenger.post('responseData', { message: 'Hello from VS Code extension' });
+                return;
+            case 'openFile':
+                // Handled as channel now, but keeping legacy just in case
+                if (message.filePath) {
+                    try {
+                        const document = await vscode.workspace.openTextDocument(message.filePath);
+                        await vscode.window.showTextDocument(document);
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`Failed to open file: ${error}`);
+                    }
+                }
+                return;
+            case 'exampleRequest':
+                if (message.data && message.data.text) {
+                    this.messenger.post('exampleResponse', {
+                        message: `Extension received: "${message.data.text}" (processed at ${new Date().toLocaleTimeString()})`
+                    });
+                }
+                return;
+        }
+    }
+}
+
+export class SidebarProvider implements vscode.WebviewViewProvider {
+    public static readonly viewType = 'salesforceMultitools.sidebar';
+    private host?: SidebarHost;
+
+    constructor(private context: vscode.ExtensionContext) {}
+
     public static register(context: vscode.ExtensionContext): vscode.Disposable[] {
         const provider = new SidebarProvider(context);
 
         const registrations = [
-            // Register the webview view provider
             vscode.window.registerWebviewViewProvider(SidebarProvider.viewType, provider, {
                 webviewOptions: {
                     retainContextWhenHidden: true,
                 },
             }),
-
-            // Register command to send messages to the sidebar
             vscode.commands.registerCommand('salesforceMultitools.sidebar.sendMessage', (message: any) => {
-                provider._sendMessage(message);
+                if (provider.host) {
+                    // @ts-ignore - access messenger
+                    provider.host.messenger.post(message.command, message.data, message.component);
+                }
             }),
-
-            // Register command to set the active component
             vscode.commands.registerCommand('salesforceMultitools.sidebar.setComponent', (componentName: string) => {
-                provider.setActiveComponent(componentName);
+                provider.host?.setActiveComponent(componentName);
             }),
         ];
-
-        vscode.window.onDidChangeActiveColorTheme((theme) => {
-            if (theme.kind === vscode.ColorThemeKind.Dark) {
-                provider._sendMessage({
-                    command: 'refreshTheme',
-                    data: { theme: 'dark' },
-                });
-            } else {
-                provider._sendMessage({
-                    command: 'refreshTheme',
-                    data: { theme: 'light' },
-                });
-            }
-        });
 
         return registrations;
     }
 
-    /**
-     * Set the active component
-     */
-    public setActiveComponent(componentName: string): void {
-        this._activeComponent = componentName;
-        this._sendMessage({
-            command: 'setActiveComponent',
-            component: componentName,
-        });
-        Logger.debug(`Set active component to: ${componentName}`, 'SidebarProvider.setActiveComponent');
-    }
-
-    /**
-     * Called when the view is resolved by VS Code
-     */
     public resolveWebviewView(
         webviewView: vscode.WebviewView,
         context: vscode.WebviewViewResolveContext,
         token: vscode.CancellationToken,
     ): void | Thenable<void> {
-        this._view = webviewView;
-
-        // Set the webview's options
-        webviewView.webview.options = {
-            enableScripts: true,
-            localResourceRoots: [vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview')],
-        };
-
-        // Configure webview to connect to Express server
-        configureWebviewForServer(webviewView.webview);
-
-        // Set initial HTML content
-        webviewView.webview.html = WebviewUtils.getWebviewContent(webviewView.webview, this._extensionUri.fsPath);
-
-        // Handle webview messages
-        this._setWebviewMessageListener(webviewView.webview);
-    }
-
-    /**
-     * Set up the message listener for the webview
-     */
-    private _setWebviewMessageListener(webview: vscode.Webview) {
-        webview.onDidReceiveMessage(async (message) => {
-            // Try to handle debug log commands first
-            if (this._activeComponent === 'debugLogFetcher') {
-                const handled = await handleDebugLogWebviewCommand(message, (response) => {
-                    this._sendMessage(response);
-                });
-
-                if (handled) {
-                    return;
-                }
-            }
-
-            switch (message.command) {
-                case 'alert': {
-                    vscode.window.showInformationMessage(message.text);
-                    return;
-                }
-                case 'ready': {
-                    // Webview is ready, send initial data
-                    this._sendInitialData();
-
-                    // Send the active component
-                    this._sendMessage({
-                        command: 'setActiveComponent',
-                        component: this._activeComponent,
-                    });
-
-                    // Refresh component data for current file if we're using the component file switcher
-                    if (this._activeComponent === 'componentFileSwitcher') {
-                        vscode.commands.executeCommand('salesforce-multitools-3.refreshComponentData');
-                    }
-                    return;
-                }
-                case 'requestData': {
-                    // Basic data response
-                    this._sendMessage({
-                        command: 'responseData',
-                        data: { message: 'Hello from VS Code extension' },
-                    });
-                    return;
-                }
-                case 'refreshTheme': {
-                    this._sendMessage({
-                        command: 'refreshTheme',
-                        data: { theme: vscode.window.activeColorTheme.kind },
-                    });
-                    return;
-                }
-                case 'openFile': {
-                    // Handle opening files from the component file switcher
-                    if (message.filePath) {
-                        try {
-                            const document = await vscode.workspace.openTextDocument(message.filePath);
-                            await vscode.window.showTextDocument(document);
-                            Logger.debug(
-                                `Opened file: ${message.filePath}`,
-                                'SidebarProvider._setWebviewMessageListener',
-                            );
-                        } catch (error) {
-                            Logger.error(
-                                `Error opening file: ${message.filePath}`,
-                                'SidebarProvider._setWebviewMessageListener',
-                                error,
-                            );
-                            vscode.window.showErrorMessage(`Failed to open file: ${error}`);
-                        }
-                    }
-                    return;
-                }
-                case 'exampleRequest': {
-                    // Handle example component requests
-                    if (message.data && message.data.text) {
-                        Logger.debug(
-                            `Received message from example component: ${message.data.text}`,
-                            'SidebarProvider._setWebviewMessageListener',
-                        );
-
-                        // Echo back the message with some processing
-                        this._sendMessage({
-                            command: 'exampleResponse',
-                            data: {
-                                message: `Extension received: "${message.data.text}" (processed at ${new Date().toLocaleTimeString()})`,
-                            },
-                        });
-                    }
-                    return;
-                }
-            }
-        });
-    }
-
-    /**
-     * Send initial data to the webview
-     */
-    private _sendInitialData() {
-        Logger.debug('Sending initial data to sidebar webview', 'SidebarProvider._sendInitialData');
-
-        if (!this._view) {
-            return;
+        if (this.host) {
+            this.host.dispose();
         }
-
-        // Get the workspace folder
-        const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-
-        // Send initial data
-        this._sendMessage({
-            command: 'init',
-            data: {
-                extensionPath: this._extensionUri.fsPath,
-                workspaceFolder: workspaceFolder || '',
-                activeComponent: this._activeComponent,
-            },
-        });
+        
+        this.host = new SidebarHost(
+            webviewView.webview, 
+            this.context.extensionUri, 
+            'componentFileSwitcher'
+        );
     }
-
-    /**
-     * Send a message to the webview
-     */
-    private _sendMessage(message: Message) {
-        if (this._view) {
-            try {
-                this._view.webview.postMessage(message);
-            } catch (error) {
-                Logger.error('Error sending message to webview:', 'SidebarProvider._sendMessage', error);
-            }
-        }
-    }
-}
-
-export interface Message {
-    command: string;
-    data?: any;
-    component?: string;
 }

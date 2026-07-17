@@ -10,7 +10,6 @@ import { ConfigUtils } from './utils/config';
 import { CommandHandler } from './commands/commandHandler';
 import { ConfigWatcher } from './configWatcher';
 import { SidebarProvider } from './features/sidePanel/SidebarProvider';
-import { ExpressServer, disposeExpressServer } from './utils/expressServer';
 
 /**
  * This method is called when your extension is activated
@@ -19,7 +18,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Early return if .sfdx/sfdx-config.json does not exist in the workspace root
     const workspaceFolders = vscode.workspace.workspaceFolders;
     if (!workspaceFolders || workspaceFolders.length === 0) {
-        Logger.warn('No workspace folder found. Extension will not activate.', 'if');
+        Logger.warn('No workspace folder found. Extension will not activate.', 'activate');
         return;
     }
     const sfdxConfigPath = vscode.Uri.joinPath(workspaceFolders[0].uri, '.sfdx', 'sfdx-config.json');
@@ -31,7 +30,7 @@ export function activate(context: vscode.ExtensionContext) {
         },
         () => {
             // File does not exist, log and return
-            Logger.warn('.sfdx/sfdx-config.json not found in workspace root. Extension will not activate.', 'if');
+            Logger.warn('.sfdx/sfdx-config.json not found in workspace root. Extension will not activate.', 'activate');
         },
     );
 }
@@ -41,15 +40,7 @@ async function continueActivation(context: vscode.ExtensionContext) {
     // Initialize logger with proper log level
     initializeLogger(context);
 
-    // Start the Express server first before any other initialization
-    try {
-        const expressServer = ExpressServer.getInstance();
-        await expressServer.start();
-        // Logger.info(`Express server started successfully`, 'continueActivation');
-    } catch (error) {
-        Logger.error(`Failed to activate core module : Salesforce Multitool ${error}`, 'catch');
-        // Continue activation even if server fails to start
-    }
+    // Express server initialization removed
 
     // Register configuration watchers
     ConfigWatcher.register(context);
@@ -65,14 +56,14 @@ async function continueActivation(context: vscode.ExtensionContext) {
     setTimeout(() => {
         // Initialize SFUtils directly rather than using CommandHandler
         SFUtils.initialize(true).catch((error: Error) => {
-            Logger.error('Error during initialization:', 'catch', error);
+            Logger.error('Error during initialization:', 'continueActivation', error);
         });
     }, 1000);
 
     // Register cleanup for deactivation
     registerCleanup(context);
 
-    Logger.info('Salesforce Multitool extension activated successfully', 'catch');
+    Logger.info('Salesforce Multitool extension activated successfully', 'continueActivation');
 }
 
 /**
@@ -97,11 +88,11 @@ function initializeLogger(context: vscode.ExtensionContext): void {
     Logger.initialize(logLevel, isDevelopment);
     Logger.info(
         `Salesforce Multitool extension is now active (${isDevelopment ? 'development' : 'production'} mode)`,
-        'if',
+        'initializeLogger',
     );
 
     if (isDevelopment) {
-        Logger.debug('DEBUG logging enabled for development', 'if');
+        Logger.debug('DEBUG logging enabled for development', 'initializeLogger');
     }
 }
 
@@ -111,9 +102,7 @@ function initializeLogger(context: vscode.ExtensionContext): void {
 function registerCleanup(context: vscode.ExtensionContext): void {
     context.subscriptions.push({
         dispose: () => {
-            // Clean up the Express server first
-            disposeExpressServer();
-            // Then clean up other resources
+            // Clean up other resources
             SFUtils.dispose();
             Logger.dispose();
         },

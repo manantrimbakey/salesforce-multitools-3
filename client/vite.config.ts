@@ -8,7 +8,7 @@ export default defineConfig({
         outDir: '../dist/webview',
         assetsDir: 'assets',
         emptyOutDir: true,
-        sourcemap: false,
+        sourcemap: true,
         // minify: 'terser',
         // cssMinify: `esbuild`,
 
@@ -17,11 +17,13 @@ export default defineConfig({
                 entryFileNames: 'assets/[name].js',
                 chunkFileNames: 'assets/[name].js',
                 assetFileNames: 'assets/[name].[ext]',
-                // manualChunks(id) {
-                //     if (id.includes('node_modules')) {
-                //         return 'vendor';
-                //     }
-                // },
+                manualChunks(id) {
+                    if (id.includes('node_modules')) {
+                        if (id.includes('@mui')) return 'mui';
+                        if (id.includes('react')) return 'react';
+                        return 'vendor';
+                    }
+                },
             },
         },
     },

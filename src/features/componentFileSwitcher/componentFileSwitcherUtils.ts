@@ -76,21 +76,9 @@ export function getComponentFolder(filePath: string): string | null {
         return null;
     }
 
-    // For LWC, the pattern is lwc/componentName/
-    const lwcMatch = filePath.match(/(?:\/|\\)lwc(?:\/|\\)([^\/\\]+)(?:\/|\\)/);
-    if (lwcMatch) {
-        const componentName = lwcMatch[1];
-        return path.dirname(filePath);
-    }
-
-    // For Aura, the pattern is aura/componentName/
-    const auraMatch = filePath.match(/(?:\/|\\)aura(?:\/|\\)([^\/\\]+)(?:\/|\\)/);
-    if (auraMatch) {
-        const componentName = auraMatch[1];
-        return path.dirname(filePath);
-    }
-
-    return null;
+    // The metadata info already confirms it's a valid component.
+    // We just need the parent directory of the file.
+    return path.dirname(filePath);
 }
 
 /**
@@ -139,17 +127,10 @@ export async function getComponentFiles(filePath: string): Promise<ComponentFile
             const filePath = path.join(componentFolder, file);
             const isUnsaved = unsavedDocuments.has(filePath);
 
-            // Create component file based on component type
-            if (componentType === ComponentType.LWC) {
-                const lwcFile = createLwcComponentFile(componentName, filePath, file, isUnsaved);
-                if (lwcFile) {
-                    componentFiles.push(lwcFile);
-                }
-            } else if (componentType === ComponentType.AURA) {
-                const auraFile = createAuraComponentFile(componentName, filePath, file, isUnsaved);
-                if (auraFile) {
-                    componentFiles.push(auraFile);
-                }
+            // Create component file
+            const compFile = createComponentFile(componentName, componentType, filePath, file, isUnsaved);
+            if (compFile) {
+                componentFiles.push(compFile);
             }
         }
 
@@ -162,150 +143,41 @@ export async function getComponentFiles(filePath: string): Promise<ComponentFile
 }
 
 /**
- * Create a component file object for an LWC file
+ * Create a component file object for LWC or Aura
  */
-function createLwcComponentFile(
+function createComponentFile(
     componentName: string,
+    componentType: ComponentType,
     filePath: string,
     fileName: string,
     isUnsaved: boolean,
 ): ComponentFile | null {
-    let type: ComponentFileType;
-    let priority: number;
+    let type = ComponentFileType.OTHER;
+    let priority = 9;
     let isBaseFile = false;
 
-    // JavaScript file with same name as component has highest priority
-    if (fileName === `${componentName}.js`) {
-        type = ComponentFileType.JS;
-        priority = 1;
-        isBaseFile = true;
-    }
-    // HTML file with same name is second priority
-    else if (fileName === `${componentName}.html`) {
-        type = ComponentFileType.HTML;
-        priority = 2;
-        isBaseFile = false;
-    }
-    // CSS file with same name is third priority
-    else if (fileName === `${componentName}.css`) {
-        type = ComponentFileType.CSS;
-        priority = 3;
-        isBaseFile = false;
-    }
-    // Other JS files
-    else if (fileName.endsWith('.js') && !fileName.endsWith('-meta.xml')) {
-        type = ComponentFileType.JS;
-        priority = 4;
-        isBaseFile = false;
-    }
-    // Other files (not meta XML)
-    else if (fileName.endsWith('.html')) {
-        type = ComponentFileType.HTML;
-        priority = 5;
-    } else if (fileName.endsWith('.css')) {
-        type = ComponentFileType.CSS;
-        priority = 6;
-    } else if (fileName.endsWith('.svg')) {
-        type = ComponentFileType.SVG;
-        priority = 7;
-    }
-    // Meta XML has lowest priority
-    else if (fileName.endsWith('-meta.xml')) {
-        type = ComponentFileType.XML;
-        priority = 10;
-    } else {
-        type = ComponentFileType.OTHER;
-        priority = 9;
+    if (componentType === ComponentType.LWC) {
+        if (fileName === `${componentName}.js`) { type = ComponentFileType.JS; priority = 1; isBaseFile = true; }
+        else if (fileName === `${componentName}.html`) { type = ComponentFileType.HTML; priority = 2; }
+        else if (fileName === `${componentName}.css`) { type = ComponentFileType.CSS; priority = 3; }
+        else if (fileName.endsWith('.js') && !fileName.endsWith('-meta.xml')) { type = ComponentFileType.JS; priority = 4; }
+        else if (fileName.endsWith('.html')) { type = ComponentFileType.HTML; priority = 5; }
+        else if (fileName.endsWith('.css')) { type = ComponentFileType.CSS; priority = 6; }
+        else if (fileName.endsWith('.svg')) { type = ComponentFileType.SVG; priority = 7; }
+        else if (fileName.endsWith('-meta.xml')) { type = ComponentFileType.XML; priority = 10; }
+    } else if (componentType === ComponentType.AURA) {
+        if (fileName === `${componentName}Controller.js`) { type = ComponentFileType.CONTROLLER; priority = 1; isBaseFile = true; }
+        else if (['.cmp', '.app', '.intf', '.evt'].some(ext => fileName === `${componentName}${ext}`)) { type = ComponentFileType.HTML; priority = 2; isBaseFile = true; }
+        else if (fileName === `${componentName}.css`) { type = ComponentFileType.CSS; priority = 3; }
+        else if (fileName === `${componentName}Helper.js`) { type = ComponentFileType.HELPER; priority = 4; }
+        else if (fileName === `${componentName}Renderer.js`) { type = ComponentFileType.RENDERER; priority = 5; }
+        else if (fileName.endsWith('.svg')) { type = ComponentFileType.SVG; priority = 6; }
+        else if (fileName.endsWith('.design')) { type = ComponentFileType.DESIGN; priority = 7; }
+        else if (fileName.endsWith('.auradoc')) { type = ComponentFileType.DOCUMENTATION; priority = 8; }
+        else if (['.cmp-meta.xml', '.app-meta.xml', '.intf-meta.xml', '.evt-meta.xml'].some(ext => fileName.endsWith(ext))) { type = ComponentFileType.XML; priority = 10; }
     }
 
-    return {
-        path: filePath,
-        name: fileName,
-        type,
-        priority,
-        isBaseFile,
-        isUnsaved,
-    };
-}
-
-/**
- * Create a component file object for an Aura file
- */
-function createAuraComponentFile(
-    componentName: string,
-    filePath: string,
-    fileName: string,
-    isUnsaved: boolean,
-): ComponentFile | null {
-    let type: ComponentFileType;
-    let priority: number;
-    let isBaseFile = false;
-
-    // Controller.js has highest priority
-    if (fileName === `${componentName}Controller.js`) {
-        type = ComponentFileType.CONTROLLER;
-        priority = 1;
-        isBaseFile = true;
-    }
-    // Main component file is second
-    else if (
-        fileName === `${componentName}.cmp` ||
-        fileName === `${componentName}.app` ||
-        fileName === `${componentName}.intf` ||
-        fileName === `${componentName}.evt`
-    ) {
-        type = ComponentFileType.HTML;
-        priority = 2;
-        isBaseFile = true;
-    }
-    // CSS is third
-    else if (fileName === `${componentName}.css`) {
-        type = ComponentFileType.CSS;
-        priority = 3;
-    }
-    // Helper.js is fourth
-    else if (fileName === `${componentName}Helper.js`) {
-        type = ComponentFileType.HELPER;
-        priority = 4;
-    }
-    // Renderer.js is fifth
-    else if (fileName === `${componentName}Renderer.js`) {
-        type = ComponentFileType.RENDERER;
-        priority = 5;
-    }
-    // Other files
-    else if (fileName.endsWith('.svg')) {
-        type = ComponentFileType.SVG;
-        priority = 6;
-    } else if (fileName.endsWith('.design')) {
-        type = ComponentFileType.DESIGN;
-        priority = 7;
-    } else if (fileName.endsWith('.auradoc')) {
-        type = ComponentFileType.DOCUMENTATION;
-        priority = 8;
-    }
-    // Meta XML has lowest priority
-    else if (
-        fileName.endsWith('.cmp-meta.xml') ||
-        fileName.endsWith('.app-meta.xml') ||
-        fileName.endsWith('.intf-meta.xml') ||
-        fileName.endsWith('.evt-meta.xml')
-    ) {
-        type = ComponentFileType.XML;
-        priority = 10;
-    } else {
-        type = ComponentFileType.OTHER;
-        priority = 9;
-    }
-
-    return {
-        path: filePath,
-        name: fileName,
-        type,
-        priority,
-        isBaseFile,
-        isUnsaved,
-    };
+    return { path: filePath, name: fileName, type, priority, isBaseFile, isUnsaved };
 }
 
 /**
