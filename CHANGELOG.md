@@ -4,6 +4,20 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ## [Unreleased]
 
+## [0.7.1]
+
+### Fixed
+
+- Package metadata now points at this repository: the Marketplace page, README images and issue links no longer use the old repository
+
+### Added
+
+- Publishing guide (`docs/development/publishing.md`) and a script that retargets Dependabot pull requests to `dev2`
+
+### Changed
+
+- `vsce` is installed globally instead of being a project dependency
+
 ## [0.7.0]
 
 ### Added
