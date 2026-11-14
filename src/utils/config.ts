@@ -40,8 +40,8 @@ export class ConfigUtils {
      */
     public static getLastModifiedAutoRefreshInterval(): number {
         const config = vscode.workspace.getConfiguration(this.CONFIG_NAMESPACE);
-        // Get seconds from config, with 60 seconds as the default
-        const seconds = config.get<number>('lastModifiedAutoRefreshInterval', 60);
+        // Get seconds from config, with 15 seconds as the default
+        const seconds = config.get<number>('lastModifiedAutoRefreshInterval', 15);
 
         // 0 means disabled
         if (seconds <= 0) {

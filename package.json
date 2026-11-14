@@ -108,7 +108,7 @@
                 },
                 "salesforceMultitools-3.lastModifiedAutoRefreshInterval": {
                     "type": "number",
-                    "default": 60,
+                    "default": 15,
                     "minimum": 5,
                     "description": "Interval in seconds for automatically refreshing last modified details from Salesforce. Set to 0 to disable auto-refresh."
                 }
