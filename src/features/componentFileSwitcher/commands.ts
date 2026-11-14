@@ -6,13 +6,15 @@ import {
     formatComponentFilesForQuickPick,
     isLightningComponentFile,
     getComponentDetails,
+    getComponentFolder,
+    ComponentFile,
     ComponentType,
 } from './componentFileSwitcherUtils';
 import { isRegularFileEditor, isRegularFilePath } from '../../utils/fileUtils';
 
-// Reference to the webview to refresh as needed
-let fileWatcherDisposable: vscode.Disposable | undefined;
-let fileChangeListenerDisposable: vscode.Disposable | undefined;
+const REFRESH_DEBOUNCE_MS = 300;
+
+let refreshTimer: NodeJS.Timeout | undefined;
 
 /**
  * Register the component file switcher commands
@@ -29,29 +31,86 @@ export function registerComponentFileSwitcherCommands(context: vscode.ExtensionC
     // Register command to send component data to the UI
     const refreshComponentDataCmd = vscode.commands.registerCommand(
         'salesforce-multitools-3.refreshComponentData',
-        () => {
-            Logger.debug('refreshComponentDataCmd called', 'ComponentFileSwitcher.registerCommands');
-            refreshComponentData();
-        },
+        scheduleRefresh,
     );
 
-    // Set up file watcher for component directories
-    setupFileWatcher();
-
-    // Set up active editor change listener to update UI
-    setupActiveEditorChangeListener();
-
-    // Register disposables
-    context.subscriptions.push(switchComponentFileCmd, refreshComponentDataCmd, {
+    context.subscriptions.push(switchComponentFileCmd, refreshComponentDataCmd, ...createComponentChangeListeners(), {
         dispose: () => {
-            if (fileWatcherDisposable) {
-                fileWatcherDisposable.dispose();
-            }
-            if (fileChangeListenerDisposable) {
-                fileChangeListenerDisposable.dispose();
-            }
+            clearTimeout(refreshTimer);
+            refreshTimer = undefined;
         },
     });
+
+    // Set the isLightningComponent context for the editor that is already open
+    scheduleRefresh();
+}
+
+/**
+ * Coalesce bursts of events (retrieves, typing, editor switches) into a single refresh
+ */
+function scheduleRefresh(): void {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+        refreshTimer = undefined;
+        void refreshComponentData();
+    }, REFRESH_DEBOUNCE_MS);
+}
+
+/**
+ * True when the path is inside the bundle folder of the component open in the active editor
+ */
+function isInActiveComponent(filePath: string): boolean {
+    const activePath = vscode.window.activeTextEditor?.document.uri.fsPath;
+    const activeFolder = activePath && getComponentFolder(activePath);
+    return !!activeFolder && filePath.startsWith(activeFolder + path.sep);
+}
+
+/**
+ * Listeners that keep the sidebar component list up to date
+ */
+function createComponentChangeListeners(): vscode.Disposable[] {
+    // Only files being added/removed change the list; content edits do not
+    const watchers = ['**/lwc/**/*', '**/aura/**/*'].map((glob) => {
+        const watcher = vscode.workspace.createFileSystemWatcher(glob, false, true, false);
+        const onFileSetChange = (uri: vscode.Uri) => {
+            if (isInActiveComponent(uri.fsPath)) {
+                scheduleRefresh();
+            }
+        };
+        return vscode.Disposable.from(
+            watcher,
+            watcher.onDidCreate(onFileSetChange),
+            watcher.onDidDelete(onFileSetChange),
+        );
+    });
+
+    // The list shows unsaved indicators: refresh only when a document's dirty state flips (not on each keystroke)
+    const dirtyState = new Map<string, boolean>();
+    const textDocumentChange = vscode.workspace.onDidChangeTextDocument((event) => {
+        const { document } = event;
+        if (document.uri.scheme !== 'file' || !isRegularFilePath(document.uri.fsPath)) {
+            return;
+        }
+        const key = document.uri.toString();
+        if (dirtyState.get(key) === document.isDirty) {
+            return;
+        }
+        dirtyState.set(key, document.isDirty);
+        if (isInActiveComponent(document.uri.fsPath)) {
+            scheduleRefresh();
+        }
+    });
+    const documentClose = vscode.workspace.onDidCloseTextDocument((document) => {
+        dirtyState.delete(document.uri.toString());
+    });
+
+    const activeEditorChange = vscode.window.onDidChangeActiveTextEditor((editor) => {
+        if (isRegularFileEditor(editor)) {
+            scheduleRefresh();
+        }
+    });
+
+    return [...watchers, textDocumentChange, documentClose, activeEditorChange];
 }
 
 /**
@@ -112,26 +171,12 @@ async function handleSwitchComponentFile(): Promise<void> {
             return; // User cancelled
         }
 
-        // Find the selected file
-        const selectedFile = otherFiles.find(
-            (file) => selection.label.endsWith(file.name) && selection.description === file.type,
-        );
-
-        if (!selectedFile) {
-            Logger.error(
-                'Selected file not found in component files',
-                'ComponentFileSwitcher.handleSwitchComponentFile',
-            );
-            return;
-        }
-
         // Open the selected file
-        const document = await vscode.workspace.openTextDocument(selectedFile.path);
+        const document = await vscode.workspace.openTextDocument(selection.file.path);
         await vscode.window.showTextDocument(document);
 
         // Refresh component data in UI
-        Logger.debug('handleSwitchComponentFile called', 'ComponentFileSwitcher.handleSwitchComponentFile');
-        refreshComponentData();
+        scheduleRefresh();
     } catch (error) {
         Logger.error(
             `Error handling component file switch: ${error}`,
@@ -142,91 +187,10 @@ async function handleSwitchComponentFile(): Promise<void> {
 }
 
 /**
- * Set up file watcher for component directories
- */
-function setupFileWatcher(): void {
-    if (fileWatcherDisposable) {
-        fileWatcherDisposable.dispose();
-    }
-
-    // Watch for file changes in lwc and aura directories
-    const lwcWatcher = vscode.workspace.createFileSystemWatcher('**/lwc/**/*');
-    const auraWatcher = vscode.workspace.createFileSystemWatcher('**/aura/**/*');
-
-    // File created, deleted, or changed in component directory
-    const fileChangeHandler = () => {
-        Logger.debug('fileChangeHandler called', 'ComponentFileSwitcher.setupFileWatcher');
-        refreshComponentData();
-    };
-
-    lwcWatcher.onDidCreate(fileChangeHandler);
-    lwcWatcher.onDidDelete(fileChangeHandler);
-    lwcWatcher.onDidChange(fileChangeHandler);
-
-    auraWatcher.onDidCreate(fileChangeHandler);
-    auraWatcher.onDidDelete(fileChangeHandler);
-    auraWatcher.onDidChange(fileChangeHandler);
-
-    fileWatcherDisposable = {
-        dispose: () => {
-            lwcWatcher.dispose();
-            auraWatcher.dispose();
-        },
-    };
-}
-
-/**
- * Set up listener for active editor changes to update UI
- */
-function setupActiveEditorChangeListener(): void {
-    if (fileChangeListenerDisposable) {
-        fileChangeListenerDisposable.dispose();
-    }
-
-    // Text document change (for unsaved indicators)
-    const textDocumentChangeEvent = vscode.workspace.onDidChangeTextDocument((event) => {
-        // Skip non-regular files
-        if (event.document.uri.scheme !== 'file' || !isRegularFilePath(event.document.uri.fsPath)) {
-            return;
-        }
-
-        Logger.debug(
-            'textDocumentChangeEvent called for file: ' + event.document.uri.fsPath,
-            'ComponentFileSwitcher.setupActiveEditorChangeListener',
-        );
-        refreshComponentData();
-    });
-
-    // Active editor change
-    const activeEditorChangeEvent = vscode.window.onDidChangeActiveTextEditor((editor) => {
-        // Skip non-regular file editors
-        if (!isRegularFileEditor(editor)) {
-            return;
-        }
-
-        // We know editor is defined at this point since isRegularFileEditor checks for null/undefined
-        Logger.debug(
-            'activeEditorChangeEvent called for file: ' + editor!.document.uri.fsPath,
-            'ComponentFileSwitcher.setupActiveEditorChangeListener',
-        );
-        refreshComponentData();
-    });
-
-    fileChangeListenerDisposable = {
-        dispose: () => {
-            textDocumentChangeEvent.dispose();
-            activeEditorChangeEvent.dispose();
-        },
-    };
-}
-
-/**
  * Send component data to the UI
  */
 export async function refreshComponentData(): Promise<void> {
     const editor = vscode.window.activeTextEditor;
-    Logger.debug('refreshComponentData called', 'ComponentFileSwitcher.refreshComponentData');
-
     if (!editor) {
         // No active editor, clear component data
         sendComponentDataMessage({
@@ -290,21 +254,17 @@ function sendComponentDataMessage(data: {
     componentName: string | null;
     componentType: ComponentType;
     fileName: string;
-    files: any[];
+    files: ComponentFile[];
 }): void {
-    vscode.commands.executeCommand(
+    void vscode.commands.executeCommand(
         'setContext',
         'salesforceMultitools.isLightningComponent',
         data.componentType !== ComponentType.UNKNOWN,
     );
 
-    // Post message to webview
-    vscode.window.visibleTextEditors.forEach((editor) => {
-        if (editor.document.uri.scheme === 'file') {
-            vscode.commands.executeCommand('salesforceMultitools.sidebar.sendMessage', {
-                command: 'componentFileSwitcherRefresh',
-                data,
-            });
-        }
+    // Post message to the sidebar webview (once, regardless of how many editors are visible)
+    void vscode.commands.executeCommand('salesforceMultitools.sidebar.sendMessage', {
+        command: 'componentFileSwitcherRefresh',
+        data,
     });
 }

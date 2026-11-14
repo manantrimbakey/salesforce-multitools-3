@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { WebviewUtils } from '../../utils/webview';
 import { Logger } from '../../utils/logger';
 import { handleDebugLogWebviewCommand } from './commands';
-import { configureWebviewForServer } from '../../utils/webviewUtils';
+import { attachRpc } from '../../rpc/attachRpc';
 
 /**
  * Provider for the Debug Logs webview panel
@@ -15,7 +15,7 @@ export class DebugLogWebviewPanel {
     /**
      * Create or show the debug logs webview panel
      */
-    public static createOrShow(extensionUri: vscode.Uri): void {
+    public static async createOrShow(extensionUri: vscode.Uri): Promise<void> {
         this._extensionUri = extensionUri;
 
         const column = vscode.window.activeTextEditor ? vscode.window.activeTextEditor.viewColumn : undefined;
@@ -26,8 +26,7 @@ export class DebugLogWebviewPanel {
             return;
         }
 
-        // Otherwise, create a new panel
-        this._panel = vscode.window.createWebviewPanel(
+        const panel = vscode.window.createWebviewPanel(
             DebugLogWebviewPanel.viewType,
             'Salesforce Debug Logs',
             column || vscode.ViewColumn.One,
@@ -37,92 +36,80 @@ export class DebugLogWebviewPanel {
                 localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist', 'webview')],
             },
         );
+        this._panel = panel;
 
-        // Configure webview to connect to Express server
-        configureWebviewForServer(this._panel.webview);
-
-        // Set the webview's initial html content
-        this._panel.webview.html = WebviewUtils.getWebviewContent(this._panel.webview, extensionUri.fsPath);
-
-        // Setup message handling
-        this._setWebviewMessageListener(this._panel.webview);
-
-        // Reset when the panel is closed
-        this._panel.onDidDispose(
-            () => {
+        // Everything registered here is released when the panel goes away
+        const disposables: vscode.Disposable[] = [];
+        panel.onDidDispose(() => {
+            if (this._panel === panel) {
                 this._panel = undefined;
-            },
-            null,
-            [],
+            }
+            vscode.Disposable.from(...disposables).dispose();
+        });
+
+        // Listen before the HTML loads so no early message is lost
+        attachRpc(panel.webview, disposables);
+        this._setWebviewMessageListener(panel.webview, disposables);
+
+        disposables.push(
+            vscode.window.onDidChangeActiveColorTheme(() => {
+                this._sendMessage(panel.webview, WebviewUtils.getThemeMessage());
+            }),
         );
 
-        // Handle theme changes
-        vscode.window.onDidChangeActiveColorTheme((theme) => {
-            if (this._panel) {
-                this._panel.webview.postMessage({
-                    command: 'refreshTheme',
-                    data: { theme: theme.kind === vscode.ColorThemeKind.Dark ? 'dark' : 'light' },
-                });
-            }
-        });
+        const html = await WebviewUtils.getWebviewContent(panel.webview, extensionUri.fsPath);
+        // The panel may have been closed while the HTML was loading
+        if (this._panel === panel) {
+            panel.webview.html = html;
+        }
     }
 
     /**
      * Close the webview panel if it exists
      */
     public static close(): void {
-        if (this._panel) {
-            this._panel.dispose();
-            this._panel = undefined;
-        }
+        // onDidDispose clears the reference and the listeners
+        this._panel?.dispose();
     }
 
     /**
      * Set up the message listener for the webview
      */
-    private static _setWebviewMessageListener(webview: vscode.Webview): void {
-        webview.onDidReceiveMessage(async (message) => {
-            // Try debug log commands first
-            if (message.command === 'ready') {
-                // Send initial data
-                this._sendInitialData(webview);
+    private static _setWebviewMessageListener(webview: vscode.Webview, disposables: vscode.Disposable[]): void {
+        disposables.push(
+            webview.onDidReceiveMessage(async (message) => {
+                if (message.command === 'ready') {
+                    // Send initial data
+                    this._sendInitialData(webview);
 
-                // Set to use the debug log fetcher component
-                webview.postMessage({
-                    command: 'setActiveComponent',
-                    component: 'debugLogFetcher',
+                    // Set to use the debug log fetcher component
+                    webview.postMessage({
+                        command: 'setActiveComponent',
+                        component: 'debugLogFetcher',
+                    });
+
+                    return;
+                }
+
+                // Handle debug log commands
+                const handled = await handleDebugLogWebviewCommand(message, (response) => {
+                    this._sendMessage(webview, response);
                 });
 
-                return;
-            }
-
-            // Handle debug log commands
-            const handled = await handleDebugLogWebviewCommand(message, (response) => {
-                this._sendMessage(webview, response);
-            });
-
-            if (!handled) {
-                // Handle other commands if needed
-                switch (message.command) {
-                    case 'alert': {
-                        vscode.window.showInformationMessage(message.text);
-                        return;
-                    }
-                    case 'refreshTheme': {
-                        this._sendMessage(webview, {
-                            command: 'refreshTheme',
-                            data: {
-                                theme:
-                                    vscode.window.activeColorTheme.kind === vscode.ColorThemeKind.Dark
-                                        ? 'dark'
-                                        : 'light',
-                            },
-                        });
-                        return;
+                if (!handled) {
+                    switch (message.command) {
+                        case 'alert': {
+                            vscode.window.showInformationMessage(message.text);
+                            return;
+                        }
+                        case 'refreshTheme': {
+                            this._sendMessage(webview, WebviewUtils.getThemeMessage());
+                            return;
+                        }
                     }
                 }
-            }
-        });
+            }),
+        );
     }
 
     /**
@@ -148,7 +135,7 @@ export class DebugLogWebviewPanel {
     /**
      * Send a message to the webview
      */
-    private static _sendMessage(webview: vscode.Webview, message: any): void {
+    private static _sendMessage(webview: vscode.Webview, message: object): void {
         try {
             webview.postMessage(message);
         } catch (error) {

@@ -21,17 +21,23 @@ export function registerDebugLogCommands(context: vscode.ExtensionContext): void
  * Handle opening the debug logs in a tab
  */
 async function handleOpenDebugLogsTab(extensionUri: vscode.Uri): Promise<void> {
-    // Open the debug logs in a tab
-    DebugLogWebviewPanel.createOrShow(extensionUri);
+    await DebugLogWebviewPanel.createOrShow(extensionUri);
 }
+
+export interface DebugLogWebviewMessage {
+    command?: string;
+    data?: { logId?: string };
+}
+
+export type SendResponse = (message: { command: string; data?: unknown }) => void;
 
 /**
  * Update the SidebarProvider with a message handler for debug logs
  * This function is called from the SidebarProvider when the webview is ready
  */
 export async function handleDebugLogWebviewCommand(
-    message: any,
-    sendResponseFunction: (message: any) => void,
+    message: DebugLogWebviewMessage,
+    sendResponseFunction: SendResponse,
 ): Promise<boolean> {
     try {
         switch (message.command) {
@@ -76,11 +82,9 @@ export async function handleDebugLogWebviewCommand(
                     // Show a notification
                     vscode.window
                         .showInformationMessage(`Debug log downloaded to ${filePath}`, 'Open')
-                        .then((selection) => {
+                        .then(async (selection) => {
                             if (selection === 'Open') {
-                                vscode.workspace.openTextDocument(filePath).then((doc) => {
-                                    vscode.window.showTextDocument(doc);
-                                });
+                                await vscode.commands.executeCommand('vscode.open', vscode.Uri.file(filePath));
                             }
                         });
                 }

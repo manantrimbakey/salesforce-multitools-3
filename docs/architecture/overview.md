@@ -17,11 +17,13 @@ salesforce-multitools-3/
 ├── src/                     # Backend - VS Code extension code
 │   ├── extension.ts         # Entry point for VS Code extension
 │   ├── commands/            # Command handlers
+│   ├── rpc/                 # Webview <-> extension host RPC (router, routes, attachRpc)
+│   ├── services/            # Salesforce / storage services behind the RPC routes
 │   ├── utils/               # Shared utilities
 │   └── features/            # Feature modules
 │       ├── componentFileSwitcher/    # LWC/Aura file switching
 │       ├── lastModifiedDetails/      # File modification tracking
-│       ├── fileSwitcher/             # General file switching
+│       ├── debugLogs/                # Debug log viewer panel and provider
 │       └── sidePanel/                # Sidebar webview provider
 │
 ├── client/                  # Frontend - React UI components
@@ -64,6 +66,50 @@ Extension (Backend) <---> Webview (Frontend)
        │  ◄───── message event  │
 ```
 
+### 4. In-Process RPC (`window.callServerApi`)
+
+Webviews fetch data through a request/response protocol layered on `postMessage`. There is no
+HTTP server and no network port. Every webview HTML page gets a nonce'd bridge script injected by
+`src/utils/webview.ts` that:
+
+- acquires the VS Code API once, stores it as `window.vscodeApi` and makes later
+  `acquireVsCodeApi()` calls return the same object, and
+- defines `window.callServerApi(endpoint, method = 'GET', data = null)`, which resolves with the
+  parsed result or rejects with an `Error` (`error.code` carries the error code).
+
+Protocol:
+
+```
+webview -> host:  { type: 'api', id, endpoint, method, data }
+host -> webview:  { type: 'apiResponse', id, ok: true,  result }
+                  { type: 'apiResponse', id, ok: false, error, code }
+```
+
+`attachRpc(webview, disposables)` (`src/rpc/attachRpc.ts`) answers these messages for the sidebar
+view and the debug log panel. It ignores every other message type, so existing `command` based
+handlers keep working. The `Router` (`src/rpc/router.ts`) matches method plus path pattern
+(`/api/debugLogs/:id/download`), validates `:id` parameters as Salesforce ids and dispatches to the
+handlers in `src/rpc/routes.ts`. Handlers are thin; the work happens in services:
+
+- `services/debugLogService.ts`: log list, users, trace flags (with selectable debug level), debug levels, method names, delete / bulk delete
+- `services/logBodyClient.ts`: streams log bodies with the connection's token
+- `services/logStorage.ts`: atomic on-disk cache under `.sfdx/_multi-tool/debug-logs/<org>/`
+- `services/apexLogParser.ts`: pure log parsing helpers
+- `services/workspaceFileService.ts`: workspace restricted directory listing / file open
+
+Expected failures throw `RpcError` (message shown to the webview); unexpected errors are logged in
+the extension host and returned as a generic message with code `INTERNAL_ERROR`. The webview CSP
+uses `connect-src 'none'`.
+
+## Bundling and lazy loading
+
+`node esbuild.js` produces two bundles. `dist/extension.js` (about 50 KB) is the extension itself.
+`dist/sfcore.js` (about 2 MB) holds `@salesforce/core` and jsforce and is loaded with a plain `require` the first time
+an org connection is needed (`SFUtils.loadCore`), so activation stays cheap. Use `require`, not `import()`: an
+`import()` of the externalised CJS file loses its named exports. The webview is built by Vite into `dist/webview`
+with a single `vendor` chunk plus lazy feature chunks (react, mui and emotion must not be split into separate chunks).
+See [Building](../development/building.md) and [Gotchas](../development/gotchas.md).
+
 ## Extension Activation Flow
 
 When the extension is activated:
@@ -73,7 +119,7 @@ When the extension is activated:
 3. Configuration watchers are registered
 4. Commands are registered via `CommandHandler`
 5. Sidebar view is registered
-6. Salesforce connection is initialized (if available)
+6. Org config watching starts (the Salesforce connection is created lazily on first use)
 
 ## UI Architecture
 

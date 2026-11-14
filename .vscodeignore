@@ -4,7 +4,6 @@ out/**
 src/**
 .gitignore
 .yarnrc
-esbuild.js
 vsc-extension-quickstart.md
 **/tsconfig.json
 **/eslint.config.mjs
@@ -13,7 +12,10 @@ vsc-extension-quickstart.md
 **/.vscode-test.*
 # Documentation
 docs/**
-# Scripts
+CLAUDE.md
+.claude/**
+
+# Developer scripts
 scripts/**
 # Client source code (only include the built files)
 client/**
@@ -29,10 +31,16 @@ dist/**/*.map
 client/dist/**/*.map
 # Make sure to include resources
 !resources/
-# Include built client files
-!client/dist/**
-# Only include dist files
+# Only include dist files (the webview is built into dist/webview)
 !dist/**
+# Never ship sourcemaps (must come after the !dist/** re-include)
+dist/**/*.map
+
+# Repository metadata and tooling
+CODEOWNERS
+.github/**
+tasks/**
+**/*.vsix
 
 pnpm-workspace.yaml
 pnpm-lock.yaml
