@@ -57,6 +57,13 @@ More: `docs/architecture/overview.md`, `docs/features/debug-logs.md`.
 6. Do not run `git stash` to inspect state (it unstages). Use `git status` / `git diff`.
 7. Org-writing checks (trace flags, deletes) only on orgs the user owns and named; clean up what you create.
 
+## Branches and release flow
+
+Work lands on **`dev2`**, is promoted **`dev2` -> `dev1` -> `master`**, in that order. Never skip a stage, never commit
+or merge straight into `dev1` or `master` from a feature branch, and never push or open PRs unless asked. Check where a
+change stands with `git rev-list --count origin/dev1..origin/dev2` and `git rev-list --count origin/master..origin/dev1`.
+(`dev_new` and `dev_log_viewer` are old feature branches kept for history.) `master` is what users see on GitHub.
+
 ## Verification before calling something done
 
 `tsc` + `eslint` + unit tests are necessary, not sufficient. Webview changes: build and run the harness in a browser
