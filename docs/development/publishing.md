@@ -10,10 +10,22 @@ cd ~/Projects/salesforce-multitools-3
 export PATH="$(ls -d $HOME/.nvm/versions/node/v*/bin | sort -V | tail -1):$PATH"
 ```
 
+## Prerequisite: global `vsce`
+
+`vsce` is **not** a project dependency; install it once, globally, with npm (it lives under the active nvm node, so
+reinstall it after switching Node versions; needs Node >= 22):
+
+```bash
+npm install -g @vscode/vsce
+vsce --version
+```
+
+`pnpm run vscode:package` calls the bare `vsce` command, so it needs this on `PATH`.
+
 ## 0. Know the rules
 
 - The Marketplace **rejects a version it already has** and the version must be **higher** than the live one. Check what is
-  live: `npx vsce show manantrimbakey.salesforce-multitools-3` (look at `Version`).
+  live: `vsce show manantrimbakey.salesforce-multitools-3` (look at `Version`).
 - You cannot overwrite a published version. A fix means a new version number.
 - The package page takes its links and README images from `package.json` `repository`. README images use
   `./asset/*.gif`; `vsce` turns them into `https://github.com/<repo>/raw/HEAD/asset/...`, so the repo must be public and
@@ -62,11 +74,11 @@ Smoke test in VS Code before publishing: `F5` in this repo, or install the `.vsi
 ## 4. Log in with `vsce`
 
 ```bash
-npx vsce login manantrimbakey        # paste the token at the prompt
-npx vsce verify-pat manantrimbakey   # should say the PAT is valid
+vsce login manantrimbakey        # paste the token at the prompt
+vsce verify-pat manantrimbakey   # should say the PAT is valid
 ```
 
-Or set it per command: `VSCE_PAT=<token> npx vsce publish ...` (do not put it in shell history permanently).
+Or set it per command: `VSCE_PAT=<token> vsce publish ...` (do not put it in shell history permanently).
 
 ## 5. Package
 
@@ -82,7 +94,7 @@ README images or the repository field mean `package.json` `repository` is wrong.
 ## 6. Publish
 
 ```bash
-npx vsce publish --packagePath salesforce-multitools.vsix
+vsce publish --packagePath salesforce-multitools.vsix
 ```
 
 This uploads the file as built and does not touch the version or git. (Do not use `vsce publish patch`: it bumps the
@@ -91,7 +103,7 @@ version and commits/tags on its own.) No-CLI alternative: https://marketplace.vi
 
 ## 7. Verify
 
-- `npx vsce show manantrimbakey.salesforce-multitools-3` shows the new version (the page can lag a few minutes; the
+- `vsce show manantrimbakey.salesforce-multitools-3` shows the new version (the page can lag a few minutes; the
   Marketplace also runs a security/malware scan before the version appears).
 - Open https://marketplace.visualstudio.com/items?itemName=manantrimbakey.salesforce-multitools-3: version, README images,
   changelog tab, repository / issues links point at the new repo.
