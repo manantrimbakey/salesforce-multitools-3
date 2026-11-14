@@ -61,7 +61,9 @@ function UserPickerImpl({ users, selected, loading, onSelect, onSearch }: Props)
                                         display="block"
                                         color={option.user.TraceFlagActive ? 'success.main' : 'text.secondary'}
                                     >
-                                        {option.user.TraceFlagActive ? '● Logging Active' : '○ Logging Inactive'}
+                                        {option.user.TraceFlagActive
+                                            ? `● Logging Active${option.user.TraceFlagDebugLevel ? ` · ${option.user.TraceFlagDebugLevel}` : ''}`
+                                            : '○ Logging Inactive'}
                                     </Typography>
                                     {option.user.TraceFlagActive && option.user.TraceFlagExpirationDate && (
                                         <ExpirationText

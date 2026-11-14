@@ -1,4 +1,5 @@
 import type {
+    DebugLevelsResponse,
     DeleteLogsResponse,
     LogsQuery,
     LogsResponse,
@@ -24,7 +25,11 @@ function errorMessage(error: unknown): string {
  * Rejects with `Error(message)` on transport failure, malformed bodies or `{ success: false }` responses.
  * `T` is the shape of a successful response (see ./types).
  */
-async function request<T extends { success: true }>(endpoint: string, method = 'GET', data: unknown = null): Promise<T> {
+async function request<T extends { success: true }>(
+    endpoint: string,
+    method = 'GET',
+    data: unknown = null,
+): Promise<T> {
     if (typeof window.callServerApi !== 'function') {
         throw new Error('Extension server API is not available');
     }
@@ -65,8 +70,12 @@ export const api = {
     deleteLogs(userName: string | null) {
         return request<DeleteLogsResponse>('/api/debugLogs/delete', 'POST', { userName });
     },
-    startTraceFlag(userId: string) {
-        return request<TraceFlagResponse>('/api/traceFlags/start', 'POST', { userId });
+    getDebugLevels() {
+        return request<DebugLevelsResponse>('/api/debugLevels');
+    },
+    /** Without `debugLevelId` the extension's default debug level is used. */
+    startTraceFlag(userId: string, debugLevelId?: string) {
+        return request<TraceFlagResponse>('/api/traceFlags/start', 'POST', { userId, debugLevelId });
     },
     stopTraceFlag(userId: string, traceFlagId: string) {
         return request<TraceFlagResponse>('/api/traceFlags/stop', 'POST', { userId, traceFlagId });

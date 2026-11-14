@@ -38,7 +38,10 @@ export type SalesforceUserWithTraceFlag = SalesforceUser & {
     TraceFlagId: string | null;
     TraceFlagActive: boolean;
     TraceFlagExpirationDate: string | null;
+    TraceFlagDebugLevel: string | null;
 };
+
+export type DebugLevelRecord = { Id: string; DeveloperName: string; MasterLabel: string };
 
 export type CurrentUser = { display_name: string; username: string };
 
@@ -46,6 +49,7 @@ export type TraceFlagRecord = {
     Id: string;
     TracedEntityId: string;
     ExpirationDate: string;
+    DebugLevel: { DeveloperName: string } | null;
 };
 
 export type BulkDeleteResult = { deleted: number; failed: number; total: number };
@@ -64,6 +68,7 @@ const METHOD_NAME_CONCURRENCY = 5;
 const TRACE_FLAG_DURATION_MS = 60 * 60 * 1000;
 // Versioned so levels created by older releases (everything at FINEST) are not reused
 const DEBUG_LEVEL_NAME = 'SF_Multitools_Debug_v2';
+const DEBUG_LEVEL_LIST_LIMIT = 200;
 
 const ALL_USERS_VALUES = new Set(['', 'all', 'All Users']);
 
@@ -176,6 +181,7 @@ export class DebugLogService {
                 TraceFlagId: traceFlag?.Id ?? null,
                 TraceFlagActive: !!traceFlag,
                 TraceFlagExpirationDate: traceFlag?.ExpirationDate ?? null,
+                TraceFlagDebugLevel: traceFlag?.DebugLevel?.DeveloperName ?? null,
             };
         });
         return { users, currentUser };
@@ -206,7 +212,7 @@ export class DebugLogService {
         const connection = await SFUtils.getConnection();
         const idList = userIds.map((id) => `'${id}'`).join(', ');
         const result = await connection.tooling.query<TraceFlagRecord>(
-            `SELECT Id, TracedEntityId, ExpirationDate FROM TraceFlag ` +
+            `SELECT Id, TracedEntityId, ExpirationDate, DebugLevel.DeveloperName FROM TraceFlag ` +
                 `WHERE TracedEntityId IN (${idList}) AND ExpirationDate > ${new Date().toISOString()}`,
         );
         for (const record of result.records) {
@@ -215,8 +221,28 @@ export class DebugLogService {
         return flags;
     }
 
-    public static async createTraceFlag(userId: string): Promise<string> {
+    /**
+     * The org's debug levels for the level picker. The managed default level is left out: it is what
+     * "no level selected" resolves to, and it only exists once it was first used.
+     */
+    public static async listDebugLevels(): Promise<DebugLevelRecord[]> {
+        const connection = await SFUtils.getConnection();
+        const result = await connection.tooling.query<DebugLevelRecord>(
+            `SELECT Id, DeveloperName, MasterLabel FROM DebugLevel ORDER BY MasterLabel LIMIT ${DEBUG_LEVEL_LIST_LIMIT}`,
+        );
+        return result.records
+            .filter((level) => level.DeveloperName !== DEBUG_LEVEL_NAME)
+            .map(({ Id, DeveloperName, MasterLabel }) => ({ Id, DeveloperName, MasterLabel }));
+    }
+
+    /**
+     * @param requestedDebugLevelId an existing DebugLevel to use; the managed default level is used when omitted
+     */
+    public static async createTraceFlag(userId: string, requestedDebugLevelId?: string): Promise<string> {
         assertId(userId, 'user');
+        if (requestedDebugLevelId !== undefined) {
+            assertId(requestedDebugLevelId, 'debug level');
+        }
         const connection = await SFUtils.getConnection();
 
         const existing = await this.getActiveTraceFlags([userId]);
@@ -224,7 +250,7 @@ export class DebugLogService {
             throw new Error('User already has an active trace flag');
         }
 
-        const debugLevelId = await this.getDebugLevelId(connection);
+        const debugLevelId = requestedDebugLevelId ?? (await this.getDebugLevelId(connection));
         const now = Date.now();
         const result = (await connection.tooling.sobject('TraceFlag').create({
             TracedEntityId: userId,

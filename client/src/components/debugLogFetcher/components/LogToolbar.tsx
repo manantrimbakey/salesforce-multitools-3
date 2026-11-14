@@ -1,12 +1,13 @@
-import { Box, CircularProgress, Divider } from '@mui/material';
+import { Box, CircularProgress, Divider, Typography } from '@mui/material';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import StopIcon from '@mui/icons-material/Stop';
-import type { SfUser, SizeDirection } from '../../../api/client';
+import type { DebugLevel, SfUser, SizeDirection } from '../../../api/client';
 import { hasRealUserId } from '../utils/user';
 import type { UserOption } from '../utils/user';
+import { DebugLevelSelect } from './DebugLevelSelect';
 import { ExpirationText } from './ExpirationText';
 import { LogSizeFilter } from './LogSizeFilter';
 import { ToolbarIconButton } from './ToolbarIconButton';
@@ -18,6 +19,9 @@ interface Props {
     loadingUsers: boolean;
     busy: boolean; // logs loading or deleting
     traceFlagPending: ReadonlySet<string>;
+    debugLevels: DebugLevel[];
+    debugLevelId: string;
+    loadingDebugLevels: boolean;
     logSize: string;
     logSizeDirection: SizeDirection;
     onSelectUser: (option: UserOption) => void;
@@ -25,6 +29,7 @@ interface Props {
     onRefresh: () => void;
     onDeleteForUser: () => void;
     onDeleteAll: () => void;
+    onDebugLevelChange: (id: string) => void;
     onStartLogging: (user: SfUser) => void;
     onStopLogging: (user: SfUser) => void;
     onLogSizeChange: (value: string) => void;
@@ -82,17 +87,33 @@ export function LogToolbar(props: Props) {
                             {traceBusy ? <CircularProgress size={18} color="inherit" /> : <StopIcon />}
                         </ToolbarIconButton>
                     ) : (
-                        <ToolbarIconButton
-                            title={
-                                canTrace ? `Start logging for ${user.Name}` : 'Logging cannot be managed for this user'
-                            }
-                            color="success"
-                            filled
-                            disabled={!canTrace || traceBusy}
-                            onClick={() => props.onStartLogging(user)}
-                        >
-                            {traceBusy ? <CircularProgress size={18} color="inherit" /> : <PlayArrowIcon />}
-                        </ToolbarIconButton>
+                        <>
+                            <DebugLevelSelect
+                                levels={props.debugLevels}
+                                value={props.debugLevelId}
+                                loading={props.loadingDebugLevels}
+                                disabled={!canTrace || traceBusy}
+                                onChange={props.onDebugLevelChange}
+                            />
+                            <ToolbarIconButton
+                                title={
+                                    canTrace
+                                        ? `Start logging for ${user.Name}`
+                                        : 'Logging cannot be managed for this user'
+                                }
+                                color="success"
+                                filled
+                                disabled={!canTrace || traceBusy}
+                                onClick={() => props.onStartLogging(user)}
+                            >
+                                {traceBusy ? <CircularProgress size={18} color="inherit" /> : <PlayArrowIcon />}
+                            </ToolbarIconButton>
+                        </>
+                    )}
+                    {user.TraceFlagActive && user.TraceFlagDebugLevel && (
+                        <Typography variant="caption" color="text.secondary" noWrap title="Debug level in use">
+                            Level: {user.TraceFlagDebugLevel}
+                        </Typography>
                     )}
                     {user.TraceFlagActive && user.TraceFlagExpirationDate && (
                         <ExpirationText

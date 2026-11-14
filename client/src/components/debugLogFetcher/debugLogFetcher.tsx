@@ -6,6 +6,7 @@ import { DeleteConfirmDialog } from './components/DeleteConfirmDialog';
 import { LogTable } from './components/LogTable';
 import { LogToolbar } from './components/LogToolbar';
 import { NotificationSnackbar } from './components/NotificationSnackbar';
+import { useDebugLevels } from './hooks/useDebugLevels';
 import { useDebugLogs } from './hooks/useDebugLogs';
 import { useLogActions } from './hooks/useLogActions';
 import { useSnackbar } from './hooks/useSnackbar';
@@ -19,8 +20,15 @@ export default function DebugLogFetcher() {
 
     // --- user selection -----------------------------------------------------------------------
     const [userSearch, setUserSearch] = useState('');
-    const { users, knownUsers, currentUser, loading: loadingUsers, error: usersError, reload, patchUser } =
-        useUsers(userSearch);
+    const {
+        users,
+        knownUsers,
+        currentUser,
+        loading: loadingUsers,
+        error: usersError,
+        reload,
+        patchUser,
+    } = useUsers(userSearch);
     const [selectedId, setSelectedId] = useState('all');
     const userChosen = useRef(false);
 
@@ -50,7 +58,12 @@ export default function DebugLogFetcher() {
     const debouncedLogSize = useDebouncedValue(logSize);
     const userFilter = userFilterOf(selected);
 
-    const { logs, loading, error: logsError, refresh } = useDebugLogs({
+    const {
+        logs,
+        loading,
+        error: logsError,
+        refresh,
+    } = useDebugLogs({
         user: userFilter,
         size: debouncedLogSize,
         sizeDirection: logSizeDirection,
@@ -58,6 +71,8 @@ export default function DebugLogFetcher() {
 
     const { downloading, deleting, download, deleteLogs } = useLogActions({ notify, refreshLogs: refresh });
     const traceFlags = useTraceFlags({ patchUser, reloadUsers: reload, notify });
+    const notifyError = useCallback((message: string) => notify(message, 'error'), [notify]);
+    const debugLevels = useDebugLevels(notifyError);
 
     // --- delete confirmation ------------------------------------------------------------------
     // undefined = closed, null = delete all logs, string = delete that user's logs
@@ -82,13 +97,25 @@ export default function DebugLogFetcher() {
     );
 
     return (
-        <Card sx={{ borderRadius: '0.25rem', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <Card
+            sx={{
+                borderRadius: '0.25rem',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+            }}
+        >
             <LogToolbar
                 users={users}
                 selected={selected}
                 loadingUsers={loadingUsers}
                 busy={loading || deleting}
                 traceFlagPending={traceFlags.pending}
+                debugLevels={debugLevels.levels}
+                debugLevelId={debugLevels.selectedId}
+                loadingDebugLevels={debugLevels.loading}
+                onDebugLevelChange={debugLevels.select}
                 logSize={logSize}
                 logSizeDirection={logSizeDirection}
                 onSelectUser={handleSelectUser}
@@ -96,7 +123,7 @@ export default function DebugLogFetcher() {
                 onRefresh={refresh}
                 onDeleteForUser={() => setPendingDelete(userFilter === 'all' ? null : userFilter)}
                 onDeleteAll={() => setPendingDelete(null)}
-                onStartLogging={traceFlags.start}
+                onStartLogging={(user) => traceFlags.start(user, debugLevels.selected)}
                 onStopLogging={traceFlags.stop}
                 onLogSizeChange={setLogSize}
                 onLogSizeDirectionChange={setLogSizeDirection}

@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { api, errorMessage } from '../../../api/client';
-import type { SfUser } from '../../../api/client';
+import type { DebugLevel, SfUser } from '../../../api/client';
 import { hasRealUserId } from '../utils/user';
 import type { Notify } from './useSnackbar';
 
@@ -35,17 +35,19 @@ export function useTraceFlags({ patchUser, reloadUsers, notify }: Options) {
         [notify, reloadUsers],
     );
 
+    /** @param debugLevel level to log at; the extension's default level when omitted */
     const start = useCallback(
-        (user: SfUser) => {
+        (user: SfUser, debugLevel?: DebugLevel) => {
             if (!hasRealUserId(user)) return Promise.resolve();
             return run(
                 user.Id,
                 async () => {
-                    const response = await api.startTraceFlag(user.Id);
+                    const response = await api.startTraceFlag(user.Id, debugLevel?.Id);
                     patchUser(user.Id, {
                         TraceFlagId: response.traceFlagId,
                         TraceFlagActive: true,
                         TraceFlagExpirationDate: new Date(Date.now() + TRACE_FLAG_DURATION_MS).toISOString(),
+                        TraceFlagDebugLevel: debugLevel?.DeveloperName ?? null, // default level name arrives with the reload
                     });
                     notify('Started logging for user. Trace flag created successfully.');
                 },

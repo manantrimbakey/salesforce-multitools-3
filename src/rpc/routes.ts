@@ -100,12 +100,23 @@ function createApiRouter(): Router {
     });
 
     // ---- Trace flags ----
+    router.get('/api/debugLevels', async () => ({
+        success: true,
+        debugLevels: await DebugLogService.listDebugLevels(),
+    }));
+
     router.post('/api/traceFlags/start', async ({ body }: RpcRequest) => {
-        const { userId } = bodyObject(body);
+        const { userId, debugLevelId } = bodyObject(body);
         if (!isSalesforceId(userId)) {
             throw new RpcError('BAD_REQUEST', 'A valid User ID is required');
         }
-        const traceFlagId = await DebugLogService.createTraceFlag(userId);
+        // Absent / null / '' means "use the default level"
+        const requestedLevel =
+            debugLevelId === undefined || debugLevelId === null || debugLevelId === '' ? undefined : debugLevelId;
+        if (requestedLevel !== undefined && !isSalesforceId(requestedLevel)) {
+            throw new RpcError('BAD_REQUEST', 'Invalid debug level ID');
+        }
+        const traceFlagId = await DebugLogService.createTraceFlag(userId, requestedLevel);
         return { success: true, traceFlagId, message: 'Trace flag created successfully' };
     });
 

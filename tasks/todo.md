@@ -28,3 +28,15 @@
 - [ ] Commit in logical chunks (tooling, rpc/services, client)
 
 Verified: tsc, eslint, 26 unit tests (node:test + vscode stub), client build, production bundle, `dist/sfcore.js` loads with the logger env.
+
+# Feature: choose debug level when starting logging for a user
+
+Design: picker lists the org's existing DebugLevel records plus a built-in default (managed `SF_Multitools_Debug_v2`, created on demand). Sits next to the start button; selection remembered in webview state.
+
+- [x] Service: `listDebugLevels()`, `createTraceFlag(userId, debugLevelId?)`, active trace flag also reports its debug level name
+- [x] RPC: `GET /api/debugLevels`; `POST /api/traceFlags/start` accepts optional validated `debugLevelId`
+- [x] Client: types + api, `useDebugLevels` hook (load once, persisted selection), `DebugLevelSelect` next to start button, show level for active flags
+- [x] Tests: route validation for `debugLevelId`; tsc/eslint/client build; browser smoke test with mocked bridge
+
+Verified: tsc, eslint, 28 unit tests, client build, Chrome smoke test with mocked host (picker lists default + org levels, start posts the chosen `debugLevelId`).
+Org check (4rst dev edition, real service code + independent `sf` queries): listDebugLevels, createTraceFlag with a chosen level, TraceFlag row correct (user, USER_DEBUG, level, ~60 min expiry), searchUsers reports level, duplicate rejected, deleteTraceFlag cleans up. Throwaway flag deleted afterwards.

@@ -18,6 +18,8 @@ export interface SfUser {
     TraceFlagId?: string;
     TraceFlagActive?: boolean;
     TraceFlagExpirationDate?: string;
+    /** DeveloperName of the debug level the active trace flag uses. */
+    TraceFlagDebugLevel?: string | null;
 }
 
 export interface CurrentUserInfo {
@@ -50,6 +52,17 @@ export interface DeleteLogsResponse {
     deleted?: number;
     failed?: number;
     total?: number;
+}
+
+export interface DebugLevel {
+    Id: string;
+    DeveloperName: string;
+    MasterLabel: string;
+}
+
+export interface DebugLevelsResponse {
+    success: true;
+    debugLevels: DebugLevel[];
 }
 
 export interface TraceFlagResponse {
