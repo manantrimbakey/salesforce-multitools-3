@@ -62,6 +62,18 @@ active flag, verifies it with an independent `sf data query --use-tooling-api`, 
 deletes it. **It writes to the org**; use a developer or sandbox org you own and name the org explicitly.
 Requires the `sf` CLI authorized for that alias.
 
+## Dependabot PRs
+
+Dependabot security updates are enabled and always open PRs against the default branch (`master`); `target-branch` in
+`dependabot.yml` only affects version updates. To keep the `dev2` -> `dev1` -> `master` flow, retarget them:
+
+```bash
+bash scripts/dev/retarget-dependabot-prs.sh            # dry run
+bash scripts/dev/retarget-dependabot-prs.sh --apply    # base -> dev2 (use --base dev1 for another branch)
+```
+
+It only touches open PRs authored by Dependabot, needs `gh`, and is safe to rerun.
+
 ## Packaging
 
 `pnpm run package` (type check, lint, client build, minified bundles). `.vscodeignore` keeps `src`, `client`, `docs`,
