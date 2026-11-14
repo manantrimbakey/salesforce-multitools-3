@@ -22,6 +22,7 @@ also installs `client/` (postinstall).
 | Full tests | `pnpm test` (vscode-test: downloads VS Code, needed for `extension.test.ts`) |
 | Webview in a browser | `node scripts/dev/webview-harness.js` then open `/harness.html` |
 | Real-org check (writes!) | `node scripts/dev/org-check.js <alias> <projectDir> --yes` |
+| Move Dependabot PRs to `dev2` | `bash scripts/dev/retarget-dependabot-prs.sh --apply` (omit `--apply` for a dry run) |
 
 F5 ("Run Extension") runs the `watch` task: `build:client` once, then `watch:tsc` + `watch:esbuild`. Client edits need a
 rebuild (`pnpm run build:client`, or `pnpm run watch:client`) then **Developer: Reload Window** in the dev host.
@@ -63,6 +64,9 @@ Work lands on **`dev2`**, is promoted **`dev2` -> `dev1` -> `master`**, in that 
 or merge straight into `dev1` or `master` from a feature branch, and never push or open PRs unless asked. Check where a
 change stands with `git rev-list --count origin/dev1..origin/dev2` and `git rev-list --count origin/master..origin/dev1`.
 (`dev_new` and `dev_log_viewer` are old feature branches kept for history.) `master` is what users see on GitHub.
+Dependabot security-update PRs always target `master` (GitHub ignores `target-branch` for them); run
+`scripts/dev/retarget-dependabot-prs.sh --apply` to move them to `dev2`. `master` has a ruleset requiring a review, so
+merging into it needs the owner's admin bypass; do not use `--admin` or edit rulesets unless asked.
 
 ## Verification before calling something done
 
