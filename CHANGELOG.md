@@ -4,6 +4,8 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ## [Unreleased]
 
+## [0.7.0]
+
 ### Added
 
 - Choose the debug level when starting logging for a user: pick one of the org's existing debug levels or the built-in default; the choice is remembered, and the level in use is shown for active trace flags
@@ -30,6 +32,14 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 ### Changed
 
 - Default debug level for new trace flags is lighter (Apex `FINE`, System `DEBUG`, the rest `INFO`) instead of everything at `FINEST`; it is created as `SF_Multitools_Debug_v2`
+- Default last-modified auto-refresh interval is now 60 seconds (was 15)
+- The `Alt+O` / `Option+O` component switch shortcut only applies while editing a Lightning component file
+
+### Removed
+
+- The `Get Last Modified Info` command (`salesforce-multitools-3.getLastModifiedInfo`); use `Refresh Last Modified Info`
+- The extension no longer activates on startup in every workspace; it activates only when the workspace has `.sfdx/sfdx-config.json` or `.sf/config.json`
+- The separate Salesforce Multitools activity bar container (the Explorer view remains)
 
 ### Performance
 
