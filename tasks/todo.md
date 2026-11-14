@@ -40,3 +40,10 @@ Design: picker lists the org's existing DebugLevel records plus a built-in defau
 
 Verified: tsc, eslint, 28 unit tests, client build, Chrome smoke test with mocked host (picker lists default + org levels, start posts the chosen `debugLevelId`).
 Org check (4rst dev edition, real service code + independent `sf` queries): listDebugLevels, createTraceFlag with a chosen level, TraceFlag row correct (user, USER_DEBUG, level, ~60 min expiry), searchUsers reports level, duplicate rejected, deleteTraceFlag cleans up. Throwaway flag deleted afterwards.
+
+# Project knowledge for future sessions
+
+- [x] `CLAUDE.md` (commands, architecture, rules, verification) + `docs/development/{building,gotchas}.md` + `docs/features/debug-logs.md`; overview and index updated
+- [x] `scripts/dev/`: `run-unit-tests.sh` + `vscode-stub.js`, `webview-harness.js`, `org-check.js` (all run once successfully; org-check is opt-in and writes to the org)
+- [ ] Fix the docs index: it still links pages that do not exist (getting-started, configuration, tech-stack, component-structure, communication-flow, setup, contributing)
+- [ ] `.prettierrc` `endOfLine` is `crlf` but the repo is mostly LF; decide and normalize

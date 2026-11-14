@@ -91,7 +91,7 @@ handlers keep working. The `Router` (`src/rpc/router.ts`) matches method plus pa
 (`/api/debugLogs/:id/download`), validates `:id` parameters as Salesforce ids and dispatches to the
 handlers in `src/rpc/routes.ts`. Handlers are thin; the work happens in services:
 
-- `services/debugLogService.ts`: log list, users, trace flags, method names, delete / bulk delete
+- `services/debugLogService.ts`: log list, users, trace flags (with selectable debug level), debug levels, method names, delete / bulk delete
 - `services/logBodyClient.ts`: streams log bodies with the connection's token
 - `services/logStorage.ts`: atomic on-disk cache under `.sfdx/_multi-tool/debug-logs/<org>/`
 - `services/apexLogParser.ts`: pure log parsing helpers
@@ -100,6 +100,15 @@ handlers in `src/rpc/routes.ts`. Handlers are thin; the work happens in services
 Expected failures throw `RpcError` (message shown to the webview); unexpected errors are logged in
 the extension host and returned as a generic message with code `INTERNAL_ERROR`. The webview CSP
 uses `connect-src 'none'`.
+
+## Bundling and lazy loading
+
+`node esbuild.js` produces two bundles. `dist/extension.js` (about 50 KB) is the extension itself.
+`dist/sfcore.js` (about 2 MB) holds `@salesforce/core` and jsforce and is loaded with a plain `require` the first time
+an org connection is needed (`SFUtils.loadCore`), so activation stays cheap. Use `require`, not `import()`: an
+`import()` of the externalised CJS file loses its named exports. The webview is built by Vite into `dist/webview`
+with a single `vendor` chunk plus lazy feature chunks (react, mui and emotion must not be split into separate chunks).
+See [Building](../development/building.md) and [Gotchas](../development/gotchas.md).
 
 ## Extension Activation Flow
 

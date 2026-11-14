@@ -12,6 +12,11 @@ vsc-extension-quickstart.md
 **/.vscode-test.*
 # Documentation
 docs/**
+CLAUDE.md
+.claude/**
+
+# Developer scripts
+scripts/**
 # Client source code (only include the built files)
 client/**
 # Development files

@@ -4,11 +4,17 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ## [Unreleased]
 
+### Added
+
+- Choose the debug level when starting logging for a user: pick one of the org's existing debug levels or the built-in default; the choice is remembered, and the level in use is shown for active trace flags
+- Developer docs (`CLAUDE.md`, `docs/development`) and scripts for unit tests, a browser webview harness and an opt-in real-org check
+
 ### Security
 
 - Removed the localhost Express server; webviews now talk to the extension through postMessage RPC
 - Validate Salesforce ids, escape SOQL input and restrict file access to the workspace
-- Nonce-based webview CSP without `unsafe-eval`
+- Nonce-based webview CSP without `unsafe-eval` and without remote images
+- File browsing/opening resolves symlinks, so a link inside the workspace cannot reach files outside it
 
 ### Fixes
 
@@ -18,12 +24,19 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 - Component switcher resolves the right folder for files in subfolders
 - Custom object last-modified lookup uses the correct DeveloperName
 - Default org resolution supports `target-org` (`.sf/config.json`), usernames and global config
+- Bulk delete also removes the locally cached copies of the deleted logs
+- Stopping logging only needs the trace flag id
+
+### Changed
+
+- Default debug level for new trace flags is lighter (Apex `FINE`, System `DEBUG`, the rest `INFO`) instead of everything at `FINEST`; it is created as `SF_Multitools_Debug_v2`
 
 ### Performance
 
 - Activates only in projects with `.sfdx/sfdx-config.json` or `.sf/config.json`; `@salesforce/core` loads lazily
 - One shared Salesforce connection; last-modified polling pauses while the window is unfocused (default 60s)
 - Debounced component switcher refresh; virtualized and lazy-loaded webview UI
+- `@salesforce/core` is built as a separate lazily loaded bundle, shrinking the extension entry bundle from about 2.1 MB to about 50 KB
 
 ## [0.4.1]
 
