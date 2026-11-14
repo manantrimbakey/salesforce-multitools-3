@@ -32,7 +32,6 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 ### Changed
 
 - Default debug level for new trace flags is lighter (Apex `FINE`, System `DEBUG`, the rest `INFO`) instead of everything at `FINEST`; it is created as `SF_Multitools_Debug_v2`
-- Default last-modified auto-refresh interval is now 60 seconds (was 15)
 - The `Alt+O` / `Option+O` component switch shortcut only applies while editing a Lightning component file
 
 ### Removed
@@ -44,7 +43,7 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 ### Performance
 
 - Activates only in projects with `.sfdx/sfdx-config.json` or `.sf/config.json`; `@salesforce/core` loads lazily
-- One shared Salesforce connection; last-modified polling pauses while the window is unfocused (default 60s)
+- One shared Salesforce connection; last-modified polling pauses while the window is unfocused (default 15s)
 - Debounced component switcher refresh; virtualized and lazy-loaded webview UI
 - `@salesforce/core` is built as a separate lazily loaded bundle, shrinking the extension entry bundle from about 2.1 MB to about 50 KB
 
