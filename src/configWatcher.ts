@@ -24,7 +24,7 @@ export class ConfigWatcher {
      * Handle configuration change events
      */
     private static handleConfigChange(event: vscode.ConfigurationChangeEvent): void {
-        if (event.affectsConfiguration('salesforceMultitool.logLevel')) {
+        if (event.affectsConfiguration(`${ConfigUtils.CONFIG_NAMESPACE}.logLevel`)) {
             this.updateLogLevel();
         }
     }

@@ -9,7 +9,7 @@ import * as vscode from 'vscode';
 export async function ensureFolderExists(folderPath: string): Promise<void> {
     try {
         await fs.promises.access(folderPath);
-    } catch (error) {
+    } catch {
         // Folder doesn't exist, create it
         Logger.debug(`Creating folder: ${folderPath}`, 'FileUtils.ensureFolderExists');
         await fs.promises.mkdir(folderPath, { recursive: true });
@@ -21,7 +21,7 @@ export async function ensureFolderExists(folderPath: string): Promise<void> {
  * @param filePath The path to the file
  * @param data The data to write
  */
-export async function writeJsonFile(filePath: string, data: any): Promise<void> {
+export async function writeJsonFile(filePath: string, data: unknown): Promise<void> {
     try {
         await fs.promises.writeFile(filePath, JSON.stringify(data), 'utf-8');
         Logger.debug(`Wrote minified JSON data to: ${filePath}`, 'FileUtils.writeJsonFile');
@@ -41,7 +41,7 @@ export async function readJsonFile<T>(filePath: string): Promise<T | null> {
         // Check if file exists
         try {
             await fs.promises.access(filePath);
-        } catch (error) {
+        } catch {
             return null; // File doesn't exist
         }
 
@@ -68,9 +68,7 @@ export function isRegularFilePath(filePath: string): boolean {
     if (
         filePath.includes('extension-output') ||
         filePath.includes('output-channel') ||
-        filePath.includes('vscode-remote') ||
-        filePath.startsWith('extension-') ||
-        filePath.includes('untitled:')
+        filePath.includes('vscode-remote')
     ) {
         return false;
     }

@@ -2,7 +2,7 @@
     "name": "salesforce-multitools-3",
     "displayName": "Salesforce Multitools",
     "description": "A set of tools for Salesforce development in VS Code",
-    "version": "0.6.0",
+    "version": "0.7.0",
     "publisher": "manantrimbakey",
     "icon": "resources/salesforce-icon-colorful.png",
     "repository": "https://github.com/manantrimbakey/salesforce-multitools",
@@ -19,38 +19,21 @@
         "sfdx",
         "salesforce multitools",
         "lwc",
-        "LWC",
         "aura",
         "debug logs",
         "debug log",
         "debug log fetcher",
-        "debug log fetcher",
-        "debug log fetcher",
         "Lightning Web Components",
-        "LWC",
         "Aura Components",
-        "Aura",
-        "Salesforce",
-        "Salesforce Development",
-        "Salesforce Multitools",
         "Apex",
         "Apex Developer"
     ],
     "activationEvents": [
-        "onStartupFinished",
-        "workspaceContains:**/.sfdx/sfdx-config.json"
+        "workspaceContains:**/.sfdx/sfdx-config.json",
+        "workspaceContains:**/.sf/config.json"
     ],
     "main": "./dist/extension.js",
     "contributes": {
-        "viewsContainers": {
-            "activitybar": [
-                {
-                    "id": "salesforce-multitools",
-                    "title": "Salesforce Multitools",
-                    "icon": "resources/salesforce-icon.svg"
-                }
-            ]
-        },
         "views": {
             "explorer": [
                 {
@@ -58,18 +41,12 @@
                     "name": "Salesforce Component Files",
                     "type": "webview"
                 }
-            ],
-            "salesforce-multitools": []
+            ]
         },
         "commands": [
             {
                 "command": "salesforce-multitools-3.refreshConnection",
                 "title": "Refresh Salesforce Connection",
-                "category": "Salesforce Multitool"
-            },
-            {
-                "command": "salesforce-multitools-3.getLastModifiedInfo",
-                "title": "Get Last Modified Info",
                 "category": "Salesforce Multitool"
             },
             {
@@ -111,7 +88,7 @@
                 "command": "salesforce-multitools-3.switchComponentFile",
                 "key": "alt+o",
                 "mac": "alt+o",
-                "when": "editorTextFocus"
+                "when": "editorTextFocus && salesforceMultitools.isLightningComponent"
             }
         ],
         "configuration": {
@@ -131,11 +108,23 @@
                 },
                 "salesforceMultitools-3.lastModifiedAutoRefreshInterval": {
                     "type": "number",
-                    "default": 15,
+                    "default": 60,
                     "minimum": 5,
                     "description": "Interval in seconds for automatically refreshing last modified details from Salesforce. Set to 0 to disable auto-refresh."
                 }
             }
+        },
+        "menus": {
+            "commandPalette": [
+                {
+                    "command": "salesforce-multitools-3.refreshComponentData",
+                    "when": "false"
+                },
+                {
+                    "command": "salesforce-multitools-3.showComponentFileSwitcher",
+                    "when": "false"
+                }
+            ]
         }
     },
     "scripts": {
@@ -144,7 +133,7 @@
         "watch": "npm-run-all -p watch:*",
         "watch:esbuild": "node esbuild.js --watch",
         "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-        "watch:client": "cd client && pnpm run dev",
+        "watch:client": "cd client && vite build --watch",
         "package": "pnpm run check-types && pnpm run lint && pnpm run build:client && node esbuild.js --production",
         "compile-tests": "tsc -p . --outDir out",
         "watch-tests": "tsc -p . -w --outDir out",
@@ -167,7 +156,6 @@
         "@vscode/test-cli": "^0.0.10",
         "@vscode/test-electron": "^2.5.2",
         "@vscode/vsce": "^3.4.0",
-        "chokidar": "^4.0.3",
         "esbuild": "^0.25.3",
         "eslint": "^9.25.1",
         "npm-run-all": "^4.1.5",
@@ -175,10 +163,6 @@
         "typescript": "^5.8.3"
     },
     "dependencies": {
-        "@salesforce/core": "^8.10.3",
-        "@types/cors": "^2.8.18",
-        "@types/express": "^5.0.2",
-        "cors": "^2.8.5",
-        "express": "^5.1.0"
+        "@salesforce/core": "^8.10.3"
     }
 }

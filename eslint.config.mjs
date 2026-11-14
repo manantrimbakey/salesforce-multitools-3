@@ -14,6 +14,10 @@ export default [
             parser: tsParser,
             ecmaVersion: 2022,
             sourceType: 'module',
+            parserOptions: {
+                projectService: true,
+                tsconfigRootDir: import.meta.dirname,
+            },
         },
 
         rules: {
@@ -24,6 +28,10 @@ export default [
                     format: ['camelCase', 'PascalCase'],
                 },
             ],
+
+            '@typescript-eslint/no-floating-promises': 'error',
+            '@typescript-eslint/no-explicit-any': 'warn',
+            '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
 
             curly: 'warn',
             eqeqeq: 'warn',

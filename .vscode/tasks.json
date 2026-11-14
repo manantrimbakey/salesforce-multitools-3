@@ -1,11 +1,14 @@
 // See https://go.microsoft.com/fwlink/?LinkId=733558
 // for the documentation about the tasks.json format
+//
+// Tasks put the newest nvm-installed node (and its pnpm shim) on PATH themselves, because an editor
+// launched from a desktop entry never reads ~/.bashrc / ~/.profile.
 {
     "version": "2.0.0",
     "tasks": [
         {
             "label": "watch",
-            "dependsOn": ["npm: watch:tsc", "npm: watch:esbuild"],
+            "dependsOn": ["npm: build:client", "npm: watch:tsc", "npm: watch:esbuild"],
             "presentation": {
                 "reveal": "never"
             },
@@ -15,8 +18,19 @@
             }
         },
         {
-            "type": "npm",
-            "script": "watch:esbuild",
+            "type": "shell",
+            "command": "/bin/bash -c 'export PATH=\"$(ls -d $HOME/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -1):$PATH\"; pnpm run build:client'",
+            "group": "build",
+            "problemMatcher": [],
+            "label": "npm: build:client",
+            "presentation": {
+                "group": "watch",
+                "reveal": "never"
+            }
+        },
+        {
+            "type": "shell",
+            "command": "/bin/bash -c 'export PATH=\"$(ls -d $HOME/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -1):$PATH\"; pnpm run watch:esbuild'",
             "group": "build",
             "problemMatcher": "$esbuild-watch",
             "isBackground": true,
@@ -27,8 +41,8 @@
             }
         },
         {
-            "type": "npm",
-            "script": "watch:tsc",
+            "type": "shell",
+            "command": "/bin/bash -c 'export PATH=\"$(ls -d $HOME/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -1):$PATH\"; pnpm run watch:tsc'",
             "group": "build",
             "problemMatcher": "$tsc-watch",
             "isBackground": true,
@@ -39,8 +53,9 @@
             }
         },
         {
-            "type": "npm",
-            "script": "watch-tests",
+            "type": "shell",
+            "command": "/bin/bash -c 'export PATH=\"$(ls -d $HOME/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -1):$PATH\"; pnpm run watch-tests'",
+            "label": "npm: watch-tests",
             "problemMatcher": "$tsc-watch",
             "isBackground": true,
             "presentation": {

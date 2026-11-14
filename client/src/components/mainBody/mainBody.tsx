@@ -1,82 +1,51 @@
-import { Box } from '@mui/material';
-import { useEffect, useState } from 'react';
-import { useVSCodeApi } from '../../App';
-import ComponentFileSwitcher from '../componentFileSwitcher/componentFileSwitcher';
-import DebugLogFetcher from '../debugLogFetcher/debugLogFetcher';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { Box, CircularProgress } from '@mui/material';
+import { useHostMessage } from '../../hooks/useHostMessage';
+import { vscode } from '../../vscodeApi';
 
-// Component registry - add new components here
+// Component registry - add new components here. Each is code-split into its own chunk.
 const COMPONENTS = {
-    componentFileSwitcher: ComponentFileSwitcher,
-    debugLogFetcher: DebugLogFetcher,
-    // Add more components as needed
+    componentFileSwitcher: lazy(() => import('../componentFileSwitcher/componentFileSwitcher')),
+    debugLogFetcher: lazy(() => import('../debugLogFetcher/debugLogFetcher')),
 };
 
-// Default component when none is specified
-const DEFAULT_COMPONENT = 'componentFileSwitcher';
+type ComponentName = keyof typeof COMPONENTS;
+
+// Default component when none (or an unknown one) is specified
+const DEFAULT_COMPONENT: ComponentName = 'componentFileSwitcher';
+
+function isComponentName(name: string): name is ComponentName {
+    return Object.prototype.hasOwnProperty.call(COMPONENTS, name);
+}
 
 function MainBody() {
-    const vscode = useVSCodeApi();
-    const [activeComponent, setActiveComponent] = useState<string>(DEFAULT_COMPONENT);
+    const [activeComponent, setActiveComponent] = useState<ComponentName>(DEFAULT_COMPONENT);
 
+    useHostMessage(
+        'setActiveComponent',
+        (message) => setActiveComponent(isComponentName(message.component) ? message.component : DEFAULT_COMPONENT),
+        true,
+    );
+
+    // Tell the host we are ready (it replies with the active component). Once per webview, not per switch.
     useEffect(() => {
-        // Handle messages from VS Code
-        const handleMessage = (event: MessageEvent) => {
-            const message = event.data;
+        vscode.postMessage({ command: 'ready' });
+    }, []);
 
-            // Set the active component based on VS Code message
-            if (message.command === 'setActiveComponent' && message.component) {
-                setActiveComponent(message.component);
-            }
-        };
-
-        // Add event listener
-        window.addEventListener('message', handleMessage);
-
-        // Let VS Code know we're ready and request the active component
-        vscode.postMessage({
-            command: 'ready',
-            data: { currentComponent: activeComponent },
-        });
-
-        // Clean up
-        return () => {
-            window.removeEventListener('message', handleMessage);
-        };
-    }, [vscode, activeComponent]);
-
-    // Dynamically render the component based on the active component name
-    const renderComponent = () => {
-        const ComponentToRender = COMPONENTS[activeComponent as keyof typeof COMPONENTS];
-
-        // If the component doesn't exist in our registry, use the default
-        if (!ComponentToRender) {
-            const DefaultComponent = COMPONENTS[DEFAULT_COMPONENT];
-            return <DefaultComponent />;
-        }
-
-        return <ComponentToRender />;
-    };
+    const ComponentToRender = COMPONENTS[activeComponent];
 
     return (
-        <Box
-            sx={{
-                width: '100%',
-                height: '100%',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-            }}
-        >
-            <Box
-                sx={{
-                    flexGrow: 1,
-                    width: '100%',
-                    height: '100%',
-                    overflow: 'hidden',
-                    padding: '8px',
-                }}
-            >
-                {renderComponent()}
+        <Box sx={{ width: '100%', height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ flexGrow: 1, minHeight: 0, width: '100%', overflow: 'hidden', padding: '8px' }}>
+                <Suspense
+                    fallback={
+                        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 4 }}>
+                            <CircularProgress size={24} aria-label="Loading" />
+                        </Box>
+                    }
+                >
+                    <ComponentToRender />
+                </Suspense>
             </Box>
         </Box>
     );

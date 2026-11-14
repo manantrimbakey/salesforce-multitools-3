@@ -3,3 +3,6 @@ dist
 node_modules
 .vscode-test/
 *.vsix
+
+# Debug logs (they can contain org data, never commit them)
+*.log

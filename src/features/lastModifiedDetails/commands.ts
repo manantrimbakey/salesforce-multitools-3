@@ -20,6 +20,9 @@ let codeLensProvider: LastModifiedCodeLensProvider;
 // Debounce tracking for refresh operations
 let lastRefreshTime = 0;
 let pendingRefresh: NodeJS.Timeout | undefined;
+
+// Incremented on every refresh so responses for an older request/editor can be discarded
+let refreshSequence = 0;
 const DEBOUNCE_DELAY = 1000; // 1 second debounce
 
 /**
@@ -37,7 +40,7 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
         'salesforce-multitools-3.refreshLastModifiedInfo',
         (forceRefresh = false) => {
             // When command is directly invoked, force a refresh bypassing debounce
-            refreshLastModifiedInfo(forceRefresh);
+            void refreshLastModifiedInfo(forceRefresh);
         },
     );
 
@@ -72,7 +75,6 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
             { scheme: 'file', pattern: '**/aura/**/*.evt-meta.xml' },
             { scheme: 'file', pattern: '**/aura/**/*.design-meta.xml' },
             // Object patterns
-            { scheme: 'file', pattern: '**/*.object' },
             { scheme: 'file', pattern: '**/*.object-meta.xml' },
         ],
         codeLensProvider,
@@ -81,7 +83,7 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
     // Register event for active editor change to update status bar and fetch new data
     const activeEditorChangeEvent = vscode.window.onDidChangeActiveTextEditor((editor) => {
         if (isValidEditor(editor)) {
-            refreshLastModifiedInfo();
+            void refreshLastModifiedInfo();
         } else {
             lastModifiedStatusBar.hide();
         }
@@ -92,22 +94,42 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
         const editor = vscode.window.activeTextEditor;
         if (editor && editor.document === document && isValidEditor(editor)) {
             // Always force refresh after save
-            refreshLastModifiedInfo(true);
+            void refreshLastModifiedInfo(true);
         }
     });
 
     // Register event for configuration changes
     const configChangeEvent = vscode.workspace.onDidChangeConfiguration((event) => {
-        if (event.affectsConfiguration('salesforceMultitool.lastModifiedAutoRefreshInterval')) {
+        if (event.affectsConfiguration(`${ConfigUtils.CONFIG_NAMESPACE}.lastModifiedAutoRefreshInterval`)) {
             // Restart the auto-refresh timer with the new interval
             startAutoRefreshTimer();
         }
     });
 
+    // Resume updating when the window regains focus (polling is paused while unfocused)
+    const windowStateEvent = vscode.window.onDidChangeWindowState((state) => {
+        if (state.focused && isValidEditor(vscode.window.activeTextEditor)) {
+            void refreshLastModifiedInfo();
+        }
+    });
+
+    // The default org changed: data from the previous org is stale
+    const orgChangeEvent = SFUtils.onDidChangeOrg(() => {
+        codeLensProvider.clear();
+        if (isValidEditor(vscode.window.activeTextEditor)) {
+            void refreshLastModifiedInfo(true);
+        }
+    });
+
+    // Drop cached CodeLens data for closed documents
+    const documentCloseEvent = vscode.workspace.onDidCloseTextDocument((document) => {
+        codeLensProvider.forget(document.uri);
+    });
+
     // Update status bar on startup if editor is already open
     const editor = vscode.window.activeTextEditor;
     if (isValidEditor(editor)) {
-        refreshLastModifiedInfo();
+        void refreshLastModifiedInfo();
     }
 
     // Start the auto-refresh timer
@@ -119,6 +141,9 @@ export function registerLastModifiedCommands(context: vscode.ExtensionContext): 
         activeEditorChangeEvent,
         documentSaveEvent,
         configChangeEvent,
+        windowStateEvent,
+        orgChangeEvent,
+        documentCloseEvent,
         {
             dispose: () => {
                 // Clear the auto-refresh timer when the extension is deactivated
@@ -160,10 +185,9 @@ function isValidEditor(editor?: vscode.TextEditor): boolean {
 /**
  * Update statusbar display with org context
  * @param info The last modified info
- * @param connection The Salesforce connection
+ * @param orgUsername The username of the org the info came from
  */
-function updateStatusBarText(info: FormattedLastModifiedInfo, connection: any): void {
-    const orgUsername = connection?.username || 'Unknown org';
+function updateStatusBarText(info: FormattedLastModifiedInfo, orgUsername: string): void {
     lastModifiedStatusBar.text = `$(history) Modified: ${info.formattedDate} by ${info.lastModifiedBy}`;
     lastModifiedStatusBar.tooltip = `Last modified on ${info.formattedDate} by ${info.lastModifiedBy}\nOrg: ${orgUsername}\nClick to refresh`;
 }
@@ -199,6 +223,11 @@ function startAutoRefreshTimer(): void {
     autoRefreshTimer = setInterval(() => {
         const editor = vscode.window.activeTextEditor;
 
+        // Skip polling while the window is in the background (it refreshes again on focus)
+        if (!vscode.window.state.focused) {
+            return;
+        }
+
         // Only refresh if we have a valid editor and enough time has passed since last refresh
         const currentTime = Date.now();
         if (!isValidEditor(editor) || currentTime - lastRefreshTime < 2000) {
@@ -206,7 +235,7 @@ function startAutoRefreshTimer(): void {
             return;
         }
 
-        refreshLastModifiedInfo();
+        void refreshLastModifiedInfo();
     }, interval);
 }
 
@@ -240,7 +269,7 @@ export async function refreshLastModifiedInfo(forceRefresh: boolean = false): Pr
         if (now - lastRefreshTime < DEBOUNCE_DELAY) {
             pendingRefresh = setTimeout(() => {
                 pendingRefresh = undefined;
-                refreshLastModifiedInfo();
+                void refreshLastModifiedInfo();
             }, DEBOUNCE_DELAY);
             return;
         }
@@ -248,8 +277,11 @@ export async function refreshLastModifiedInfo(forceRefresh: boolean = false): Pr
 
     // Update last refresh time
     lastRefreshTime = Date.now();
+    const sequence = ++refreshSequence;
+    const isStale = () =>
+        sequence !== refreshSequence || vscode.window.activeTextEditor?.document.uri.fsPath !== filePath;
 
-    Logger.info(`Getting last modified info for: ${filePath}`, 'LastModifiedDetailsCommands.refreshLastModifiedInfo');
+    Logger.debug(`Getting last modified info for: ${filePath}`, 'LastModifiedDetailsCommands.refreshLastModifiedInfo');
     lastModifiedStatusBar.text = '$(sync~spin) Querying Salesforce metadata...';
     lastModifiedStatusBar.show();
 
@@ -266,6 +298,11 @@ export async function refreshLastModifiedInfo(forceRefresh: boolean = false): Pr
         // Step 1: Fetch fresh data from Salesforce
         const info = await getFileLastModifiedInfo(filePath);
         const connection = await SFUtils.getConnection();
+        if (isStale()) {
+            // The user moved on to another file/refresh while we were waiting
+            return;
+        }
+        const orgUsername = connection.getUsername() ?? '';
 
         if (!info) {
             lastModifiedStatusBar.text = `$(history) No metadata found for this file`;
@@ -282,9 +319,9 @@ export async function refreshLastModifiedInfo(forceRefresh: boolean = false): Pr
         });
 
         // Step 3: Update the UI
-        updateStatusBarText(info, connection);
+        updateStatusBarText(info, orgUsername || 'Unknown org');
         lastModifiedStatusBar.show();
-        codeLensProvider.refreshWithLatestInfo(editor.document.uri, info);
+        codeLensProvider.refreshWithLatestInfo(editor.document.uri, info, orgUsername);
 
         // Step 4: Store the data locally
         try {
@@ -294,7 +331,7 @@ export async function refreshLastModifiedInfo(forceRefresh: boolean = false): Pr
                 lastModifiedById: info.lastModifiedById,
                 retrievedAt: new Date().toISOString(),
                 orgId: connection.instanceUrl || '',
-                orgUsername: (await SFUtils.getDefaultUsername()) || '',
+                orgUsername,
             });
         } catch (storageError) {
             Logger.error(
@@ -322,7 +359,11 @@ export async function refreshLastModifiedInfo(forceRefresh: boolean = false): Pr
  * @param apiName The API name of the component
  * @param currentData The current data from Salesforce
  */
-async function checkForExternalModifications(metadataType: string, apiName: string, currentData: any): Promise<void> {
+async function checkForExternalModifications(
+    metadataType: string,
+    apiName: string,
+    currentData: { LastModifiedBy: { Name: string }; LastModifiedDate: string; LastModifiedById: string },
+): Promise<void> {
     try {
         // Get the stored last modified info
         const storedInfo = await getStoredLastModifiedInfo(metadataType, apiName);
@@ -385,24 +426,31 @@ class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
     private _onDidChangeCodeLenses: vscode.EventEmitter<void> = new vscode.EventEmitter<void>();
     public readonly onDidChangeCodeLenses: vscode.Event<void> = this._onDidChangeCodeLenses.event;
 
-    // Store the last modified info for each document
-    private _pendingRefresh: Map<string, FormattedLastModifiedInfo> = new Map();
+    // Latest last modified info (and org) for each open document
+    private _pendingRefresh: Map<string, { info: FormattedLastModifiedInfo; orgUsername: string }> = new Map();
 
     /**
      * Refresh CodeLens with latest info from server
      * @param documentUri The document URI
      * @param info The latest info from server
      */
-    public refreshWithLatestInfo(documentUri: vscode.Uri, info: FormattedLastModifiedInfo): void {
-        const uriString = documentUri.toString();
-        this._pendingRefresh.set(uriString, info);
+    public refreshWithLatestInfo(documentUri: vscode.Uri, info: FormattedLastModifiedInfo, orgUsername: string): void {
+        this._pendingRefresh.set(documentUri.toString(), { info, orgUsername });
         this._onDidChangeCodeLenses.fire();
     }
 
-    async provideCodeLenses(
-        document: vscode.TextDocument,
-        token: vscode.CancellationToken,
-    ): Promise<vscode.CodeLens[]> {
+    /** Forget the cached info of a closed document */
+    public forget(documentUri: vscode.Uri): void {
+        this._pendingRefresh.delete(documentUri.toString());
+    }
+
+    /** Forget all cached info (e.g. after the org changed) */
+    public clear(): void {
+        this._pendingRefresh.clear();
+        this._onDidChangeCodeLenses.fire();
+    }
+
+    provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
         // Skip non-file documents
         if (document.uri.scheme !== 'file') {
             return [];
@@ -416,18 +464,15 @@ class LastModifiedCodeLensProvider implements vscode.CodeLensProvider {
         try {
             // Get cached info for this document
             const uriString = document.uri.toString();
-            const pendingInfo = this._pendingRefresh.get(uriString);
-            if (!pendingInfo) {
+            const cached = this._pendingRefresh.get(uriString);
+            if (!cached) {
                 return [];
             }
+            const { info: pendingInfo, orgUsername } = cached;
 
             // Create CodeLens at the top of the document
             const position = new vscode.Position(0, 0);
             const range = new vscode.Range(position, position);
-
-            // Get org username for tooltip
-            const connection = await SFUtils.getConnection();
-            const orgUsername = connection?.getUsername() || '';
 
             return [
                 new vscode.CodeLens(range, {

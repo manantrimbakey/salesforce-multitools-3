@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import {
     Card,
     CardContent,
     Typography,
     List,
     ListItem,
+    ListItemButton,
     ListItemText,
     ListItemIcon,
     Divider,
@@ -16,100 +17,50 @@ import JavascriptIcon from '@mui/icons-material/Javascript';
 import SettingsIcon from '@mui/icons-material/Settings';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import HtmlIcon from '@mui/icons-material/Html';
-import { useVSCodeApi } from '../../App';
+import { useHostMessage } from '../../hooks/useHostMessage';
+import type { ComponentData, ComponentFile } from '../../messages';
+import { vscode } from '../../vscodeApi';
 
-// Interface for the component file data
-interface ComponentFile {
-    path: string;
-    name: string;
-    type: string;
-    priority: number;
-    isBaseFile: boolean;
-    isUnsaved: boolean;
+const EMPTY_DATA: ComponentData = { componentName: null, componentType: 'UNKNOWN', fileName: '', files: [] };
+
+function getFileIcon(type: string) {
+    switch (type) {
+        case 'JavaScript':
+        case 'Controller':
+        case 'Helper':
+        case 'Renderer':
+            return <JavascriptIcon fontSize="small" />;
+        case 'CSS':
+            return <CssIcon fontSize="small" />;
+        case 'HTML/Markup':
+            return <HtmlIcon fontSize="small" />;
+        case 'XML Metadata':
+            return <SettingsIcon fontSize="small" />;
+        default:
+            return <DescriptionIcon fontSize="small" />;
+    }
 }
 
-// Component types
-type ComponentType = 'LWC' | 'AURA' | 'UNKNOWN';
-
-// Component data from the extension
-interface ComponentData {
-    componentName: string | null;
-    componentType: ComponentType;
-    fileName: string;
-    files: ComponentFile[];
+function handleFileClick(filePath: string) {
+    vscode.postMessage({ command: 'openFile', filePath });
 }
 
 export default function ComponentFileSwitcher() {
-    // Get VS Code API from context
-    const vscode = useVSCodeApi();
+    const [componentData, setComponentData] = useState<ComponentData>(EMPTY_DATA);
 
-    const [componentData, setComponentData] = useState<ComponentData>({
-        componentName: null,
-        componentType: 'UNKNOWN',
-        fileName: '',
-        files: [],
-    });
-
-    useEffect(() => {
-        const handleMessage = (event: MessageEvent) => {
-            const message = event.data;
-
-            // Handle component file switcher refresh
-            if (message.command === 'componentFileSwitcherRefresh') {
-                setComponentData(message.data);
-            }
-        };
-
-        // Add message event listener
-        window.addEventListener('message', handleMessage);
-
-        // Request theme on mount - this is critical for proper theming
-        vscode.postMessage({ command: 'refreshTheme' });
-
-        // Cleanup
-        return () => window.removeEventListener('message', handleMessage);
-    }, [vscode]);
-
-    // Handle click on a component file
-    const handleFileClick = (filePath: string) => {
-        // Send message to extension to open the file
-        vscode.postMessage({
-            command: 'openFile',
-            filePath,
-        });
-    };
-
-    // Get icon based on file type
-    const getFileIcon = (type: string) => {
-        switch (type) {
-            case 'JavaScript':
-            case 'Controller':
-            case 'Helper':
-            case 'Renderer':
-                return <JavascriptIcon fontSize="small" />;
-            case 'CSS':
-                return <CssIcon fontSize="small" />;
-            case 'HTML/Markup':
-                return <HtmlIcon fontSize="small" />;
-            case 'XML Metadata':
-                return <SettingsIcon fontSize="small" />;
-            default:
-                return <DescriptionIcon fontSize="small" />;
-        }
-    };
+    // Replay: the host may send the first refresh before this lazy-loaded component mounts.
+    useHostMessage('componentFileSwitcherRefresh', (message) => setComponentData(message.data), true);
 
     // Group files by type for better organization
-    const filesByType = componentData.files.reduce(
-        (acc, file) => {
-            const type = file.type;
-            if (!acc[type]) {
-                acc[type] = [];
-            }
-            acc[type].push(file);
-            return acc;
-        },
-        {} as Record<string, ComponentFile[]>,
-    );
+    const filesByType = useMemo(() => {
+        const groups = new Map<string, ComponentFile[]>();
+        for (const file of componentData.files) {
+            const group = groups.get(file.type);
+            if (group) group.push(file);
+            else groups.set(file.type, [file]);
+        }
+        return [...groups];
+    }, [componentData.files]);
 
     // If no component detected, show empty state
     if (componentData.componentType === 'UNKNOWN' || !componentData.componentName) {
@@ -169,8 +120,8 @@ export default function ComponentFileSwitcher() {
                         flexGrow: 1,
                     }}
                 >
-                    {Object.entries(filesByType).map(([type, files]) => (
-                        <div key={type}>
+                    {filesByType.map(([type, files]) => (
+                        <Fragment key={type}>
                             <ListItem sx={{ bgcolor: 'action.hover' }}>
                                 <ListItemText
                                     primary={
@@ -182,53 +133,36 @@ export default function ComponentFileSwitcher() {
                             </ListItem>
                             <Divider />
 
-                            {files.map((file) => {
-                                const isCurrentFile = file.name === componentData.fileName;
-                                return (
-                                    <ListItem
-                                        key={file.path}
+                            {files.map((file) => (
+                                <ListItem key={file.path} disablePadding>
+                                    <ListItemButton
+                                        selected={file.name === componentData.fileName}
                                         onClick={() => handleFileClick(file.path)}
-                                        sx={{
-                                            cursor: 'pointer',
-                                            bgcolor: isCurrentFile ? 'primary.main' : 'transparent',
-                                            color: isCurrentFile ? 'primary.contrastText' : 'inherit',
-                                            '&:hover': {
-                                                bgcolor: isCurrentFile ? 'primary.dark' : 'action.hover',
-                                            },
-                                        }}
                                     >
-                                        <ListItemIcon
-                                            sx={{
-                                                minWidth: 36,
-                                                color: isCurrentFile ? 'primary.contrastText' : 'inherit',
-                                            }}
-                                        >
+                                        <ListItemIcon sx={{ minWidth: 36, color: 'inherit' }}>
                                             {getFileIcon(file.type)}
                                         </ListItemIcon>
                                         <ListItemText
-                                            primary={
-                                                <Typography
-                                                    variant="body2"
-                                                    sx={{
-                                                        fontWeight: file.isBaseFile ? 'bold' : 'normal',
-                                                        color: 'inherit',
-                                                    }}
-                                                >
-                                                    {file.name}
-                                                </Typography>
-                                            }
+                                            primary={file.name}
+                                            slotProps={{
+                                                primary: {
+                                                    variant: 'body2',
+                                                    fontWeight: file.isBaseFile ? 'bold' : 'normal',
+                                                },
+                                            }}
                                         />
                                         {file.isUnsaved && (
                                             <FiberManualRecordIcon
                                                 fontSize="small"
                                                 color="warning"
+                                                titleAccess="Unsaved changes"
                                                 sx={{ width: 10, height: 10 }}
                                             />
                                         )}
-                                    </ListItem>
-                                );
-                            })}
-                        </div>
+                                    </ListItemButton>
+                                </ListItem>
+                            ))}
+                        </Fragment>
                     ))}
                 </List>
             </Paper>

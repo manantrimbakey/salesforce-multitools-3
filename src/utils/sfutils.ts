@@ -1,159 +1,205 @@
-// Import SF Core config first to configure environment variables
-import './sfcoreConfig';
-
-import * as sfcore from '@salesforce/core';
+import type * as SfCore from '@salesforce/core';
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as os from 'os';
 import * as fs from 'fs';
 import { Logger } from './logger';
 
+type SfCoreModule = typeof SfCore;
+
+/**
+ * Environment the bundled @salesforce/core logger needs.
+ *
+ * When @salesforce/core is bundled with esbuild, its Pino logger cannot resolve its transform stream
+ * from disk ("unable to determine transport target for '..\..\lib\logger\transformStream'"), so file
+ * logging must be disabled before the root logger is created. process.env is shared with every other
+ * extension in the extension host, so the values are applied only while the library initializes and
+ * the previous values are restored right after.
+ */
+const SF_CORE_ENV: Record<string, string> = {
+    SFDX_DISABLE_LOG_FILE: 'true',
+    SF_DISABLE_LOG_FILE: 'true',
+    SF_LOG_LEVEL: 'error',
+    SF_LOG_DIR: '.',
+    SF_LOG_FILE: 'false',
+};
+
+const CONFIG_CHANGE_DEBOUNCE_MS = 300;
+
+/**
+ * Salesforce org/connection helper. `@salesforce/core` is loaded lazily so the extension does not
+ * pay for it until a feature actually needs an org connection.
+ */
 export class SFUtils {
-    private static authInfos: sfcore.OrgAuthorization[];
-    private static myLocalConfig: sfcore.ConfigFile;
-    private static configWatcher: fs.FSWatcher | undefined;
-    private static connection: any;
-    private static currentOrgUrl: string = '';
-    private static currentUsername: string = '';
-    private static isInitialized: boolean = false;
+    private static corePromise: Promise<SfCoreModule> | undefined;
+    private static connectionPromise: Promise<SfCore.Connection> | undefined;
+    private static watchers: vscode.Disposable[] = [];
+    private static debounceTimer: NodeJS.Timeout | undefined;
+    private static readonly orgChanged = new vscode.EventEmitter<void>();
+
+    /** Fires when the default org (or its config) changed and cached connections were dropped. */
+    public static readonly onDidChangeOrg = this.orgChanged.event;
 
     /**
-     * Initialize Salesforce core components
-     * @param forceRefresh Force re-initialization even if already initialized
+     * Load @salesforce/core once, with the logger environment applied only during initialization.
      */
-    public static async initialize(forceRefresh: boolean = false) {
-        if (this.isInitialized && !forceRefresh) {
+    private static loadCore(): Promise<SfCoreModule> {
+        this.corePromise ??= (async () => {
+            const previous = new Map(Object.keys(SF_CORE_ENV).map((key) => [key, process.env[key]]));
+            Object.assign(process.env, SF_CORE_ENV);
+            try {
+                // Plain require (not import()): esbuild redirects it to the lazily loaded dist/sfcore.js bundle,
+                // and a native import() of that CJS file would not expose the named exports.
+                const core = require('@salesforce/core') as SfCoreModule;
+                await core.Logger.root();
+                return core;
+            } finally {
+                for (const [key, value] of previous) {
+                    if (value === undefined) {
+                        delete process.env[key];
+                    } else {
+                        process.env[key] = value;
+                    }
+                }
+            }
+        })().catch((error) => {
+            this.corePromise = undefined;
+            throw error;
+        });
+        return this.corePromise;
+    }
+
+    /**
+     * Drop cached connection state so the next request resolves the org again.
+     */
+    public static refresh(): void {
+        Logger.debug('Refreshing SFUtils cached connection state', 'SFUtils.refresh');
+        this.connectionPromise = undefined;
+        this.orgChanged.fire();
+    }
+
+    /**
+     * Watch the project/CLI config files that select the default org and refresh when they change.
+     */
+    public static startWatching(context: vscode.ExtensionContext): void {
+        const folder = vscode.workspace.workspaceFolders?.[0];
+        if (!folder) {
             return;
         }
 
-        // Reset cached data if forcing refresh
-        if (forceRefresh) {
-            Logger.debug('Force refreshing SFUtils static members', 'SFUtils.initialize');
-            this.myLocalConfig = undefined as unknown as sfcore.ConfigFile;
-            this.authInfos = undefined as unknown as sfcore.OrgAuthorization[];
-            this.connection = undefined;
-        }
-
-        // Initialize logger to prevent transport target error
-        try {
-            // Initialize the logger with memory logging
-            const logger = new sfcore.Logger({
-                level: 50, // 50 = ERROR level
-                useMemoryLogger: true,
-                name: 'salesforce-multitools',
-                fields: {},
-            } as sfcore.LoggerOptions);
-
-            this.isInitialized = true;
-            Logger.debug('SFUtils initialized successfully', 'SFUtils.initialize');
-        } catch (error) {
-            Logger.error('Error initializing Salesforce utilities:', error, 'SFUtils.initialize');
-        }
+        const watcher = vscode.workspace.createFileSystemWatcher(
+            new vscode.RelativePattern(folder, '{.sf/config.json,.sfdx/sfdx-config.json}'),
+        );
+        const onChange = () => {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = setTimeout(() => {
+                Logger.info('Org config changed, resetting connection', 'SFUtils.startWatching');
+                this.refresh();
+            }, CONFIG_CHANGE_DEBOUNCE_MS);
+        };
+        this.watchers.push(
+            watcher,
+            watcher.onDidChange(onChange),
+            watcher.onDidCreate(onChange),
+            watcher.onDidDelete(onChange),
+        );
+        context.subscriptions.push({ dispose: () => SFUtils.dispose() });
     }
 
-    public static async getDefaultUsername() {
-        await this.initialize();
-
-        if (vscode?.workspace?.workspaceFolders) {
-            await this.initLocalConfig();
-
-            const localValue = this.myLocalConfig.get('defaultusername');
-            Logger.debug('Default username from config:', 'SFUtils.getDefaultUsername', localValue);
-
-            const authInfos = await this.listAllAuthorizations();
-
-            const authInfo = authInfos.find((authInfo) => authInfo?.aliases?.includes(localValue as string));
-
-            if (!authInfo) {
-                Logger.warn(
-                    `No authentication info found for username: ${JSON.stringify(localValue)}`,
-                    'SFUtils.getDefaultUsername',
-                );
-            }
-
-            return authInfo?.username ?? '';
+    /**
+     * Read the configured default org (alias or username) from project config, then global config.
+     * Supports both the `sf` (`target-org`) and legacy `sfdx` (`defaultusername`) formats.
+     */
+    private static async readConfiguredOrg(): Promise<string | undefined> {
+        const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+        const candidates: Array<{ file: string; keys: string[] }> = [];
+        if (workspaceRoot) {
+            candidates.push(
+                { file: path.join(workspaceRoot, '.sf', 'config.json'), keys: ['target-org'] },
+                {
+                    file: path.join(workspaceRoot, '.sfdx', 'sfdx-config.json'),
+                    keys: ['target-org', 'defaultusername'],
+                },
+            );
         }
-    }
+        candidates.push(
+            { file: path.join(os.homedir(), '.sf', 'config.json'), keys: ['target-org'] },
+            { file: path.join(os.homedir(), '.sfdx', 'sfdx-config.json'), keys: ['defaultusername'] },
+        );
 
-    public static async getConnection(): Promise<sfcore.Connection> {
-        await this.initialize();
-
-        if (!this.connection) {
-            const defaultusername = await this.getDefaultUsername();
-            Logger.debug('Getting connection for username:', 'SFUtils.getConnection', defaultusername);
-
-            this.connection = await sfcore.Connection.create({
-                authInfo: await sfcore.AuthInfo.create({ username: defaultusername }),
-            });
-            Logger.info('Salesforce connection created successfully', 'SFUtils.getConnection');
-        }
-        return this.connection;
-    }
-
-    private static async initLocalConfig() {
-        if (!this.myLocalConfig && vscode?.workspace?.workspaceFolders) {
-            const rootPath = vscode.workspace.workspaceFolders[0].uri.fsPath;
-            const configPath = path.join(rootPath, '.sfdx', 'sfdx-config.json');
-
-            Logger.debug(`Initializing config file from: ${configPath}`, 'SFUtils.initLocalConfig');
-
+        for (const { file, keys } of candidates) {
             try {
-                this.myLocalConfig = await sfcore.ConfigFile.create({
-                    isGlobal: false,
-                    rootFolder: path.join(rootPath, '.sfdx'),
-                    filename: 'sfdx-config.json',
-                });
-
-                // Setup file watcher for config changes
-                this.setupConfigWatcher(configPath);
-            } catch (error) {
-                Logger.error('Failed to initialize config file:', error, 'SFUtils.initLocalConfig');
-                throw error;
+                const config = JSON.parse(await fs.promises.readFile(file, 'utf-8')) as Record<string, unknown>;
+                for (const key of keys) {
+                    const value = config[key];
+                    if (typeof value === 'string' && value.length > 0) {
+                        return value;
+                    }
+                }
+            } catch {
+                // Missing or unreadable config file: try the next candidate
             }
         }
-        return this.myLocalConfig;
+        return undefined;
     }
 
-    private static setupConfigWatcher(configPath: string) {
-        // Dispose any existing watcher
-        if (this.configWatcher) {
-            this.configWatcher.close();
+    /**
+     * Resolve the default org to a username (aliases are resolved, usernames pass through).
+     */
+    public static async getDefaultUsername(): Promise<string> {
+        const configured = await this.readConfiguredOrg();
+        if (!configured) {
+            Logger.warn('No default org configured for this project', 'SFUtils.getDefaultUsername');
+            return '';
         }
 
-        try {
-            this.configWatcher = fs.watch(configPath, (eventType) => {
-                if (eventType === 'change') {
-                    Logger.info('Config file changed, resetting cache', 'SFUtils.setupConfigWatcher');
-                    // Reset the cached config so it will be reloaded on next request
-                    this.myLocalConfig = undefined as unknown as sfcore.ConfigFile;
-                    // Also reset the connection since it depends on config
-                    this.connection = undefined;
+        const core = await this.loadCore();
+        const stateAggregator = await core.StateAggregator.getInstance();
+        const username = stateAggregator.aliases.resolveUsername(configured);
+        Logger.debug(`Default org "${configured}" resolved to "${username}"`, 'SFUtils.getDefaultUsername');
+        return username;
+    }
 
-                    // Notify the extension that connection needs to be refreshed
-                    vscode.commands.executeCommand('salesforce-multitools-3.refreshConnection');
+    /**
+     * Get the shared connection for the default org. Concurrent callers share one in-flight request.
+     */
+    public static getConnection(): Promise<SfCore.Connection> {
+        if (!this.connectionPromise) {
+            const pending = this.createConnection();
+            this.connectionPromise = pending;
+            pending.catch(() => {
+                // Do not cache failures; the next caller retries
+                if (this.connectionPromise === pending) {
+                    this.connectionPromise = undefined;
                 }
             });
-            Logger.debug(`File watcher set up for: ${configPath}`, 'SFUtils.setupConfigWatcher');
-        } catch (error) {
-            // If the file doesn't exist yet or other errors
-            Logger.error('Error setting up config file watcher:', error, 'SFUtils.setupConfigWatcher');
-            throw error;
         }
+        return this.connectionPromise;
     }
 
-    private static async listAllAuthorizations() {
-        if (!this.authInfos) {
-            Logger.debug('Loading all Salesforce authorizations', 'SFUtils.listAllAuthorizations');
-            this.authInfos = await sfcore.AuthInfo.listAllAuthorizations();
+    private static async createConnection(): Promise<SfCore.Connection> {
+        const username = await this.getDefaultUsername();
+        if (!username) {
+            throw new Error('No default Salesforce org found. Authorize an org and set it as the default.');
         }
-        return this.authInfos;
+
+        const core = await this.loadCore();
+        Logger.debug('Creating connection for username:', 'SFUtils.getConnection', username);
+        const connection = await core.Connection.create({
+            authInfo: await core.AuthInfo.create({ username }),
+        });
+        Logger.info('Salesforce connection created successfully', 'SFUtils.getConnection');
+        return connection;
     }
 
-    // Clean up watchers when extension is deactivated
-    public static dispose() {
+    /**
+     * Clean up watchers and timers when the extension is deactivated
+     */
+    public static dispose(): void {
         Logger.debug('Disposing SFUtils resources', 'SFUtils.dispose');
-        if (this.configWatcher) {
-            this.configWatcher.close();
-            this.configWatcher = undefined;
-        }
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = undefined;
+        this.watchers.forEach((watcher) => watcher.dispose());
+        this.watchers = [];
     }
 }

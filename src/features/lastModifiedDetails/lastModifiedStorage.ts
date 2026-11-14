@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
+import * as fs from 'fs';
 import * as path from 'path';
 import { Logger } from '../../utils/logger';
-import { ensureFolderExists, writeJsonFile, readJsonFile } from '../../utils/fileUtils';
+import { writeJsonFile, readJsonFile } from '../../utils/fileUtils';
 import { LastModifiedInfo } from './lastModifiedTypes';
 import { SFUtils } from '../../utils/sfutils';
 
@@ -51,19 +52,13 @@ export async function storeLastModifiedInfo(
         const multiToolFolder = path.join(sfdxFolder, MULTI_TOOL_FOLDER);
         const lastModifiedFolder = path.join(multiToolFolder, LAST_MODIFIED_SUBFOLDER);
 
-        // Create folders if they don't exist
-        await ensureFolderExists(sfdxFolder);
-        await ensureFolderExists(multiToolFolder);
-        await ensureFolderExists(lastModifiedFolder);
-
         // Get org identifier for organization-specific storage
         const orgId = modifiedInfo.orgId ? getSanitizedOrgId(modifiedInfo.orgId) : 'unknown-org';
         const orgFolder = path.join(lastModifiedFolder, orgId);
-        await ensureFolderExists(orgFolder);
 
         // Store by metadata type to keep files organized
         const metadataTypeFolder = path.join(orgFolder, metadataType);
-        await ensureFolderExists(metadataTypeFolder);
+        await fs.promises.mkdir(metadataTypeFolder, { recursive: true });
 
         // Create or update the JSON file for this component
         const filePath = path.join(metadataTypeFolder, `${apiName}.json`);
@@ -71,7 +66,7 @@ export async function storeLastModifiedInfo(
         Logger.debug(`Storing last modified info to: ${filePath}`, 'LastModifiedStorage.storeLastModifiedInfo');
         await writeJsonFile(filePath, modifiedInfo);
 
-        Logger.info(
+        Logger.debug(
             `Last modified info stored for ${metadataType}:${apiName} in org ${orgId}`,
             'LastModifiedStorage.storeLastModifiedInfo',
         );
@@ -124,16 +119,4 @@ export async function getStoredLastModifiedInfo(
         );
         return null;
     }
-}
-
-/**
- * Get the storage path for a component's last modified info
- * @param metadataType The type of metadata
- * @param apiName The API name of the component
- * @returns The storage path relative to the workspace root
- */
-export function getLastModifiedStoragePath(metadataType: string, apiName: string): string {
-    // This is a best-effort since we don't have connection info here
-    // The actual path used in storage/retrieval will include org ID
-    return `.sfdx/${MULTI_TOOL_FOLDER}/${LAST_MODIFIED_SUBFOLDER}/<org-id>/${metadataType}/${apiName}.json`;
 }
