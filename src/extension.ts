@@ -1,6 +1,3 @@
-// Import SF Core config first to configure environment variables
-import './utils/sfcoreConfig';
-
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
@@ -10,46 +7,47 @@ import { ConfigUtils } from './utils/config';
 import { CommandHandler } from './commands/commandHandler';
 import { ConfigWatcher } from './configWatcher';
 import { SidebarProvider } from './features/sidePanel/SidebarProvider';
-import { ExpressServer, disposeExpressServer } from './utils/expressServer';
+import { DebugLogWebviewPanel } from './features/debugLogs/webviewPanel';
+
+/** Files whose presence in the workspace root marks a Salesforce project with a default org */
+const ORG_CONFIG_FILES: ReadonlyArray<readonly string[]> = [
+    ['.sfdx', 'sfdx-config.json'],
+    ['.sf', 'config.json'],
+];
+
+async function hasOrgConfig(workspaceRoot: vscode.Uri): Promise<boolean> {
+    const results = await Promise.all(
+        ORG_CONFIG_FILES.map((segments) =>
+            vscode.workspace.fs.stat(vscode.Uri.joinPath(workspaceRoot, ...segments)).then(
+                () => true,
+                () => false,
+            ),
+        ),
+    );
+    return results.some(Boolean);
+}
 
 /**
  * This method is called when your extension is activated
  */
-export function activate(context: vscode.ExtensionContext) {
-    // Early return if .sfdx/sfdx-config.json does not exist in the workspace root
-    const workspaceFolders = vscode.workspace.workspaceFolders;
-    if (!workspaceFolders || workspaceFolders.length === 0) {
-        Logger.warn('No workspace folder found. Extension will not activate.', 'if');
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
+    // Only activate in Salesforce projects (the logger is not initialized yet, so stay silent otherwise)
+    const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+    if (!workspaceRoot || !(await hasOrgConfig(workspaceRoot))) {
         return;
     }
-    const sfdxConfigPath = vscode.Uri.joinPath(workspaceFolders[0].uri, '.sfdx', 'sfdx-config.json');
 
-    vscode.workspace.fs.stat(sfdxConfigPath).then(
-        () => {
-            // File exists, continue activation
-            continueActivation(context);
-        },
-        () => {
-            // File does not exist, log and return
-            Logger.warn('.sfdx/sfdx-config.json not found in workspace root. Extension will not activate.', 'if');
-        },
-    );
+    try {
+        continueActivation(context);
+    } catch (error) {
+        Logger.error('Failed to activate Salesforce Multitool extension', 'activate', error);
+        throw error;
+    }
 }
 
-// Move the rest of the activation logic to a new function
-async function continueActivation(context: vscode.ExtensionContext) {
+function continueActivation(context: vscode.ExtensionContext) {
     // Initialize logger with proper log level
     initializeLogger(context);
-
-    // Start the Express server first before any other initialization
-    try {
-        const expressServer = ExpressServer.getInstance();
-        await expressServer.start();
-        // Logger.info(`Express server started successfully`, 'continueActivation');
-    } catch (error) {
-        Logger.error(`Failed to activate core module : Salesforce Multitool ${error}`, 'catch');
-        // Continue activation even if server fails to start
-    }
 
     // Register configuration watchers
     ConfigWatcher.register(context);
@@ -61,18 +59,13 @@ async function continueActivation(context: vscode.ExtensionContext) {
     const sidebarRegistrations = SidebarProvider.register(context);
     context.subscriptions.push(...sidebarRegistrations);
 
-    // Initialize Salesforce connection in the background
-    setTimeout(() => {
-        // Initialize SFUtils directly rather than using CommandHandler
-        SFUtils.initialize(true).catch((error: Error) => {
-            Logger.error('Error during initialization:', 'catch', error);
-        });
-    }, 1000);
+    // Drop cached org connections when the default org config changes
+    SFUtils.startWatching(context);
 
     // Register cleanup for deactivation
     registerCleanup(context);
 
-    Logger.info('Salesforce Multitool extension activated successfully', 'catch');
+    Logger.info('Salesforce Multitool extension activated successfully', 'continueActivation');
 }
 
 /**
@@ -97,11 +90,11 @@ function initializeLogger(context: vscode.ExtensionContext): void {
     Logger.initialize(logLevel, isDevelopment);
     Logger.info(
         `Salesforce Multitool extension is now active (${isDevelopment ? 'development' : 'production'} mode)`,
-        'if',
+        'initializeLogger',
     );
 
     if (isDevelopment) {
-        Logger.debug('DEBUG logging enabled for development', 'if');
+        Logger.debug('DEBUG logging enabled for development', 'initializeLogger');
     }
 }
 
@@ -111,9 +104,6 @@ function initializeLogger(context: vscode.ExtensionContext): void {
 function registerCleanup(context: vscode.ExtensionContext): void {
     context.subscriptions.push({
         dispose: () => {
-            // Clean up the Express server first
-            disposeExpressServer();
-            // Then clean up other resources
             SFUtils.dispose();
             Logger.dispose();
         },
@@ -123,4 +113,7 @@ function registerCleanup(context: vscode.ExtensionContext): void {
 /**
  * This method is called when your extension is deactivated
  */
-export function deactivate() {}
+export async function deactivate(): Promise<void> {
+    // Webviews and listeners are disposed through context.subscriptions; nothing async is left
+    DebugLogWebviewPanel.close();
+}

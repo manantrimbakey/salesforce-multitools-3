@@ -46,8 +46,8 @@ export class CommandHandler {
      */
     private static async handleRefreshConnection(): Promise<void> {
         try {
-            // Force re-initialization of the Salesforce connection
-            await SFUtils.initialize(true);
+            // Drop the cached connection so the next request resolves the org again
+            SFUtils.refresh();
             vscode.window.showInformationMessage('Salesforce connection refreshed');
         } catch (error) {
             Logger.error('Error refreshing connection:', 'CommandHandler.handleRefreshConnection()', error);
@@ -58,17 +58,15 @@ export class CommandHandler {
     /**
      * Handle opening the sidebar
      */
-    private static handleOpenSidebar(): void {
-        vscode.commands.executeCommand('workbench.view.explorer');
-        vscode.commands.executeCommand('salesforceMultitools.sidebar.focus');
+    private static async handleOpenSidebar(): Promise<void> {
+        await vscode.commands.executeCommand('salesforceMultitools.sidebar.focus');
     }
 
     /**
      * Handle switching to a different component in the sidebar
      */
-    private static handleSwitchComponent(componentName: string): void {
-        vscode.commands.executeCommand('workbench.view.explorer');
-        vscode.commands.executeCommand('salesforceMultitools.sidebar.focus');
-        vscode.commands.executeCommand('salesforceMultitools.sidebar.setComponent', componentName);
+    private static async handleSwitchComponent(componentName: string): Promise<void> {
+        await vscode.commands.executeCommand('salesforceMultitools.sidebar.focus');
+        await vscode.commands.executeCommand('salesforceMultitools.sidebar.setComponent', componentName);
     }
 }

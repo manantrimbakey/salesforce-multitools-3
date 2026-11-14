@@ -8,6 +8,6 @@ export {
     getComponentFolder,
     ComponentType,
     ComponentFileType,
-    ComponentFile,
     isLightningComponentFile,
 } from './componentFileSwitcherUtils';
+export type { ComponentFile } from './componentFileSwitcherUtils';

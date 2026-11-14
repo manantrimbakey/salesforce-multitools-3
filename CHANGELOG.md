@@ -2,6 +2,29 @@
 
 All notable changes to the "salesforce-multitools-3" extension will be documented in this file.
 
+## [Unreleased]
+
+### Security
+
+- Removed the localhost Express server; webviews now talk to the extension through postMessage RPC
+- Validate Salesforce ids, escape SOQL input and restrict file access to the workspace
+- Nonce-based webview CSP without `unsafe-eval`
+
+### Fixes
+
+- Log level and auto-refresh settings now apply when changed (wrong settings namespace)
+- Errors are no longer lost in the output log
+- Bulk delete handles more than 2000 logs; single log delete now works
+- Component switcher resolves the right folder for files in subfolders
+- Custom object last-modified lookup uses the correct DeveloperName
+- Default org resolution supports `target-org` (`.sf/config.json`), usernames and global config
+
+### Performance
+
+- Activates only in projects with `.sfdx/sfdx-config.json` or `.sf/config.json`; `@salesforce/core` loads lazily
+- One shared Salesforce connection; last-modified polling pauses while the window is unfocused (default 60s)
+- Debounced component switcher refresh; virtualized and lazy-loaded webview UI
+
 ## [0.4.1]
 
 ### Fixes

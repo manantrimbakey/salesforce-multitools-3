@@ -1,5 +1,3 @@
-import * as vscode from 'vscode';
-
 /**
  * Last modified information for a Salesforce component
  */

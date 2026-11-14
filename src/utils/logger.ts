@@ -43,10 +43,10 @@ export class Logger {
     }
 
     /**
-     * Set development mode flag
+     * Whether debug messages are currently emitted. Use to skip building expensive log payloads.
      */
-    public static setDevelopmentMode(isDev: boolean) {
-        this.isDevelopmentMode = isDev;
+    public static isDebugEnabled(): boolean {
+        return this.logLevel <= LogLevel.DEBUG;
     }
 
     /**
@@ -55,7 +55,7 @@ export class Logger {
      * @param methodName Optional method name for development mode
      * @param args Additional arguments to log
      */
-    public static debug(message: string, methodName?: string, ...args: any[]) {
+    public static debug(message: string, methodName?: string, ...args: unknown[]) {
         this.log(LogLevel.DEBUG, message, methodName, ...args);
     }
 
@@ -65,7 +65,7 @@ export class Logger {
      * @param methodName Optional method name for development mode
      * @param args Additional arguments to log
      */
-    public static info(message: string, methodName?: string, ...args: any[]) {
+    public static info(message: string, methodName?: string, ...args: unknown[]) {
         this.log(LogLevel.INFO, message, methodName, ...args);
     }
 
@@ -75,7 +75,7 @@ export class Logger {
      * @param methodName Optional method name for development mode
      * @param args Additional arguments to log
      */
-    public static warn(message: string, methodName?: string, ...args: any[]) {
+    public static warn(message: string, methodName?: string, ...args: unknown[]) {
         this.log(LogLevel.WARN, message, methodName, ...args);
     }
 
@@ -85,10 +85,10 @@ export class Logger {
      * @param methodNameOrArg Optional method name or first argument
      * @param args Additional arguments to log
      */
-    public static error(message: string | Error, methodNameOrArg?: string | any, ...args: any[]) {
+    public static error(message: string | Error, methodNameOrArg?: unknown, ...args: unknown[]) {
         // Handle the case where methodNameOrArg might be the first argument rather than a method name
         let methodName: string | undefined;
-        let actualArgs: any[] = args;
+        let actualArgs: unknown[] = args;
 
         if (typeof methodNameOrArg === 'string' && !methodNameOrArg.startsWith('[object ')) {
             methodName = methodNameOrArg;
@@ -120,7 +120,7 @@ export class Logger {
      * @param methodName Optional method name
      * @param args Additional arguments to log
      */
-    private static log(level: LogLevel, message: string, methodName?: string, ...args: any[]) {
+    private static log(level: LogLevel, message: string, methodName?: string, ...args: unknown[]) {
         if (!this.outputChannel) {
             this.initialize();
         }
@@ -137,32 +137,47 @@ export class Logger {
         // Format any additional arguments
         if (args && args.length > 0) {
             for (const arg of args) {
-                if (typeof arg === 'object') {
-                    this.outputChannel.appendLine(JSON.stringify(arg, null, 2));
-                } else {
-                    this.outputChannel.appendLine(String(arg));
-                }
+                this.outputChannel.appendLine(this.stringifyArg(arg));
             }
         }
 
-        // Only include method name in console logs if in development mode
-        const consoleMessage = this.isDevelopmentMode ? formattedMessage : this.formatMessage(level, message);
+        // Mirror to the developer console only while developing the extension
+        if (!this.isDevelopmentMode) {
+            return;
+        }
 
-        // Also log to console
         switch (level) {
             case LogLevel.DEBUG:
-                console.debug(consoleMessage, ...args);
+                console.debug(formattedMessage, ...args);
                 break;
             case LogLevel.INFO:
-                console.info(consoleMessage, ...args);
+                console.info(formattedMessage, ...args);
                 break;
             case LogLevel.WARN:
-                console.warn(consoleMessage, ...args);
+                console.warn(formattedMessage, ...args);
                 break;
             case LogLevel.ERROR:
-                console.error(consoleMessage, ...args);
+                console.error(formattedMessage, ...args);
                 break;
         }
+    }
+
+    /**
+     * Render a log argument as text. Errors keep their stack, and circular
+     * or otherwise unserializable objects fall back to String().
+     */
+    private static stringifyArg(arg: unknown): string {
+        if (arg instanceof Error) {
+            return arg.stack ?? arg.message;
+        }
+        if (typeof arg === 'object' && arg !== null) {
+            try {
+                return JSON.stringify(arg, null, 2);
+            } catch {
+                return String(arg);
+            }
+        }
+        return String(arg);
     }
 
     /**
