@@ -33,6 +33,8 @@ client/dist/**/*.map
 !resources/
 # Only include dist files (the webview is built into dist/webview)
 !dist/**
+# Never ship sourcemaps (must come after the !dist/** re-include)
+dist/**/*.map
 
 # Repository metadata and tooling
 CODEOWNERS
