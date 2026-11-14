@@ -7,7 +7,7 @@
 - Node via **nvm**; package manager **pnpm 11** through corepack. A shell that did not load `~/.bashrc` has no `node`
   or `pnpm`. `.vscode/tasks.json` therefore prepends the newest `~/.nvm/versions/node/v*/bin` itself.
 - pnpm 11 refuses dependency build scripts unless allowed. `pnpm-workspace.yaml` (root and `client/`) sets
-  `allowBuilds` for esbuild (and `@vscode/vsce-sign`, `keytar` at the root). If every `pnpm run` fails with
+  `allowBuilds` for esbuild. If every `pnpm run` fails with
   `ERR_PNPM_IGNORED_BUILDS`, that file is wrong.
 - `pnpm install` at the root also installs `client/` (postinstall).
 
