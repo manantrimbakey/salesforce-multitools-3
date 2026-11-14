@@ -27,6 +27,9 @@ also installs `client/` (postinstall).
 F5 ("Run Extension") runs the `watch` task: `build:client` once, then `watch:tsc` + `watch:esbuild`. Client edits need a
 rebuild (`pnpm run build:client`, or `pnpm run watch:client`) then **Developer: Reload Window** in the dev host.
 Details: `docs/development/building.md`.
+Publishing to the Marketplace (version, PAT, `vsce`): `docs/development/publishing.md`. `vsce` is installed globally
+(`npm i -g @vscode/vsce`), not a project dependency. Claude has no Marketplace
+credentials, so the user runs `vsce publish` themselves.
 
 ## Architecture (short)
 
