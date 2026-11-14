@@ -38,6 +38,12 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 - Debounced component switcher refresh; virtualized and lazy-loaded webview UI
 - `@salesforce/core` is built as a separate lazily loaded bundle, shrinking the extension entry bundle from about 2.1 MB to about 50 KB
 
+## [0.6.0]
+
+### Updated
+
+- Added feature to start or stop logging on the user
+
 ## [0.4.1]
 
 ### Fixes
