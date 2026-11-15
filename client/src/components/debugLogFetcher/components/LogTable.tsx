@@ -1,5 +1,15 @@
 import { useRef } from 'react';
-import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Typography } from '@mui/material';
+import {
+    Box,
+    Paper,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Typography,
+} from '@mui/material';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ApexLog } from '../../../api/client';
 import { LogRow, ROW_HEIGHT } from './LogRow';
@@ -62,7 +72,13 @@ export function LogTable({ logs, loading, downloading, onDownload }: Props) {
                                 align={column.hint ? 'left' : 'center'}
                                 sx={{ whiteSpace: 'nowrap' }}
                             >
-                                {column.hint ? column.label : <Box component="span" sx={visuallyHidden}>{column.label}</Box>}
+                                {column.hint ? (
+                                    column.label
+                                ) : (
+                                    <Box component="span" sx={visuallyHidden}>
+                                        {column.label}
+                                    </Box>
+                                )}
                             </TableCell>
                         ))}
                     </TableRow>

@@ -4,6 +4,11 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ## [Unreleased]
 
+### Added
+
+- Pre-commit hook (`.githooks/pre-commit`, enabled by `pnpm install`) that runs Prettier on staged files and re-stages them, keeping each file's line endings
+- `pnpm run release` (`scripts/dev/release.sh`): builds one `.vsix` from `master` and publishes it to the VS Code Marketplace and Open VSX, then tags and creates the GitHub release; dry run unless `--yes`
+
 ## [0.7.1]
 
 ### Fixed

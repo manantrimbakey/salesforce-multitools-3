@@ -14,7 +14,9 @@ interface Props {
 export function DebugLevelSelect({ levels, value, loading, disabled, onChange }: Props) {
     return (
         <FormControl size="small" sx={{ minWidth: '11rem', maxWidth: '14rem' }} disabled={disabled}>
-            <InputLabel id="debug-level-label" shrink>Debug level</InputLabel>
+            <InputLabel id="debug-level-label" shrink>
+                Debug level
+            </InputLabel>
             <Select
                 labelId="debug-level-label"
                 label="Debug level"

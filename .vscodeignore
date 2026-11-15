@@ -17,6 +17,7 @@ CLAUDE.md
 
 # Developer scripts
 scripts/**
+.githooks/**
 # Client source code (only include the built files)
 client/**
 # Development files

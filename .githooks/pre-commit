@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Format staged files with Prettier and re-stage them. Enabled by `pnpm install` (prepare script sets core.hooksPath).
+# Uses --end-of-line auto so each file keeps its current line endings (the repo mixes LF and CRLF). Skip: git commit --no-verify
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+# nvm node is not on a bare PATH
+if ! command -v node >/dev/null 2>&1; then
+    node_bin="$(ls -d "$HOME"/.nvm/versions/node/v*/bin 2>/dev/null | sort -V | tail -1 || true)"
+    [ -n "$node_bin" ] && export PATH="$node_bin:$PATH"
+fi
+if [ ! -x node_modules/.bin/prettier ]; then
+    echo "pre-commit: prettier not installed (run pnpm install), skipping format" >&2
+    exit 0
+fi
+
+files=()
+while IFS= read -r -d '' f; do
+    case "$f" in
+        *.ts | *.tsx | *.js | *.jsx | *.json | *.md | *.css | *.html) ;;
+        *) continue ;;
+    esac
+    if ! git diff --quiet -- "$f"; then
+        echo "pre-commit: $f has unstaged changes, not formatting it (format and re-stage it yourself)" >&2
+        continue
+    fi
+    files+=("$f")
+done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+
+[ "${#files[@]}" -gt 0 ] || exit 0
+
+before="$(git diff --name-only -z | tr '\0' '\n')"
+node_modules/.bin/prettier --write --end-of-line auto --ignore-unknown --log-level warn -- "${files[@]}"
+changed="$(git diff --name-only -z | tr '\0' '\n')"
+if [ "$changed" != "$before" ]; then
+    mapfile -t reformatted < <(comm -13 <(echo "$before" | sort) <(echo "$changed" | sort))
+    git add -- "${reformatted[@]}"
+    printf 'pre-commit: formatted and re-staged %s\n' "${reformatted[@]}"
+fi
