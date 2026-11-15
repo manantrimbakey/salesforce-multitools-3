@@ -143,7 +143,9 @@
         "test": "vscode-test",
         "build:client": "cd client && pnpm run build",
         "postinstall": "cd client && pnpm install",
+        "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
         "vscode:package": "vsce package --no-dependencies -o salesforce-multitools.vsix",
+        "release": "bash scripts/dev/release.sh",
         "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,css,html}\"",
         "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,css,html}\""
     },

@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { observeVisibility } from '../utils/visibilityObserver';
-import {
-    cancelQueuedMethodName,
-    getMethodNameState,
-    requestMethodName,
-    subscribeMethodName,
-} from './methodNameLoader';
+import { cancelQueuedMethodName, getMethodNameState, requestMethodName, subscribeMethodName } from './methodNameLoader';
 
 /**
  * Lazily loads the method name for a log once its row is visible.

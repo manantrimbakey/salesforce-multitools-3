@@ -38,12 +38,12 @@ back by the service, cleaned up) using `scripts/dev/org-check.js`. Not yet seen 
 
 ## Where things live
 
-| Concern | File |
-| --- | --- |
-| Routes + validation | `src/rpc/routes.ts` |
-| Org operations | `src/services/debugLogService.ts` |
-| Streaming log bodies | `src/services/logBodyClient.ts` |
-| Local cache | `src/services/logStorage.ts` |
-| Log parsing | `src/services/apexLogParser.ts` |
-| UI | `client/src/components/debugLogFetcher/` |
-| API client + types | `client/src/api/` |
+| Concern              | File                                     |
+| -------------------- | ---------------------------------------- |
+| Routes + validation  | `src/rpc/routes.ts`                      |
+| Org operations       | `src/services/debugLogService.ts`        |
+| Streaming log bodies | `src/services/logBodyClient.ts`          |
+| Local cache          | `src/services/logStorage.ts`             |
+| Log parsing          | `src/services/apexLogParser.ts`          |
+| UI                   | `client/src/components/debugLogFetcher/` |
+| API client + types   | `client/src/api/`                        |

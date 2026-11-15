@@ -13,11 +13,11 @@
 
 ## What gets built
 
-| Output | Source | Tool |
-| --- | --- | --- |
-| `dist/extension.js` (~50 KB) | `src/extension.ts` | esbuild (`node esbuild.js`) |
-| `dist/sfcore.js` (~2 MB) | `@salesforce/core` | esbuild, loaded lazily at runtime |
-| `dist/webview/` | `client/` | Vite (`pnpm run build:client`) |
+| Output                       | Source             | Tool                              |
+| ---------------------------- | ------------------ | --------------------------------- |
+| `dist/extension.js` (~50 KB) | `src/extension.ts` | esbuild (`node esbuild.js`)       |
+| `dist/sfcore.js` (~2 MB)     | `@salesforce/core` | esbuild, loaded lazily at runtime |
+| `dist/webview/`              | `client/`          | Vite (`pnpm run build:client`)    |
 
 `dist/` is not committed. `esbuild.js` rewrites `import '@salesforce/core'` to `require('./sfcore.js')` (plugin
 `lazy-sfcore`), which is why `src/utils/sfutils.ts` must use `require`.
@@ -73,6 +73,14 @@ bash scripts/dev/retarget-dependabot-prs.sh --apply    # base -> dev2 (use --bas
 ```
 
 It only touches open PRs authored by Dependabot, needs `gh`, and is safe to rerun.
+
+## Git hooks
+
+`pnpm install` runs the `prepare` script, which sets `core.hooksPath` to `.githooks`. The `pre-commit` hook runs Prettier on
+staged `ts/tsx/js/jsx/json/md/css/html` files and re-stages them. It passes `--end-of-line auto`, so a file keeps its own
+LF or CRLF endings (the repo is mixed; `.prettierrc` says `crlf`). Files that also have unstaged changes are skipped with a
+warning, so the hook never stages hunks you left out. Prettier formats whole files: touching an unformatted file adds
+formatting changes to the commit. Bypass with `git commit --no-verify`.
 
 ## Packaging
 

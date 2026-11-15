@@ -12,7 +12,9 @@ const path = require('path');
 
 const [alias, projectDir] = process.argv.slice(2);
 if (!alias || !projectDir || !process.argv.includes('--yes')) {
-    console.error('usage: node scripts/dev/org-check.js <orgAlias> <sfdxProjectDir> --yes   (creates and deletes a TraceFlag)');
+    console.error(
+        'usage: node scripts/dev/org-check.js <orgAlias> <sfdxProjectDir> --yes   (creates and deletes a TraceFlag)',
+    );
     process.exit(2);
 }
 
@@ -24,10 +26,14 @@ const { DebugLogService: Service } = require(path.resolve(__dirname, '../../out/
 
 const query = (soql, tooling) =>
     JSON.parse(
-        execFileSync('sf', ['data', 'query', ...(tooling ? ['--use-tooling-api'] : []), '-o', alias, '-q', soql, '--json'], {
-            encoding: 'utf8',
-            stdio: ['ignore', 'pipe', 'ignore'],
-        }),
+        execFileSync(
+            'sf',
+            ['data', 'query', ...(tooling ? ['--use-tooling-api'] : []), '-o', alias, '-q', soql, '--json'],
+            {
+                encoding: 'utf8',
+                stdio: ['ignore', 'pipe', 'ignore'],
+            },
+        ),
     ).result.records;
 
 (async () => {
@@ -48,7 +54,8 @@ const query = (soql, tooling) =>
             `SELECT Id, TracedEntityId, LogType, ExpirationDate, DebugLevelId, DebugLevel.DeveloperName FROM TraceFlag WHERE Id='${created}'`,
             true,
         );
-        const ok = row && row.TracedEntityId === target.Id && row.DebugLevelId === level.Id && row.LogType === 'USER_DEBUG';
+        const ok =
+            row && row.TracedEntityId === target.Id && row.DebugLevelId === level.Id && row.LogType === 'USER_DEBUG';
         console.log(`trace flag ${created} in org:`, ok ? 'OK' : 'MISMATCH', JSON.stringify(row));
         failed = !ok;
 
@@ -62,7 +69,10 @@ const query = (soql, tooling) =>
     } finally {
         if (created) {
             await Service.deleteTraceFlag(created);
-            console.log('cleanup: remaining rows =', query(`SELECT Id FROM TraceFlag WHERE Id='${created}'`, true).length);
+            console.log(
+                'cleanup: remaining rows =',
+                query(`SELECT Id FROM TraceFlag WHERE Id='${created}'`, true).length,
+            );
         }
     }
     process.exit(failed ? 1 : 0);

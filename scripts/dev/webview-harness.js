@@ -17,7 +17,9 @@ const webviewDir = path.join(root, 'dist', 'webview');
 const port = Number(process.argv[2]) || 8767;
 const nonce = 'harness-nonce';
 
-const bridge = fs.readFileSync(path.join(root, 'src/utils/webview.ts'), 'utf8').match(/const BRIDGE_SCRIPT = `([\s\S]*?)`;/)?.[1];
+const bridge = fs
+    .readFileSync(path.join(root, 'src/utils/webview.ts'), 'utf8')
+    .match(/const BRIDGE_SCRIPT = `([\s\S]*?)`;/)?.[1];
 if (!bridge) throw new Error('BRIDGE_SCRIPT not found in src/utils/webview.ts');
 
 const csp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'none';" />`;
@@ -72,5 +74,7 @@ http.createServer((req, res) => {
         res.writeHead(404).end('not found');
         return;
     }
-    res.writeHead(200, { 'Content-Type': types[path.extname(file)] ?? 'application/octet-stream' }).end(fs.readFileSync(file));
+    res.writeHead(200, { 'Content-Type': types[path.extname(file)] ?? 'application/octet-stream' }).end(
+        fs.readFileSync(file),
+    );
 }).listen(port, () => console.log(`Harness: http://localhost:${port}/harness.html (Ctrl+C to stop)`));
