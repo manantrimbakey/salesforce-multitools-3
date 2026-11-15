@@ -42,7 +42,9 @@ export function isHostMessage(value: unknown): value is HostMessage {
     if (!isRecord(value)) return false;
     switch (value.command) {
         case 'refreshTheme':
-            return isRecord(value.data) && (typeof value.data.theme === 'string' || typeof value.data.theme === 'number');
+            return (
+                isRecord(value.data) && (typeof value.data.theme === 'string' || typeof value.data.theme === 'number')
+            );
         case 'setActiveComponent':
             return typeof value.component === 'string';
         case 'componentFileSwitcherRefresh':

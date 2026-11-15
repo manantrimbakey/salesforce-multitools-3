@@ -30,7 +30,9 @@ export function soqlLikeEscape(value: string): string {
 
 function isWithin(parent: string, child: string): boolean {
     const relative = path.relative(parent, child);
-    return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+    return (
+        relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative))
+    );
 }
 
 /** Resolve symlinks; a path that does not exist yet falls back to its lexical form. */

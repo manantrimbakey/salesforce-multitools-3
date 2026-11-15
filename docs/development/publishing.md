@@ -20,7 +20,12 @@ npm install -g @vscode/vsce
 vsce --version
 ```
 
-`pnpm run vscode:package` calls the bare `vsce` command, so it needs this on `PATH`.
+`pnpm run vscode:package` calls the bare `vsce` command, so it needs this on `PATH`. Open VSX needs `ovsx` the same way:
+
+```bash
+npm install -g ovsx
+ovsx login manantrimbakey        # paste the Open VSX token (create at https://open-vsx.org -> Settings -> Access Tokens)
+```
 
 ## 0. Know the rules
 
@@ -65,9 +70,9 @@ Smoke test in VS Code before publishing: `F5` in this repo, or install the `.vsi
 
 1. Sign in at https://dev.azure.com with the Microsoft account that owns the publisher.
 2. Top right: **User settings -> Personal access tokens -> New Token**.
-   - Organization: **All accessible organizations**
-   - Scopes: **Custom defined -> Show all scopes -> Marketplace -> Manage**
-   - Expiry: 30-90 days. Copy the token once; keep it in a password manager, never in the repo or in chat.
+    - Organization: **All accessible organizations**
+    - Scopes: **Custom defined -> Show all scopes -> Marketplace -> Manage**
+    - Expiry: 30-90 days. Copy the token once; keep it in a password manager, never in the repo or in chat.
 3. Check the publisher exists and you can manage it: https://marketplace.visualstudio.com/manage/publishers/manantrimbakey
    (create one there if not; the id must equal `publisher` in `package.json`).
 
@@ -79,6 +84,24 @@ vsce verify-pat manantrimbakey   # should say the PAT is valid
 ```
 
 Or set it per command: `VSCE_PAT=<token> vsce publish ...` (do not put it in shell history permanently).
+
+## Automated release (steps 5 to 9 in one command)
+
+From a clean, up to date `master` with the version and `CHANGELOG.md` already bumped (step 1) and both logins done:
+
+```bash
+pnpm run release              # dry run: preflight, build, package, prints what it would do
+pnpm run release -- --yes     # publish to Marketplace + Open VSX, tag, push tag, GitHub release
+```
+
+Flags: `--skip-marketplace`, `--skip-openvsx`, `--skip-tests`. Tokens come from the stored `vsce`/`ovsx` logins or the
+`VSCE_PAT` / `OVSX_PAT` environment variables; never pass them as arguments.
+
+What it checks: on `master`, clean tree, equal to `origin/master`, `package.json` and `client/package.json` versions match,
+`CHANGELOG.md` has the section, tag not present. It reads the live version from each registry, skips one that already has
+this version (so a half-failed run can be re-run) and refuses if a registry has a newer one. It builds one `.vsix`, rejects
+it if it contains maps, `src/`, `docs/` or `node_modules`, and publishes that same file to both registries. The manual
+steps below remain as a fallback.
 
 ## 5. Package
 
@@ -116,19 +139,22 @@ version and commits/tags on its own.) No-CLI alternative: https://marketplace.vi
 2. GitHub release: `gh release create vX.Y.Z salesforce-multitools.vsix --title vX.Y.Z --notes-file <changelog section>`.
 3. Leave `[Unreleased]` ready for the next change; bump the next version only when you start a release.
 
-## 9. Optional: Open VSX (VSCodium and others)
+## 9. Open VSX (VSCodium and others)
 
-Create a token at https://open-vsx.org, claim the namespace once, then `npx ovsx publish salesforce-multitools.vsix -p <token>`.
+Namespace `manantrimbakey`; page https://open-vsx.org/extension/manantrimbakey/salesforce-multitools-3. Publish the same
+file: `ovsx publish salesforce-multitools-X.Y.Z.vsix` (uses `ovsx login` or `OVSX_PAT`). The namespace was created under an
+auto-generated GitHub login (`manantrimbakey-hash`); changing the linked account is tracked in
+https://github.com/EclipseFdn/open-vsx.org/issues/5843. Until ownership is claimed, versions may show as unverified.
 
 ## Troubleshooting
 
-| Symptom | Cause / fix |
-| --- | --- |
-| `Version number X is already used` / `already exists` | Bump the version; published versions are immutable |
-| `401` / `403` / `TF400813` | PAT expired, wrong scope (needs Marketplace -> Manage) or not "All accessible organizations" |
-| `The Personal Access Token verification has failed` | Re-create the token; log in again with the exact publisher id |
-| Publisher not found | Create it at marketplace.visualstudio.com/manage; id must match `package.json` |
-| README images broken on the page | Repo private, wrong `repository` URL, or `asset/` not committed |
-| Old repository link on the page | The published package was built before `repository` was fixed; publish a new version |
-| `pnpm` / `node` not found | Run the `export PATH=...` line above (nvm is not on a bare `PATH`) |
-| Wrong version published | Cannot overwrite. Publish a higher version; use `vsce unpublish` only as a last resort (it removes the extension) |
+| Symptom                                               | Cause / fix                                                                                                       |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `Version number X is already used` / `already exists` | Bump the version; published versions are immutable                                                                |
+| `401` / `403` / `TF400813`                            | PAT expired, wrong scope (needs Marketplace -> Manage) or not "All accessible organizations"                      |
+| `The Personal Access Token verification has failed`   | Re-create the token; log in again with the exact publisher id                                                     |
+| Publisher not found                                   | Create it at marketplace.visualstudio.com/manage; id must match `package.json`                                    |
+| README images broken on the page                      | Repo private, wrong `repository` URL, or `asset/` not committed                                                   |
+| Old repository link on the page                       | The published package was built before `repository` was fixed; publish a new version                              |
+| `pnpm` / `node` not found                             | Run the `export PATH=...` line above (nvm is not on a bare `PATH`)                                                |
+| Wrong version published                               | Cannot overwrite. Publish a higher version; use `vsce unpublish` only as a last resort (it removes the extension) |

@@ -11,18 +11,19 @@ Read before working: `tasks/lessons.md` (mistakes already made once), `tasks/tod
 Node comes from nvm (no `node`/`pnpm` on a bare PATH). Package manager is **pnpm 11** (corepack). Root `pnpm install`
 also installs `client/` (postinstall).
 
-| Task | Command |
-| --- | --- |
-| Type check / lint (extension) | `pnpm run check-types`, `pnpm run lint` |
-| Client type check / lint | `cd client && npx tsc --noEmit -p tsconfig.app.json && npx eslint .` |
-| Build webview | `pnpm run build:client` (writes `dist/webview`, must run before F5 / packaging) |
-| Build extension | `node esbuild.js` (writes `dist/extension.js` + `dist/sfcore.js`) |
-| Full package | `pnpm run package` |
-| Unit tests (fast, no VS Code) | `bash scripts/dev/run-unit-tests.sh` |
-| Full tests | `pnpm test` (vscode-test: downloads VS Code, needed for `extension.test.ts`) |
-| Webview in a browser | `node scripts/dev/webview-harness.js` then open `/harness.html` |
-| Real-org check (writes!) | `node scripts/dev/org-check.js <alias> <projectDir> --yes` |
-| Move Dependabot PRs to `dev2` | `bash scripts/dev/retarget-dependabot-prs.sh --apply` (omit `--apply` for a dry run) |
+| Task                                                    | Command                                                                              |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Type check / lint (extension)                           | `pnpm run check-types`, `pnpm run lint`                                              |
+| Client type check / lint                                | `cd client && npx tsc --noEmit -p tsconfig.app.json && npx eslint .`                 |
+| Build webview                                           | `pnpm run build:client` (writes `dist/webview`, must run before F5 / packaging)      |
+| Build extension                                         | `node esbuild.js` (writes `dist/extension.js` + `dist/sfcore.js`)                    |
+| Full package                                            | `pnpm run package`                                                                   |
+| Release (Marketplace + Open VSX + tag + GitHub release) | `pnpm run release` (dry run), `pnpm run release -- --yes` to publish                 |
+| Unit tests (fast, no VS Code)                           | `bash scripts/dev/run-unit-tests.sh`                                                 |
+| Full tests                                              | `pnpm test` (vscode-test: downloads VS Code, needed for `extension.test.ts`)         |
+| Webview in a browser                                    | `node scripts/dev/webview-harness.js` then open `/harness.html`                      |
+| Real-org check (writes!)                                | `node scripts/dev/org-check.js <alias> <projectDir> --yes`                           |
+| Move Dependabot PRs to `dev2`                           | `bash scripts/dev/retarget-dependabot-prs.sh --apply` (omit `--apply` for a dry run) |
 
 F5 ("Run Extension") runs the `watch` task: `build:client` once, then `watch:tsc` + `watch:esbuild`. Client edits need a
 rebuild (`pnpm run build:client`, or `pnpm run watch:client`) then **Developer: Reload Window** in the dev host.
@@ -82,5 +83,7 @@ exercised in a real VS Code host (F5) must be listed as unverified. Open items l
 - 4-space indent, single quotes, 120 cols (see `.prettierrc`), strict TypeScript, ESLint flat config.
 - Services/pure logic get unit tests (`src/test/*.test.ts`, mocha TDD style: `suite`/`test`). Pure tests must not need
   VS Code beyond what `scripts/dev/vscode-stub.js` provides.
+- A pre-commit hook (`.githooks/pre-commit`, wired by `pnpm install` via `core.hooksPath`) formats staged files with
+  `prettier --end-of-line auto` (keeps each file's LF/CRLF) and skips files with unstaged hunks. Bypass: `git commit --no-verify`.
 - Behavior changes go in `CHANGELOG.md` under `[Unreleased]`; keep `docs/` in sync.
 - Commit messages: short imperative subject, wrapped body grouped by Security / Fixes / Performance / Tooling.

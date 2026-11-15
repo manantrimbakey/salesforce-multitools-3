@@ -24,10 +24,11 @@ export function useVsCodeTheme(): Theme {
     useHostMessage('refreshTheme', (message) => setHostMode(modeFromHostTheme(message.data.theme)));
 
     useEffect(() => {
-        const refresh = () => setBuilt((prev) => {
-            const next = build(hostMode);
-            return next.signature === prev.signature ? prev : next;
-        });
+        const refresh = () =>
+            setBuilt((prev) => {
+                const next = build(hostMode);
+                return next.signature === prev.signature ? prev : next;
+            });
         refresh();
 
         let frame = 0;
