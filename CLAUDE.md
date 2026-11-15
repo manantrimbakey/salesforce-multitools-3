@@ -85,5 +85,6 @@ exercised in a real VS Code host (F5) must be listed as unverified. Open items l
   VS Code beyond what `scripts/dev/vscode-stub.js` provides.
 - A pre-commit hook (`.githooks/pre-commit`, wired by `pnpm install` via `core.hooksPath`) formats staged files with
   `prettier --end-of-line auto` (keeps each file's LF/CRLF) and skips files with unstaged hunks. Bypass: `git commit --no-verify`.
-- Behavior changes go in `CHANGELOG.md` under `[Unreleased]`; keep `docs/` in sync.
+- User-visible changes go in `CHANGELOG.md` under `[Unreleased]`, in plain language, grouped as Features / Optimizations / Bug fixes.
+  No tooling, docs or internal refactors there. Keep `docs/` in sync.
 - Commit messages: short imperative subject, wrapped body grouped by Security / Fixes / Performance / Tooling.

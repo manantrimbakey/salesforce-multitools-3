@@ -74,6 +74,12 @@ bash scripts/dev/retarget-dependabot-prs.sh --apply    # base -> dev2 (use --bas
 
 It only touches open PRs authored by Dependabot, needs `gh`, and is safe to rerun.
 
+This also runs automatically: `.github/workflows/retarget-dependabot.yml` retargets each new Dependabot PR to `dev2` when it
+is opened or reopened (`pull_request_target`, so it gets a write token; it never checks out or runs PR code). The workflow
+file must be on `master` to take effect. **Actions -> Retarget Dependabot PRs -> Run workflow** backfills open PRs that
+still point at `master`. Repo setting needed: Settings -> Actions -> General -> Workflow permissions must allow the
+workflow's `pull-requests: write` (the file requests it explicitly; org-level "read only" defaults can still block it).
+
 ## Git hooks
 
 `pnpm install` runs the `prepare` script, which sets `core.hooksPath` to `.githooks`. The `pre-commit` hook runs Prettier on
