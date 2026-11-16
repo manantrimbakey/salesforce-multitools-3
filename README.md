@@ -34,7 +34,7 @@ See who modified your code last and when, get notified and blame them!
 - Track who last modified each Salesforce component
 - Displays timestamps of when changes were made
 - Integrates with CodeLens for in-line visibility
-- Automatic refresh at configurable intervals
+- Automatic refresh at configurable intervals (`salesforceMultitools-3.lastModifiedAutoRefreshInterval`, default 15 seconds, `0` turns it off). Refreshing pauses while the window is not focused
 
 ![Last Modified Details](./asset/Last_Modified_Details.gif)
 
@@ -43,10 +43,12 @@ See who modified your code last and when, get notified and blame them!
 Fetch and analyze Salesforce debug logs with enhanced filtering and UI:
 
 - **Command**: Use `Salesforce Multitool: Open Debug Logs` or from the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`)
-- User-specific log filtering with typeahead search
+- User-specific log filtering with typeahead search, plus filtering by log size (above or below a size you choose)
 - Interactive log viewer with method name tracking
 - Responsive table with tooltips and optimized layout
-- One-click download and open in VS Code
+- One-click download and open in VS Code; downloaded logs are saved in your project (`.sfdx/_multi-tool/debug-logs`) so reopening is instant
+- Delete one log, all logs, or all logs of one user (more than 2000 at once is fine); you are asked to confirm first
+- **Start and stop logging for a user** right from the toolbar. Pick the debug level to use: one of your org's existing debug levels or the built-in default (a lighter level that keeps logs small). Your choice is remembered, and the level in use is shown next to each active trace flag
 
 ![Debug Logs Fetcher](./asset/Debug_Logs_Fetcher.gif)
 
@@ -57,20 +59,23 @@ Fetch and analyze Salesforce debug logs with enhanced filtering and UI:
 ## 💯 Requirements
 
 - VS Code 1.90.0+
-- Salesforce CLI
+- Salesforce CLI, with an authorized org. The extension uses your project's default org (`target-org` in `.sf/config.json`, or `defaultusername` in `.sfdx/sfdx-config.json`) and falls back to your global setting
+- The extension starts only in Salesforce projects, meaning workspaces that contain `.sf/config.json` or `.sfdx/sfdx-config.json`
 
 ## 🤓 Installation 🤓
 
-Available from the VS Code Marketplace or download the VSIX file from releases.
+Available from the VS Code Marketplace and Open VSX, or download the VSIX file from the GitHub releases.
 
 ## 🛠️ Want to Contribute? 🛠️
 
 ### Build from source:
 
 1. Clone the repo
-2. `npm install` to get dependencies
-3. `npm run compile` to build
+2. `pnpm install` to get dependencies
+3. `pnpm run compile` to build
 4. Press F5 to start debugging
+
+See [docs/development/building.md](./docs/development/building.md) for details.
 
 ---
 

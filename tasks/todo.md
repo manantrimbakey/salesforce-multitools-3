@@ -46,4 +46,4 @@ Org check (4rst dev edition, real service code + independent `sf` queries): list
 - [x] `CLAUDE.md` (commands, architecture, rules, verification) + `docs/development/{building,gotchas}.md` + `docs/features/debug-logs.md`; overview and index updated
 - [x] `scripts/dev/`: `run-unit-tests.sh` + `vscode-stub.js`, `webview-harness.js`, `org-check.js` (all run once successfully; org-check is opt-in and writes to the org)
 - [ ] Fix the docs index: it still links pages that do not exist (getting-started, configuration, tech-stack, component-structure, communication-flow, setup, contributing)
-- [ ] `.prettierrc` `endOfLine` is `crlf` but the repo is mostly LF; decide and normalize
+- [x] Line endings: LF everywhere (`.gitattributes`, `.editorconfig`, `.prettierrc`, hook, 10 CRLF files converted)
