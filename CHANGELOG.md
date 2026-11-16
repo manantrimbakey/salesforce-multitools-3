@@ -4,118 +4,100 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ## [Unreleased]
 
-### Added
+### Tooling
 
-- Pre-commit hook (`.githooks/pre-commit`, enabled by `pnpm install`) that runs Prettier on staged files and re-stages them, keeping each file's line endings
-- `pnpm run release` (`scripts/dev/release.sh`): builds one `.vsix` from `master` and publishes it to the VS Code Marketplace and Open VSX, then tags and creates the GitHub release; dry run unless `--yes`
+- All files use LF line endings, enforced by `.gitattributes`, `.editorconfig` and Prettier; the pre-commit hook formats with LF
 
 ## [0.7.1]
 
-### Fixed
+### Bug fixes
 
-- Package metadata now points at this repository: the Marketplace page, README images and issue links no longer use the old repository
-
-### Added
-
-- Publishing guide (`docs/development/publishing.md`) and a script that retargets Dependabot pull requests to `dev2`
-
-### Changed
-
-- `vsce` is installed globally instead of being a project dependency
+- The Marketplace page, README images and issue links now point to the right repository
 
 ## [0.7.0]
 
-### Added
+### Features
 
-- Choose the debug level when starting logging for a user: pick one of the org's existing debug levels or the built-in default; the choice is remembered, and the level in use is shown for active trace flags
-- Developer docs (`CLAUDE.md`, `docs/development`) and scripts for unit tests, a browser webview harness and an opt-in real-org check
+- Choose the debug level when you start logging for a user: pick one of the org's debug levels or the built-in default. Your choice is remembered, and the level in use is shown for active trace flags
+- The default debug level for new trace flags is lighter, so logs are smaller and easier to read
+- The `Alt+O` / `Option+O` component switch shortcut now only works while you are editing a Lightning component file
+- The extension now only starts in Salesforce projects (workspaces with `.sfdx/sfdx-config.json` or `.sf/config.json`)
+- Removed the `Get Last Modified Info` command (use `Refresh Last Modified Info`) and the separate activity bar container (the Explorer view stays)
 
-### Security
+### Optimizations
 
-- Removed the localhost Express server; webviews now talk to the extension through postMessage RPC
-- Validate Salesforce ids, escape SOQL input and restrict file access to the workspace
-- Nonce-based webview CSP without `unsafe-eval` and without remote images
-- File browsing/opening resolves symlinks, so a link inside the workspace cannot reach files outside it
+- Faster startup: the extension loads much less code when it starts
+- Last-modified updates pause while the window is not in focus
+- Smoother component switcher and a faster debug log screen
 
-### Fixes
+### Bug fixes
 
-- Log level and auto-refresh settings now apply when changed (wrong settings namespace)
+- Log level and auto-refresh settings now take effect as soon as you change them
 - Errors are no longer lost in the output log
-- Bulk delete handles more than 2000 logs; single log delete now works
-- Component switcher resolves the right folder for files in subfolders
-- Custom object last-modified lookup uses the correct DeveloperName
-- Default org resolution supports `target-org` (`.sf/config.json`), usernames and global config
-- Bulk delete also removes the locally cached copies of the deleted logs
-- Stopping logging only needs the trace flag id
-
-### Changed
-
-- Default debug level for new trace flags is lighter (Apex `FINE`, System `DEBUG`, the rest `INFO`) instead of everything at `FINEST`; it is created as `SF_Multitools_Debug_v2`
-- The `Alt+O` / `Option+O` component switch shortcut only applies while editing a Lightning component file
-
-### Removed
-
-- The `Get Last Modified Info` command (`salesforce-multitools-3.getLastModifiedInfo`); use `Refresh Last Modified Info`
-- The extension no longer activates on startup in every workspace; it activates only when the workspace has `.sfdx/sfdx-config.json` or `.sf/config.json`
-- The separate Salesforce Multitools activity bar container (the Explorer view remains)
-
-### Performance
-
-- Activates only in projects with `.sfdx/sfdx-config.json` or `.sf/config.json`; `@salesforce/core` loads lazily
-- One shared Salesforce connection; last-modified polling pauses while the window is unfocused (default 15s)
-- Debounced component switcher refresh; virtualized and lazy-loaded webview UI
-- `@salesforce/core` is built as a separate lazily loaded bundle, shrinking the extension entry bundle from about 2.1 MB to about 50 KB
+- Deleting more than 2000 logs works, and deleting a single log now works
+- Deleting logs also removes their locally saved copies
+- Stopping logging now works reliably
+- The component switcher finds the right folder for files in subfolders
+- Last-modified info for custom objects is now correct
+- The default org is found correctly from `target-org`, usernames and the global config
+- Improved security: input from the debug log screen is validated, and the extension can no longer open files outside your workspace
 
 ## [0.6.0]
 
-### Updated
+### Features
 
-- Added feature to start or stop logging on the user
+- Start or stop logging for a user
 
 ## [0.4.1]
 
-### Fixes
+### Optimizations
 
-- Throttled the concurrent method name fetching
-- Improved the functionality to fetch method names from the log
-- Enabled storage of log in project folder itself
+- Method names in debug logs load faster and put less load on the org
+
+### Bug fixes
+
+- Method names are now read from logs more reliably
+
+### Features
+
+- Debug logs are saved in your project folder
 
 ## [0.4.0]
 
-### Updated
+### Optimizations
 
-- Fixed issue where last modified details were not being refreshed correctly and performance improvements
+- Faster last-modified updates
+
+### Bug fixes
+
+- Last-modified details now refresh correctly
 
 ## [0.3.0]
 
-### Updated
+### Features
 
-- UI enhancements for the debug log fetcher
-
-## [0.2.1]
-
-### Updated
-
-- Updated the readme for the extension
+- Improved debug log fetcher UI
 
 ## [0.2.0]
 
-### Added
+### Features
 
-- Log size filtering feature to filter debug logs above or below a specified size
-- Improved performance with lazy loading for method name display using Intersection Observer
+- Filter debug logs by size (above or below a given size)
 
-### Improved
+### Optimizations
 
-- Enhanced UI feedback during loading and deletion operations
-- Fixed memory leaks by properly handling cleanup of async operations
-- Better responsive design for Debug Log table
+- Method names load lazily, only when visible
+- Better loading and deletion feedback, and a more responsive debug log table
+
+### Bug fixes
+
+- Fixed a memory leak
 
 ## [0.1.0]
 
-### Added
+### Features
 
-- Ability to delete debug logs for individual users or all users directly from the Debug Log Fetcher UI.
+- Delete debug logs for one user or all users from the Debug Log Fetcher
 
 ## []
 
