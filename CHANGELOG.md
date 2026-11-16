@@ -4,6 +4,10 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ## [Unreleased]
 
+### Tooling
+
+- All files use LF line endings, enforced by `.gitattributes`, `.editorconfig` and Prettier; the pre-commit hook formats with LF
+
 ## [0.7.1]
 
 ### Bug fixes

@@ -56,8 +56,8 @@ More: `docs/architecture/overview.md`, `docs/features/debug-logs.md`.
 3. **Keep `@salesforce/core` lazy.** Use `require('@salesforce/core')` in `sfutils.ts`, never `import()` (see gotchas) and
    never a static value import elsewhere (type-only imports are fine).
 4. **One vendor chunk** in `client/vite.config.ts`. Do not split react/mui/emotion into separate chunks.
-5. **Line endings**: the repo is mixed (most files LF, some CRLF) and `.prettierrc` says `crlf`. Never run Prettier
-   without `--end-of-line lf` on LF files, and never commit whole-file line-ending churn. Check with
+5. **Line endings**: everything is LF (`.gitattributes` `eol=lf`, `.editorconfig`, `.prettierrc` `endOfLine: lf`). Never
+   commit CRLF or whole-file line-ending churn. Check with
    `git diff --stat` and `git diff --ignore-cr-at-eol --stat`.
 6. Do not run `git stash` to inspect state (it unstages). Use `git status` / `git diff`.
 7. Org-writing checks (trace flags, deletes) only on orgs the user owns and named; clean up what you create.
@@ -84,7 +84,7 @@ exercised in a real VS Code host (F5) must be listed as unverified. Open items l
 - Services/pure logic get unit tests (`src/test/*.test.ts`, mocha TDD style: `suite`/`test`). Pure tests must not need
   VS Code beyond what `scripts/dev/vscode-stub.js` provides.
 - A pre-commit hook (`.githooks/pre-commit`, wired by `pnpm install` via `core.hooksPath`) formats staged files with
-  `prettier --end-of-line auto` (keeps each file's LF/CRLF) and skips files with unstaged hunks. Bypass: `git commit --no-verify`.
+  `prettier --end-of-line lf` and skips files with unstaged hunks. Bypass: `git commit --no-verify`.
 - User-visible changes go in `CHANGELOG.md` under `[Unreleased]`, in plain language, grouped as Features / Optimizations / Bug fixes.
   No tooling, docs or internal refactors there. Keep `docs/` in sync.
 - Commit messages: short imperative subject, wrapped body grouped by Security / Fixes / Performance / Tooling.

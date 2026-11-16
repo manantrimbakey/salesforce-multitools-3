@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Format staged files with Prettier and re-stage them. Enabled by `pnpm install` (prepare script sets core.hooksPath).
-# Uses --end-of-line auto so each file keeps its current line endings (the repo mixes LF and CRLF). Skip: git commit --no-verify
+# Uses --end-of-line lf (the repo is LF-only, see .gitattributes). Skip: git commit --no-verify
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -30,7 +30,7 @@ done < <(git diff --cached --name-only --diff-filter=ACMR -z)
 [ "${#files[@]}" -gt 0 ] || exit 0
 
 before="$(git diff --name-only -z | tr '\0' '\n')"
-node_modules/.bin/prettier --write --end-of-line auto --ignore-unknown --log-level warn -- "${files[@]}"
+node_modules/.bin/prettier --write --end-of-line lf --ignore-unknown --log-level warn -- "${files[@]}"
 changed="$(git diff --name-only -z | tr '\0' '\n')"
 if [ "$changed" != "$before" ]; then
     mapfile -t reformatted < <(comm -13 <(echo "$before" | sort) <(echo "$changed" | sort))

@@ -83,8 +83,8 @@ workflow's `pull-requests: write` (the file requests it explicitly; org-level "r
 ## Git hooks
 
 `pnpm install` runs the `prepare` script, which sets `core.hooksPath` to `.githooks`. The `pre-commit` hook runs Prettier on
-staged `ts/tsx/js/jsx/json/md/css/html` files and re-stages them. It passes `--end-of-line auto`, so a file keeps its own
-LF or CRLF endings (the repo is mixed; `.prettierrc` says `crlf`). Files that also have unstaged changes are skipped with a
+staged `ts/tsx/js/jsx/json/md/css/html` files and re-stages them. It passes `--end-of-line lf`; the repo is LF-only
+(`.gitattributes`, `.editorconfig`, `.prettierrc`). Files that also have unstaged changes are skipped with a
 warning, so the hook never stages hunks you left out. Prettier formats whole files: touching an unformatted file adds
 formatting changes to the commit. Bypass with `git commit --no-verify`.
 
