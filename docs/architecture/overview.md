@@ -105,7 +105,7 @@ uses `connect-src 'none'`.
 
 ## Bundling and lazy loading
 
-`node esbuild.js` produces two bundles. `dist/extension.js` (about 50 KB) is the extension itself.
+`node esbuild.js` produces two bundles. `dist/extension.js` (about 280 KB, mostly the bundled `fast-xml-parser`) is the extension itself.
 `dist/sfcore.js` (about 2 MB) holds `@salesforce/core` and jsforce and is loaded with a plain `require` the first time
 an org connection is needed (`SFUtils.loadCore`), so activation stays cheap. Use `require`, not `import()`: an
 `import()` of the externalised CJS file loses its named exports. The webview is built by Vite into `dist/webview`

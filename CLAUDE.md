@@ -37,7 +37,7 @@ credentials, so the user runs `vsce publish` themselves.
 - No HTTP server. Webviews call `window.callServerApi(endpoint, method, data)` (postMessage RPC, bridge injected by
   `src/utils/webview.ts`). Host side: `src/rpc/{router,routes,attachRpc}.ts`. Routes are thin, work lives in `src/services/*`.
 - `@salesforce/core` is built into its own file `dist/sfcore.js` and loaded lazily with `require` in
-  `src/utils/sfutils.ts` (keeps activation at ~50 KB instead of ~2 MB). One shared connection, resolved from
+  `src/utils/sfutils.ts` (keeps activation at ~280 KB instead of ~2 MB; `fast-xml-parser` is bundled into `extension.js`, 50 KB before it). One shared connection, resolved from
   `.sf/config.json` / `.sfdx/sfdx-config.json` (`target-org`, `defaultusername`) then the global config.
 - Debug logs: `DebugLogService` (list/delete/trace flags/debug levels), `LogStorage` (cache in
   `<workspace>/.sfdx/_multi-tool/debug-logs/<org>/`), `logBodyClient` (streamed bodies).
@@ -63,12 +63,19 @@ More: `docs/architecture/overview.md`, `docs/features/debug-logs.md`, `docs/feat
    commit CRLF or whole-file line-ending churn. Check with
    `git diff --stat` and `git diff --ignore-cr-at-eol --stat`.
 6. Do not run `git stash` to inspect state (it unstages). Use `git status` / `git diff`.
-7. Org-writing checks (trace flags, deletes) only on orgs the user owns and named; clean up what you create.
+7. Org-writing checks (trace flags, deletes, deploying dummy metadata) only on orgs the user owns and named, and only when
+   they allow it; clean up what you create and verify it is gone.
+8. **Do not commit unless told**, and never add yourself as author: no `Co-Authored-By` trailer on commits and no
+   "Generated with Claude Code" footer on PRs. The user is the author; this overrides default attribution. Commit with the
+   repo git identity (see `tasks/lessons.md`), after the user says so. Never commit generated output (`out/`, `dist/`).
+9. Verify SOQL / metadata assumptions against a real org before trusting them (`SetupEntityAccess.SetupEntityType` is
+   `FlowDefinition` / `TabSet` / `CustomEntityDefinition`, not SObject names; `EntityDefinition` hides some custom settings).
 
 ## Branches and release flow
 
 Work lands on **`dev2`**, is promoted **`dev2` -> `dev1` -> `master`**, in that order. Never skip a stage, never commit
-or merge straight into `dev1` or `master` from a feature branch, and never push or open PRs unless asked. Check where a
+or merge straight into `dev1` or `master` from a feature branch, and never push or open PRs unless asked. Feature work: branch off `dev2`, PR into `dev2`, delete the branch after the
+merge (local and remote). Merge a PR only when asked. Check where a
 change stands with `git rev-list --count origin/dev1..origin/dev2` and `git rev-list --count origin/master..origin/dev1`.
 (`dev_new` and `dev_log_viewer` are old feature branches kept for history.) `master` is what users see on GitHub.
 Dependabot security-update PRs always target `master` (GitHub ignores `target-branch` for them); run
@@ -78,16 +85,19 @@ merging into it needs the owner's admin bypass; do not use `--admin` or edit rul
 ## Verification before calling something done
 
 `tsc` + `eslint` + unit tests are necessary, not sufficient. Webview changes: build and run the harness in a browser
-(catches blank-page crashes and CSP issues). Org-facing changes: run `org-check.js` against a dev org. Anything not
+(catches blank-page crashes and CSP issues; `harness.html?c=<component>` picks the component). Org-facing changes: run
+`org-check.js` (debug logs) or `permission-compare-check.js` (permission compare) against a dev org. Anything not
 exercised in a real VS Code host (F5) must be listed as unverified. Open items live in `tasks/todo.md`.
 
 ## Conventions
 
 - 4-space indent, single quotes, 120 cols (see `.prettierrc`), strict TypeScript, ESLint flat config.
 - Services/pure logic get unit tests (`src/test/*.test.ts`, mocha TDD style: `suite`/`test`). Pure tests must not need
-  VS Code beyond what `scripts/dev/vscode-stub.js` provides.
+  VS Code beyond what `scripts/dev/vscode-stub.js` provides. `run-unit-tests.sh` compiles to a temp dir, so runtime
+  dependencies resolve through `NODE_PATH` (already set in the script).
 - A pre-commit hook (`.githooks/pre-commit`, wired by `pnpm install` via `core.hooksPath`) formats staged files with
   `prettier --end-of-line lf` and skips files with unstaged hunks. Bypass: `git commit --no-verify`.
 - User-visible changes go in `CHANGELOG.md` under `[Unreleased]`, in plain language, grouped as Features / Optimizations / Bug fixes.
-  No tooling, docs or internal refactors there. Keep `docs/` in sync.
+  Only what an extension user sees: no tooling, dev scripts, docs, line endings, dependency bumps or internal refactors, and
+  no "Tooling" heading. Keep `docs/` and `README.md` (public, user-facing) in sync.
 - Commit messages: short imperative subject, wrapped body grouped by Security / Fixes / Performance / Tooling.

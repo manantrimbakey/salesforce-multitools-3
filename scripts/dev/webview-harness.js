@@ -31,17 +31,23 @@ const debugLevels = [
   { Id: '7dl000000000002AAA', DeveloperName: 'Finest_All', MasterLabel: 'Finest All' },
 ];
 const permEntries = [
-  { section: 'object', key: 'Account', status: 'changed', left: { read: true, edit: true }, right: { read: true, delete: true }, changes: [{ perm: 'delete', left: false, right: true }, { perm: 'edit', left: true, right: false }] },
-  { section: 'object', key: 'Lead', status: 'removed', left: { read: true }, changes: [] },
+  { section: 'object', key: 'Account', status: 'changed', left: { read: true, edit: true }, right: { read: true, edit: true, delete: true }, changes: [{ perm: 'delete', left: false, right: true }] },
+  { section: 'object', key: 'Contact', status: 'changed', left: { read: true }, right: { read: true, create: true, edit: true }, changes: [{ perm: 'create', left: false, right: true }, { perm: 'edit', left: false, right: true }] },
+  { section: 'object', key: 'Lead', status: 'removed', left: { read: true, edit: true }, changes: [] },
+  { section: 'object', key: 'Opportunity', status: 'added', right: { read: true, create: true, edit: true }, changes: [] },
   { section: 'field', key: 'Account.Industry', status: 'added', right: { read: true, edit: true }, changes: [] },
-  { section: 'system', key: 'ViewSetup', status: 'removed', left: { enabled: true }, changes: [] },
+  { section: 'field', key: 'Contact.Email', status: 'changed', left: { read: true, edit: true }, right: { read: true }, changes: [{ perm: 'edit', left: true, right: false }] },
+  { section: 'system', key: 'ApiEnabled', status: 'removed', left: { enabled: true }, changes: [] },
+  { section: 'system', key: 'ViewAllUsers', status: 'added', right: { enabled: true }, changes: [] },
+  { section: 'apexClass', key: 'SalesReportController', status: 'added', right: { enabled: true }, changes: [] },
   { section: 'tab', key: 'standard-Lead', status: 'changed', left: { visibility: 'Available' }, right: { visibility: 'Visible' }, changes: [{ perm: 'visibility', left: 'Available', right: 'Visible' }] },
+  { section: 'flow', key: 'Create_Followup_Task', status: 'added', right: { enabled: true }, changes: [] },
 ];
 const summary = (section, o) => ({ section, leftCount: 1, rightCount: 1, oneSided: false, added: 0, removed: 0, changed: 0, ...o });
 const answers = (endpoint, data) => {
   if (endpoint === '/api/compare/context') return { success: true, orgs: [{ username: 'ada@example.com', alias: 'dev', isDefault: true, isSandbox: false, isScratchOrg: false }], git: { available: true, refs: [{ name: 'main', kind: 'branch' }, { name: 'feature/x', kind: 'branch' }], workingTreeRef: '@working-tree' } };
-  if (endpoint === '/api/compare/items') return { success: true, items: [{ id: '0PS000000000001AAA', name: 'Sales', label: 'Sales Team (Sales)', type: data.type }] };
-  if (endpoint === '/api/compare/run') return { success: true, left: { name: 'Sales', type: 'permissionset' }, right: { name: 'Sales', type: 'permissionset' }, diff: { entries: permEntries, sections: [summary('object', { changed: 1, removed: 1 }), summary('field', { added: 1 }), summary('system', { removed: 1, oneSided: true }), summary('tab', { changed: 1 })] } };
+  if (endpoint === '/api/compare/items') return { success: true, items: [{ id: '0PS000000000001AAA', name: 'Sales_Team', label: 'Sales Team (Sales_Team)', type: data.type }] };
+  if (endpoint === '/api/compare/run') return { success: true, left: { name: 'Sales_Team', type: 'permissionset' }, right: { name: 'Sales_Team', type: 'permissionset' }, diff: { entries: permEntries, sections: [summary('object', { changed: 2, removed: 1, added: 1 }), summary('field', { added: 1, changed: 1 }), summary('system', { removed: 1, added: 1 }), summary('apexClass', { added: 1, oneSided: true }), summary('tab', { changed: 1 }), summary('flow', { added: 1, oneSided: true })] } };
   if (endpoint.startsWith('/api/users')) return { success: true, users, currentUser: { display_name: 'Ada Admin', username: 'ada@example.com' } };
   if (endpoint.startsWith('/api/debugLevels')) return { success: true, debugLevels };
   if (endpoint.startsWith('/api/debugLogs')) return { success: true, logs: { records: [] } };
