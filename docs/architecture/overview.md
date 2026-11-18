@@ -24,6 +24,7 @@ salesforce-multitools-3/
 │       ├── componentFileSwitcher/    # LWC/Aura file switching
 │       ├── lastModifiedDetails/      # File modification tracking
 │       ├── debugLogs/                # Debug log viewer panel and provider
+│       ├── permissionCompare/        # Permission compare panel and command
 │       └── sidePanel/                # Sidebar webview provider
 │
 ├── client/                  # Frontend - React UI components
@@ -95,6 +96,7 @@ handlers in `src/rpc/routes.ts`. Handlers are thin; the work happens in services
 - `services/logBodyClient.ts`: streams log bodies with the connection's token
 - `services/logStorage.ts`: atomic on-disk cache under `.sfdx/_multi-tool/debug-logs/<org>/`
 - `services/apexLogParser.ts`: pure log parsing helpers
+- `services/permissionCompare/`: permission set / profile compare (org loader via SOQL, git / XML loader, normalization, semantic diff); UI in `client/src/components/permissionCompare`
 - `services/workspaceFileService.ts`: workspace restricted directory listing / file open
 
 Expected failures throw `RpcError` (message shown to the webview); unexpected errors are logged in

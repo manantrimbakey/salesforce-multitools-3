@@ -81,6 +81,12 @@
                 "title": "Open Debug Logs",
                 "category": "Salesforce Multitool",
                 "icon": "$(list-selection)"
+            },
+            {
+                "command": "salesforce-multitools-3.openPermissionCompare",
+                "title": "Compare Permission Sets / Profiles",
+                "category": "Salesforce Multitool",
+                "icon": "$(diff)"
             }
         ],
         "keybindings": [
@@ -164,6 +170,7 @@
         "typescript": "^5.8.3"
     },
     "dependencies": {
-        "@salesforce/core": "^8.10.3"
+        "@salesforce/core": "^8.10.3",
+        "fast-xml-parser": "^5.12.1"
     }
 }

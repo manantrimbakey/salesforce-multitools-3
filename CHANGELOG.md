@@ -4,6 +4,10 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ## [Unreleased]
 
+### Features
+
+- Compare permission sets and profiles: org vs org, branch vs org, or branch vs branch (also tags and your uncommitted files). Org data is read with SOQL, so it is complete, unlike a CLI retrieve. Results are shown in two columns, one per side, with differences highlighted. The diff compares the permissions actually granted, ignoring ordering, formatting and implied permissions, and you can filter by permission type, kind of difference (all / added / removed / changed) and name. Open it with `Compare Permission Sets / Profiles`
+
 ### Tooling
 
 - All files use LF line endings, enforced by `.gitattributes`, `.editorconfig` and Prettier; the pre-commit hook formats with LF

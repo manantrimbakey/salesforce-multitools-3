@@ -46,6 +46,9 @@ pnpm run build:client
 node scripts/dev/webview-harness.js 8767   # open http://localhost:8767/harness.html
 ```
 
+The harness opens the debug log UI by default; add `?c=permissionCompare` (any key of `COMPONENTS` in
+`client/src/components/mainBody/mainBody.tsx`) to open another component.
+
 The harness injects the same CSP and bridge script the extension does and mocks `acquireVsCodeApi`, so crashes such
 as circular chunks or CSP violations show up in the browser console. `window.__posts` holds every message the page
 posted (assert request bodies there). Edit the canned responses in `scripts/dev/webview-harness.js` as needed.
@@ -92,3 +95,11 @@ formatting changes to the commit. Bypass with `git commit --no-verify`.
 
 `pnpm run package` (type check, lint, client build, minified bundles). `.vscodeignore` keeps `src`, `client`, `docs`,
 `scripts`, `tasks` and `CLAUDE.md` out of the `.vsix`; only `dist/` and `resources/` ship.
+
+Permission compare has its own read-only check (SOQL only, nothing is written; deploy two throwaway permission sets and
+a git repo holding their XML first):
+
+```bash
+pnpm run compile-tests
+node scripts/dev/permission-compare-check.js <orgAlias> <gitProjectDir> <permSetA> <permSetB>
+```
