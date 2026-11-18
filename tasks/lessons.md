@@ -14,3 +14,4 @@
 - Do not commit (or branch-commit) unless the user says so; the user is the author. Leave changes in the working tree.
 - SetupEntityAccess `SetupEntityType` values are not the SObject names (`FlowDefinition`, `TabSet`, `CustomEntityDefinition`); verify against a real org, and `EntityDefinition` hides some custom settings.
 - Unit tests compile to a temp dir, so runtime deps need `NODE_PATH` (set in `scripts/dev/run-unit-tests.sh`).
+- vsce applies `!` re-includes over every exclude regardless of order: a blanket `!dist/**` in `.vscodeignore` re-includes stale `*.map` files (dev builds leave them in `dist/`). List shipped files explicitly and check the `.vsix` listing (`release.sh` does).
