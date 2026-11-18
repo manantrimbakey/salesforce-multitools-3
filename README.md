@@ -62,6 +62,8 @@ Compare a permission set or profile between two sources, side by side:
 - Smart diff: compares the permissions actually granted, ignoring ordering, formatting and implied permissions (for example Edit implies Read)
 - Two columns, one per side, with differences highlighted. Filter by permission type, added / removed / changed, or name
 
+![Permission Compare](./asset/Permission_Compare.gif)
+
 ## 🔮 Coming Soon! 🔮
 
 - **Salesforce Constantinator** - Convert hardcoded strings into constants
