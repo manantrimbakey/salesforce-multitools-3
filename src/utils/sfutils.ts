@@ -7,6 +7,14 @@ import { Logger } from './logger';
 
 type SfCoreModule = typeof SfCore;
 
+export interface AuthorizedOrg {
+    username: string;
+    alias?: string;
+    isDefault: boolean;
+    isSandbox: boolean;
+    isScratchOrg: boolean;
+}
+
 /**
  * Environment the bundled @salesforce/core logger needs.
  *
@@ -33,6 +41,8 @@ const CONFIG_CHANGE_DEBOUNCE_MS = 300;
 export class SFUtils {
     private static corePromise: Promise<SfCoreModule> | undefined;
     private static connectionPromise: Promise<SfCore.Connection> | undefined;
+    /** Connections to specific (non-default) orgs, keyed by username */
+    private static readonly orgConnections = new Map<string, Promise<SfCore.Connection>>();
     private static watchers: vscode.Disposable[] = [];
     private static debounceTimer: NodeJS.Timeout | undefined;
     private static readonly orgChanged = new vscode.EventEmitter<void>();
@@ -75,6 +85,7 @@ export class SFUtils {
     public static refresh(): void {
         Logger.debug('Refreshing SFUtils cached connection state', 'SFUtils.refresh');
         this.connectionPromise = undefined;
+        this.orgConnections.clear();
         this.orgChanged.fire();
     }
 
@@ -182,7 +193,10 @@ export class SFUtils {
         if (!username) {
             throw new Error('No default Salesforce org found. Authorize an org and set it as the default.');
         }
+        return this.connect(username);
+    }
 
+    private static async connect(username: string): Promise<SfCore.Connection> {
         const core = await this.loadCore();
         Logger.debug('Creating connection for username:', 'SFUtils.getConnection', username);
         const connection = await core.Connection.create({
@@ -190,6 +204,53 @@ export class SFUtils {
         });
         Logger.info('Salesforce connection created successfully', 'SFUtils.getConnection');
         return connection;
+    }
+
+    /**
+     * Get a connection to a specific authorized org (not necessarily the default one).
+     * @throws Error when `username` is not one of the orgs authorized on this machine
+     */
+    public static getConnectionForUsername(username: string): Promise<SfCore.Connection> {
+        let pending = this.orgConnections.get(username);
+        if (!pending) {
+            const created = (async () => {
+                const known = await this.listAuthorizedOrgs();
+                if (!known.some((org) => org.username === username)) {
+                    throw new Error(`Org is not authorized on this machine: ${username}`);
+                }
+                return this.connect(username);
+            })();
+            pending = created;
+            this.orgConnections.set(username, created);
+            created.catch(() => {
+                if (this.orgConnections.get(username) === created) {
+                    this.orgConnections.delete(username);
+                }
+            });
+        }
+        return pending;
+    }
+
+    /**
+     * Orgs authorized with the Salesforce CLI on this machine (expired ones are left out).
+     * Flags the project's default org.
+     */
+    public static async listAuthorizedOrgs(): Promise<AuthorizedOrg[]> {
+        const core = await this.loadCore();
+        const [authorizations, defaultUsername] = await Promise.all([
+            core.AuthInfo.listAllAuthorizations(),
+            this.getDefaultUsername().catch(() => ''),
+        ]);
+        return authorizations
+            .filter((auth) => auth.isExpired !== true && !auth.error)
+            .map((auth) => ({
+                username: auth.username,
+                alias: auth.aliases?.[0] ?? undefined,
+                isDefault: auth.username === defaultUsername,
+                isSandbox: auth.isSandbox === true,
+                isScratchOrg: auth.isScratchOrg === true,
+            }))
+            .sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.username.localeCompare(b.username));
     }
 
     /**

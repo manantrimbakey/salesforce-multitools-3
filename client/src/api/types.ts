@@ -77,3 +77,93 @@ export interface LogsQuery {
     size?: string;
     sizeDirection?: SizeDirection;
 }
+
+// ---- Permission compare ----
+
+export const PERMISSION_SECTIONS = [
+    'object',
+    'field',
+    'system',
+    'apexClass',
+    'vfPage',
+    'customPermission',
+    'tab',
+    'application',
+    'flow',
+    'externalDataSource',
+    'customEntity',
+] as const;
+export type PermissionSection = (typeof PERMISSION_SECTIONS)[number];
+export type PermissionItemType = 'permissionset' | 'profile';
+export type PermissionValue = boolean | string;
+export type DiffStatus = 'added' | 'removed' | 'changed';
+
+export type CompareSource = { kind: 'org'; username: string } | { kind: 'branch'; ref: string };
+
+export interface AuthorizedOrg {
+    username: string;
+    alias?: string;
+    isDefault: boolean;
+    isSandbox: boolean;
+    isScratchOrg: boolean;
+}
+
+export interface GitRef {
+    name: string;
+    kind: 'branch' | 'remote' | 'tag';
+}
+
+export interface CompareContextResponse {
+    success: true;
+    orgs: AuthorizedOrg[];
+    git: { available: boolean; refs: GitRef[]; workingTreeRef: string };
+}
+
+export interface PermissionItemOption {
+    id: string;
+    name: string;
+    label: string;
+    type: PermissionItemType;
+}
+
+export interface CompareItemsResponse {
+    success: true;
+    items: PermissionItemOption[];
+}
+
+export interface CompareSide {
+    source: CompareSource;
+    item: { type: PermissionItemType; id: string };
+}
+
+export interface PermissionChange {
+    perm: string;
+    left: PermissionValue;
+    right: PermissionValue;
+}
+
+export interface DiffEntry {
+    section: PermissionSection;
+    key: string;
+    status: DiffStatus;
+    left?: Record<string, PermissionValue>;
+    right?: Record<string, PermissionValue>;
+    changes: PermissionChange[];
+}
+
+export interface SectionSummary {
+    section: PermissionSection;
+    leftCount: number;
+    rightCount: number;
+    oneSided: boolean;
+    added: number;
+    removed: number;
+    changed: number;
+}
+
+export interface CompareResponse {
+    success: true;
+    left: { name: string; type: PermissionItemType };
+    right: { name: string; type: PermissionItemType };
+    diff: { entries: DiffEntry[]; sections: SectionSummary[] };
+}

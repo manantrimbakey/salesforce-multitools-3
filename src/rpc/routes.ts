@@ -2,6 +2,9 @@ import * as vscode from 'vscode';
 import { getComponentFiles } from '../features/componentFileSwitcher/componentFileSwitcherUtils';
 import { DebugLogProvider } from '../features/debugLogs/debugLogProvider';
 import { DebugLogService, LogFilter } from '../services/debugLogService';
+import { PermissionCompareService } from '../services/permissionCompare/permissionCompareService';
+import type { CompareSide } from '../services/permissionCompare/permissionCompareService';
+import type { PermissionItemType, PermissionSource } from '../services/permissionCompare/types';
 import { WorkspaceFileError, WorkspaceFileService } from '../services/workspaceFileService';
 import { isSalesforceId, parseOptionalSize } from '../utils/validation';
 import { Router, RpcError, RpcRequest, bodyObject } from './router';
@@ -31,6 +34,57 @@ function parseLogFilter(query: Record<string, string>): LogFilter {
         filter.size = { direction: query.sizeDirection, bytes };
     }
     return filter;
+}
+
+const MAX_REF_LENGTH = 255;
+const MAX_ITEM_ID_LENGTH = 1024;
+
+function parseItemType(value: unknown): PermissionItemType {
+    if (value !== 'permissionset' && value !== 'profile') {
+        throw new RpcError('BAD_REQUEST', 'type must be "permissionset" or "profile"');
+    }
+    return value;
+}
+
+/** Shape-check a compare source. Org usernames and git refs are verified against allow-lists by the service. */
+export function parseSource(value: unknown): PermissionSource {
+    if (typeof value !== 'object' || value === null) {
+        throw new RpcError('BAD_REQUEST', 'source is required');
+    }
+    const { kind, username, ref } = value as Record<string, unknown>;
+    if (kind === 'org') {
+        if (typeof username !== 'string' || username.length === 0 || username.length > 256) {
+            throw new RpcError('BAD_REQUEST', 'A valid org username is required');
+        }
+        return { kind, username };
+    }
+    if (kind === 'branch') {
+        if (typeof ref !== 'string' || ref.length === 0 || ref.length > MAX_REF_LENGTH || ref.includes('\0')) {
+            throw new RpcError('BAD_REQUEST', 'A valid branch or tag is required');
+        }
+        return { kind, ref };
+    }
+    throw new RpcError('BAD_REQUEST', 'source.kind must be "org" or "branch"');
+}
+
+export function parseSide(value: unknown): CompareSide {
+    if (typeof value !== 'object' || value === null) {
+        throw new RpcError('BAD_REQUEST', 'Both sides are required');
+    }
+    const { source: rawSource, item: rawItem } = value as Record<string, unknown>;
+    const source = parseSource(rawSource);
+    if (typeof rawItem !== 'object' || rawItem === null) {
+        throw new RpcError('BAD_REQUEST', 'item is required');
+    }
+    const { type, id } = rawItem as Record<string, unknown>;
+    const itemType = parseItemType(type);
+    if (typeof id !== 'string' || id.length === 0 || id.length > MAX_ITEM_ID_LENGTH || id.includes('\0')) {
+        throw new RpcError('BAD_REQUEST', 'A valid item id is required');
+    }
+    if (source.kind === 'org' && !isSalesforceId(id)) {
+        throw new RpcError('BAD_REQUEST', 'A valid permission set / profile Id is required');
+    }
+    return { source, item: { type: itemType, id } };
 }
 
 /** Translate expected workspace file errors into RPC errors. */
@@ -127,6 +181,25 @@ function createApiRouter(): Router {
         }
         await DebugLogService.deleteTraceFlag(traceFlagId);
         return { success: true, message: 'Trace flag deleted successfully' };
+    });
+
+    // ---- Permission compare ----
+    router.get('/api/compare/context', async () => ({
+        success: true,
+        ...(await PermissionCompareService.getContext()),
+    }));
+
+    router.post('/api/compare/items', async ({ body }: RpcRequest) => {
+        const { source, type } = bodyObject(body);
+        return {
+            success: true,
+            items: await PermissionCompareService.listItems(parseSource(source), parseItemType(type)),
+        };
+    });
+
+    router.post('/api/compare/run', async ({ body }: RpcRequest) => {
+        const { left, right } = bodyObject(body);
+        return { success: true, ...(await PermissionCompareService.compare(parseSide(left), parseSide(right))) };
     });
 
     // ---- Workspace files / components ----

@@ -44,8 +44,11 @@ credentials, so the user runs `vsce publish` themselves.
 - Webview: `client/src/components/{mainBody,componentFileSwitcher,debugLogFetcher}`, typed API in `client/src/api`.
 - Activates only when the workspace has `.sfdx/sfdx-config.json` or `.sf/config.json`.
 - Config namespace is `salesforceMultitools-3` (settings) while command ids are `salesforce-multitools-3.*`. Easy to mix up.
+- Permission compare: `src/services/permissionCompare/` (org via SOQL, branch via `git show` + `fast-xml-parser`, normalize + diff are
+  pure), routes `/api/compare/*`, UI `client/src/components/permissionCompare`. Check against a real org with
+  `scripts/dev/permission-compare-check.js`.
 
-More: `docs/architecture/overview.md`, `docs/features/debug-logs.md`.
+More: `docs/architecture/overview.md`, `docs/features/debug-logs.md`, `docs/features/permission-compare.md`.
 
 ## Rules that are easy to break
 

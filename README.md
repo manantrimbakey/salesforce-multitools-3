@@ -52,6 +52,16 @@ Fetch and analyze Salesforce debug logs with enhanced filtering and UI:
 
 ![Debug Logs Fetcher](./asset/Debug_Logs_Fetcher.gif)
 
+### 🔐 Permission Compare
+
+Compare a permission set or profile between two sources, side by side:
+
+- **Command**: `Salesforce Multitool: Compare Permission Sets / Profiles`
+- Compare **org vs org**, **branch vs org** or **branch vs branch** (also tags and your uncommitted files). Branch sources need the project to be under git
+- Org data is read with SOQL, so it is complete (a CLI retrieve of a profile or permission set is not)
+- Smart diff: compares the permissions actually granted, ignoring ordering, formatting and implied permissions (for example Edit implies Read)
+- Two columns, one per side, with differences highlighted. Filter by permission type, added / removed / changed, or name
+
 ## 🔮 Coming Soon! 🔮
 
 - **Salesforce Constantinator** - Convert hardcoded strings into constants
