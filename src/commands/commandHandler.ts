@@ -4,6 +4,7 @@ import { SFUtils } from '../utils/sfutils';
 import { registerLastModifiedCommands } from '../features/lastModifiedDetails';
 import { registerComponentFileSwitcherCommands } from '../features/componentFileSwitcher';
 import { registerDebugLogCommands } from '../features/debugLogs/commands';
+import { registerPermissionCompareCommands } from '../features/permissionCompare/commands';
 
 /**
  * Handles registration and execution of commands
@@ -35,6 +36,7 @@ export class CommandHandler {
         registerLastModifiedCommands(context);
         registerComponentFileSwitcherCommands(context);
         registerDebugLogCommands(context);
+        registerPermissionCompareCommands(context);
 
         context.subscriptions.push(refreshConnectionCmd, openSidebarCmd, showComponentFileSwitcherCmd);
 

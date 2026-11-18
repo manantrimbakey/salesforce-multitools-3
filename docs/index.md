@@ -11,6 +11,7 @@ Salesforce Multitools is a powerful VS Code extension designed to enhance Salesf
 - **[Component File Switcher](./features/component-file-switcher.md)**: Quickly switch between related files in Lightning Web Components and Aura bundles using keyboard shortcuts or the sidebar UI
 - **[Last Modified Details](./features/last-modified-details.md)**: Track who last modified Salesforce components and when
 - **[Debug Logs](./features/debug-logs.md)**: Browse, download and delete Apex debug logs; start logging for a user at a chosen debug level
+- **[Permission Compare](./features/permission-compare.md)**: Compare permission sets and profiles side by side: org vs org, branch vs org, branch vs branch
 - **[Salesforce Connection Management](./features/connection-management.md)**: Handle authentication with Salesforce orgs seamlessly
 
 ## Documentation Sections
@@ -24,6 +25,7 @@ Salesforce Multitools is a powerful VS Code extension designed to enhance Salesf
 ### Features
 
 - [Debug Logs](./features/debug-logs.md)
+- [Permission Compare](./features/permission-compare.md)
 - [Component File Switcher](./features/component-file-switcher.md)
 - [Last Modified Details](./features/last-modified-details.md)
 - [Salesforce Connection Management](./features/connection-management.md)

@@ -10,4 +10,4 @@ trap 'rm -rf "$out"' EXIT
 npx tsc -p . --outDir "$out"
 tests=$(ls "$out"/test/*.test.js | grep -v 'extension\.test\.js')
 # shellcheck disable=SC2086
-node --require ./scripts/dev/vscode-stub.js --test $tests
+NODE_PATH="$PWD/node_modules" node --require ./scripts/dev/vscode-stub.js --test $tests

@@ -7,6 +7,7 @@ import { vscode } from '../../vscodeApi';
 const COMPONENTS = {
     componentFileSwitcher: lazy(() => import('../componentFileSwitcher/componentFileSwitcher')),
     debugLogFetcher: lazy(() => import('../debugLogFetcher/debugLogFetcher')),
+    permissionCompare: lazy(() => import('../permissionCompare/permissionCompare')),
 };
 
 type ComponentName = keyof typeof COMPONENTS;

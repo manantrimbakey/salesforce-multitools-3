@@ -1,5 +1,11 @@
 import type {
+    CompareContextResponse,
+    CompareItemsResponse,
+    CompareResponse,
+    CompareSide,
+    CompareSource,
     DebugLevelsResponse,
+    PermissionItemType,
     DeleteLogsResponse,
     LogsQuery,
     LogsResponse,
@@ -76,6 +82,15 @@ export const api = {
     /** Without `debugLevelId` the extension's default debug level is used. */
     startTraceFlag(userId: string, debugLevelId?: string) {
         return request<TraceFlagResponse>('/api/traceFlags/start', 'POST', { userId, debugLevelId });
+    },
+    getCompareContext() {
+        return request<CompareContextResponse>('/api/compare/context');
+    },
+    getCompareItems(source: CompareSource, type: PermissionItemType) {
+        return request<CompareItemsResponse>('/api/compare/items', 'POST', { source, type });
+    },
+    compare(left: CompareSide, right: CompareSide) {
+        return request<CompareResponse>('/api/compare/run', 'POST', { left, right });
     },
     stopTraceFlag(userId: string, traceFlagId: string) {
         return request<TraceFlagResponse>('/api/traceFlags/stop', 'POST', { userId, traceFlagId });
