@@ -33,10 +33,11 @@ dist/**/*.map
 client/dist/**/*.map
 # Make sure to include resources
 !resources/
-# Only include dist files (the webview is built into dist/webview)
-!dist/**
-# Never ship sourcemaps (must come after the !dist/** re-include)
-dist/**/*.map
+# Only include the built bundles. vsce applies `!` re-includes over every exclude regardless of order, so a blanket
+# `!dist/**` would also re-include stale *.map files; list the shipped files explicitly instead.
+!dist/extension.js
+!dist/sfcore.js
+!dist/webview/**
 
 # Repository metadata and tooling
 CODEOWNERS
