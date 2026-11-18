@@ -59,7 +59,7 @@ pnpm run package            # type check, lint, client build, minified bundles
 bash scripts/dev/run-unit-tests.sh
 ```
 
-Expected: `dist/extension.js` ~50 KB, `dist/sfcore.js` ~2 MB, `dist/webview/` with `vendor.js`. If `pnpm install` fails with
+Expected: `dist/extension.js` ~280 KB, `dist/sfcore.js` ~2 MB, `dist/webview/` with `vendor.js`. If `pnpm install` fails with
 `ERR_PNPM_IGNORED_BUILDS` or a YAML error, look at `pnpm-workspace.yaml` and `client/pnpm-workspace.yaml`
 (see [gotchas](./gotchas.md)).
 
