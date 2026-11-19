@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type { MouseEvent } from 'react';
 import {
     Accordion,
@@ -35,7 +35,8 @@ interface Props {
     mixedSources: boolean;
 }
 
-export function DiffView({ result, leftLabel, rightLabel, mixedSources }: Props) {
+// memo: typing in a picker re-renders the page on every key, a big result must not be rebuilt each time
+export const DiffView = memo(function DiffView({ result, leftLabel, rightLabel, mixedSources }: Props) {
     const { entries, sections } = result.diff;
     const [statusFilter, setStatusFilter] = useState<'all' | DiffStatus>('all');
     const [hidden, setHidden] = useState<PermissionSection[]>([]);
@@ -210,7 +211,7 @@ export function DiffView({ result, leftLabel, rightLabel, mixedSources }: Props)
             </Box>
         </Box>
     );
-}
+});
 
 function SectionGroup({ section, entries }: { section: PermissionSection; entries: DiffEntry[] }) {
     const [shown, setShown] = useState(PAGE);
