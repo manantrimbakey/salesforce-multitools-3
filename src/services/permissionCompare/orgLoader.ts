@@ -1,5 +1,5 @@
 import { isSalesforceId, soqlEscape } from '../../utils/validation';
-import { stripCustomEntitySuffix } from './xmlParser';
+import { readMetadataOnlySections, stripCustomEntitySuffix } from './xmlParser';
 import type { PermissionItemOption, PermissionItemRef, PermissionModel } from './types';
 import { emptySections } from './types';
 
@@ -8,7 +8,20 @@ export interface QueryConnection {
     query<T>(soql: string, options?: { autoFetch?: boolean; maxFetch?: number }): PromiseLike<{ records: T[] }>;
     tooling: { query<T>(soql: string): PromiseLike<{ records: T[] }> };
     describe(sobject: string): Promise<{ fields: Array<{ name: string; type: string }> }>;
+    /** Metadata API; optional so SOQL-only fakes still work. Needed for parts SOQL cannot return. */
+    metadata?: { read(type: string, fullName: string): PromiseLike<unknown> };
 }
+
+/** Standard profiles are listed by label in SOQL but are named differently in the Metadata API. */
+const STANDARD_PROFILE_NAMES: Record<string, string> = {
+    'System Administrator': 'Admin',
+    'Standard User': 'Standard',
+    'Read Only': 'ReadOnly',
+    'Solution Manager': 'SolutionManager',
+    'Marketing User': 'MarketingProfile',
+    'Contract Manager': 'ContractManager',
+    'Standard Platform User': 'StandardAul',
+};
 
 const MAX_FETCH = 200_000;
 const ID_CHUNK = 150;
@@ -21,6 +34,9 @@ const SETUP_ENTITY_TYPES = [
     'FlowDefinition',
     'TabSet',
     'ExternalDataSource',
+    'ExternalCredentialParameter',
+    'ConnectedApplication',
+    'ExternalClientApplication',
     'CustomEntityDefinition',
 ] as const;
 
@@ -112,7 +128,9 @@ export async function loadOrgModel(connection: QueryConnection, item: Permission
 
     const row = header.records[0];
     if (!row) {
-        throw new Error(`Permission set or profile not found in the org: ${item.id}`);
+        throw new Error(
+            'This permission set or profile no longer exists in the org (it may have been deleted or renamed). Reload the list and pick it again.',
+        );
     }
     const systemValues = await loadSystemPermissions(connection, id, systemFields);
 
@@ -170,7 +188,42 @@ export async function loadOrgModel(connection: QueryConnection, item: Permission
         sections[resolver.section].push(...keys.map((key) => ({ key, perms: { [resolver.perm]: true } })));
     }
 
+    await loadMetadataOnlySections(connection, isProfile, isProfile ? profileName : str(row.Name), sections);
+
     return { type: isProfile ? 'profile' : 'permissionset', name, sections };
+}
+
+/**
+ * Record type visibility, page layout assignments and the default app of a profile have no SOQL table; the Metadata
+ * API `read` returns them (the rest of that result is incomplete for profiles, which is why SOQL is used above).
+ */
+async function loadMetadataOnlySections(
+    connection: QueryConnection,
+    isProfile: boolean,
+    name: string,
+    sections: PermissionModel['sections'],
+): Promise<void> {
+    if (!connection.metadata || !name) {
+        return;
+    }
+    const candidates = isProfile
+        ? [STANDARD_PROFILE_NAMES[name], name, encodeURIComponent(name)].filter((value): value is string => !!value)
+        : [name];
+    for (const fullName of candidates) {
+        const result = await connection.metadata.read(isProfile ? 'Profile' : 'PermissionSet', fullName);
+        const node = Array.isArray(result) ? result[0] : result;
+        if (typeof node === 'object' && node !== null && 'fullName' in node) {
+            readMetadataOnlySections(node as Record<string, unknown>, sections);
+            const apps = (node as { applicationVisibilities?: unknown }).applicationVisibilities;
+            for (const app of Array.isArray(apps) ? apps : apps ? [apps] : []) {
+                const entry = app as { application?: string; default?: boolean | string };
+                if (entry.application && String(entry.default) === 'true') {
+                    sections.application.push({ key: entry.application, perms: { default: true } });
+                }
+            }
+            return;
+        }
+    }
 }
 
 /** The `Permissions*` columns, queried in chunks so the (GET) SOQL URL stays well under the length limit. */
@@ -199,6 +252,8 @@ interface Resolver {
         | 'flow'
         | 'application'
         | 'externalDataSource'
+        | 'externalCredentialPrincipal'
+        | 'connectedApp'
         | 'customEntity';
     perm: 'enabled' | 'visible';
     sobject: string;
@@ -265,6 +320,34 @@ const RESOLVERS: Resolver[] = [
         namespaced: true,
     },
     {
+        setupEntityType: 'ConnectedApplication',
+        section: 'connectedApp',
+        perm: 'enabled',
+        sobject: 'ConnectedApplication',
+        idField: 'Id',
+        nameField: 'Name',
+        namespaced: false,
+    },
+    {
+        setupEntityType: 'ExternalClientApplication',
+        section: 'connectedApp',
+        perm: 'enabled',
+        sobject: 'ExternalClientApplication',
+        idField: 'Id',
+        nameField: 'DeveloperName',
+        namespaced: false,
+    },
+    {
+        // Tooling API object; the entity id is a principal parameter (`0pu...`) of an external credential
+        setupEntityType: 'ExternalCredentialParameter',
+        section: 'externalCredentialPrincipal',
+        perm: 'enabled',
+        sobject: 'ExternalCredentialParameter',
+        idField: 'Id',
+        nameField: 'ParameterName',
+        namespaced: false,
+    },
+    {
         setupEntityType: 'CustomEntityDefinition',
         section: 'customEntity',
         perm: 'enabled',
@@ -281,6 +364,9 @@ function joinNamespace(namespace: string, base: string): string {
 
 /** Resolve record ids to API names (`ns__Name` for managed components), in chunks to keep the SOQL short. */
 async function resolveNames(connection: QueryConnection, resolver: Resolver, ids: string[]): Promise<string[]> {
+    if (resolver.section === 'externalCredentialPrincipal') {
+        return resolvePrincipalNames(connection, ids);
+    }
     const names: string[] = [];
     const resolvedIds = new Set<string>();
     for (let start = 0; start < ids.length; start += ID_CHUNK) {
@@ -318,6 +404,33 @@ async function resolveNames(connection: QueryConnection, resolver: Resolver, ids
             }
         }
         return names.map(stripCustomEntitySuffix);
+    }
+    return names;
+}
+
+/**
+ * External credential principals: `<ExternalCredential API name>-<principal name>`, the key used by the
+ * `externalCredentialPrincipal` element of permission set metadata. Only Tooling API can read the parameters.
+ * Parameters of other types (auth protocol variant, headers ...) are not principals and are skipped.
+ */
+async function resolvePrincipalNames(connection: QueryConnection, ids: string[]): Promise<string[]> {
+    const names: string[] = [];
+    for (let start = 0; start < ids.length; start += ID_CHUNK) {
+        const list = ids
+            .slice(start, start + ID_CHUNK)
+            .map((value) => `'${soqlEscape(value)}'`)
+            .join(', ');
+        const result = await connection.tooling.query<Row>(
+            'SELECT ParameterName, ExternalCredential.DeveloperName FROM ExternalCredentialParameter ' +
+                `WHERE Id IN (${list}) AND ParameterType IN ('NamedPrincipal', 'PerUserPrincipal')`,
+        );
+        for (const row of result.records) {
+            const credential = str((row.ExternalCredential as Row | null)?.DeveloperName);
+            const principal = str(row.ParameterName);
+            if (credential && principal) {
+                names.push(`${credential}-${principal}`);
+            }
+        }
     }
     return names;
 }

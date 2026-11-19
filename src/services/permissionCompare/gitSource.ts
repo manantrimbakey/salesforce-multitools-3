@@ -185,7 +185,9 @@ export async function loadBranchModel(
     // The path must be one of the files we would list ourselves (no traversal, right kind, inside the package dirs)
     const allowed = await listFiles(repoRoot, projectDir, ref, item.type);
     if (!allowed.includes(item.id)) {
-        throw new GitSourceError(`File not found at ${ref}: ${item.id}`);
+        throw new GitSourceError(
+            `This permission set or profile does not exist at ${ref} (file ${item.id}). It may have been added or removed on that branch.`,
+        );
     }
 
     const xml =

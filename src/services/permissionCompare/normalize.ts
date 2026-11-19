@@ -59,6 +59,9 @@ function normalizePerms(
     if (section === 'tab') {
         return normalizeTab(perms);
     }
+    if (section === 'layoutAssignment') {
+        return typeof perms.layout === 'string' && perms.layout ? { layout: perms.layout } : {};
+    }
 
     const result: Record<string, PermissionValue> = {};
     for (const [name, value] of Object.entries(perms)) {

@@ -5,6 +5,7 @@ import type {
     CompareSide,
     CompareSource,
     DebugLevelsResponse,
+    DiffEntry,
     PermissionItemType,
     DeleteLogsResponse,
     LogsQuery,
@@ -91,6 +92,15 @@ export const api = {
     },
     compare(left: CompareSide, right: CompareSide) {
         return request<CompareResponse>('/api/compare/run', 'POST', { left, right });
+    },
+    /** Opens a save dialog in VS Code and writes the entries there. `saved: false` = the user cancelled. */
+    exportCompare(format: 'markdown' | 'csv', leftLabel: string, rightLabel: string, entries: DiffEntry[]) {
+        return request<{ success: true; saved: boolean; path?: string }>('/api/compare/export', 'POST', {
+            format,
+            leftLabel,
+            rightLabel,
+            entries,
+        });
     },
     stopTraceFlag(userId: string, traceFlagId: string) {
         return request<TraceFlagResponse>('/api/traceFlags/stop', 'POST', { userId, traceFlagId });
