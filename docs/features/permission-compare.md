@@ -47,6 +47,12 @@ permission chip lists them per permission).
 | Org                         | The group's calculated permissions (Salesforce keeps them, muting already applied, on a hidden `PermissionSet` row owned by the group). The member permission sets are loaded too, only to attribute each permission. The group must be `Updated`; while it is `Updating` / `Outdated` the compare says so instead of showing half-calculated data. |
 | Branch / tag / working tree | `*.permissionsetgroup-meta.xml` lists members; their `*.permissionset-meta.xml` files at the same ref are merged (union) and the `*.mutingpermissionset-meta.xml` files subtract. Members that are not in the repository (standard or managed permission sets) are listed in a warning, because their access is then missing from that side.        |
 
+Two more sections appear for groups: **Group members** (the permission sets in the group, by API name; for a branch
+this is the group file's list, even for members whose file is not in the repository) and **Assigned users** (usernames
+of the active users the group is assigned to, org sides only, since a branch holds no assignments; the "skip sections only
+one side has" filter hides it for branch-vs-org). Usernames are compared as they are, so a sandbox user
+(`name@x.com.sandbox`) and its production user differ. Past 20,000 assigned users a warning says the list is cut.
+
 A permission a muting set removed has no "granted by". Record type visibility is not part of the calculated group row,
 so for an org group it is the union of the members' record types. The Permission set list no longer shows the hidden
 per-group `PermissionSet` rows.

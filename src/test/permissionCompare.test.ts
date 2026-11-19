@@ -444,6 +444,37 @@ suite('permission compare: org loader', () => {
         ]);
     });
 
+    test('reads a namespaced (standard / packaged) permission set under its namespaced name', async () => {
+        const { connection } = fakeConnection();
+        const query = connection.query;
+        const withNamespace = {
+            ...connection,
+            query: (async (soql: string) =>
+                soql.includes('FROM PermissionSet WHERE Id')
+                    ? {
+                          records: [
+                              {
+                                  Id: PS_ID,
+                                  Name: 'Sales',
+                                  NamespacePrefix: 'force',
+                                  IsOwnedByProfile: false,
+                                  Profile: null,
+                              },
+                          ],
+                      }
+                    : query(soql)) as typeof query,
+            metadata: {
+                read: async (_type: string, fullName: string) => {
+                    // the real API answers `{}` (no fullName) for the bare name of a namespaced set
+                    return fullName === 'force__Sales' ? { fullName } : {};
+                },
+            },
+        };
+        const model = await loadOrgModel(withNamespace, { type: 'permissionset', id: PS_ID });
+        assert.strictEqual(model.name, 'Sales');
+        assert.strictEqual(model.warnings, undefined);
+    });
+
     test('only issues queries scoped to the validated id', async () => {
         const { connection, queries } = fakeConnection();
         await loadOrgModel(connection, { type: 'permissionset', id: PS_ID });
@@ -652,6 +683,12 @@ suite('permission compare: permission set groups', () => {
             const model = await loadBranchModel(root, repo, WORKING_TREE_REF, items[0]);
             assert.strictEqual(model.type, 'permissionsetgroup');
             assert.deepStrictEqual(model.sections.system, [], 'ViewSetup is muted');
+            assert.deepStrictEqual(
+                model.sections.groupMember.map((entry) => entry.key),
+                ['Sales', 'Standard_Thing'],
+                'members are listed even when their file is not in the repository',
+            );
+            assert.deepStrictEqual(model.sections.assignment, [], 'a branch has no user assignments');
             assert.deepStrictEqual(model.sections.object[0].grantedBy?.create, ['Sales']);
             assert.strictEqual(model.warnings?.length, 1);
             assert.ok(model.warnings?.[0].includes('Standard_Thing'));
@@ -683,10 +720,17 @@ suite('permission compare: permission set groups', () => {
                             : [],
                     );
                 }
+                if (soql.includes('FROM PermissionSetAssignment')) {
+                    assert.ok(soql.includes('Assignee.IsActive = true'), 'inactive users are left out');
+                    return rows([{ Assignee: { Username: 'b@x.com' } }, { Assignee: { Username: 'a@x.com' } }]);
+                }
                 if (soql.includes("PermissionSetGroupId = '")) {
                     return soql.includes('FROM PermissionSetGroupComponent')
                         ? rows([
-                              { PermissionSetId: MEMBER_ID, PermissionSet: { Name: 'Member_PS', Label: 'Member PS' } },
+                              {
+                                  PermissionSetId: MEMBER_ID,
+                                  PermissionSet: { Name: 'Member_PS', NamespacePrefix: null, Label: 'Member PS' },
+                              },
                           ])
                         : rows([{ Id: CALC_ID }]);
                 }
@@ -711,6 +755,11 @@ suite('permission compare: permission set groups', () => {
         assert.strictEqual(model.name, 'Team Group');
         assert.strictEqual(model.type, 'permissionsetgroup');
         assert.deepStrictEqual(model.sections.object[0].grantedBy, { read: ['Member PS'], edit: ['Member PS'] });
+        assert.deepStrictEqual(model.sections.groupMember, [{ key: 'Member_PS', perms: { member: true } }]);
+        assert.deepStrictEqual(
+            model.sections.assignment.map((entry) => entry.key),
+            ['a@x.com', 'b@x.com'],
+        );
 
         status = 'Outdated';
         await assert.rejects(loadOrgModel(connection, { type: 'permissionsetgroup', id: GROUP_ID }), /outdated/);
