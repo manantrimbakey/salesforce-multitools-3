@@ -1,4 +1,6 @@
 import { isSalesforceId, soqlEscape } from '../../utils/validation';
+import { attributeSources } from './permissionGroup';
+import type { GroupComponent } from './permissionGroup';
 import { readMetadataOnlySections, stripCustomEntitySuffix } from './xmlParser';
 import type { PermissionItemOption, PermissionItemRef, PermissionModel } from './types';
 import { emptySections } from './types';
@@ -77,9 +79,25 @@ export async function listOrgItems(
             .filter((row) => row.Profile?.Name)
             .map((row) => ({ id: row.Id, name: row.Profile!.Name, label: row.Profile!.Name, type }));
     }
+    if (type === 'permissionsetgroup') {
+        const groups = await all<{ Id: string; DeveloperName: string; MasterLabel: string }>(
+            connection,
+            'SELECT Id, DeveloperName, MasterLabel FROM PermissionSetGroup ORDER BY MasterLabel',
+        );
+        return groups.map((row) => ({
+            id: row.Id,
+            name: row.DeveloperName,
+            label:
+                row.MasterLabel && row.MasterLabel !== row.DeveloperName
+                    ? `${row.MasterLabel} (${row.DeveloperName})`
+                    : row.DeveloperName,
+            type,
+        }));
+    }
+    // The PermissionSet row every group owns is not a real permission set; groups are listed on their own
     const rows = await all<{ Id: string; Name: string; Label: string }>(
         connection,
-        'SELECT Id, Name, Label FROM PermissionSet WHERE IsOwnedByProfile = false ORDER BY Label',
+        'SELECT Id, Name, Label FROM PermissionSet WHERE IsOwnedByProfile = false AND PermissionSetGroupId = null ORDER BY Label',
     );
     return rows.map((row) => ({
         id: row.Id,
@@ -96,7 +114,14 @@ export async function listOrgItems(
  * incomplete. The underlying records (ObjectPermissions, FieldPermissions, SetupEntityAccess ...) are complete.
  * A profile is the PermissionSet row that is owned by it (`IsOwnedByProfile`), so one code path serves both.
  */
-export async function loadOrgModel(connection: QueryConnection, item: PermissionItemRef): Promise<PermissionModel> {
+export async function loadOrgModel(
+    connection: QueryConnection,
+    item: PermissionItemRef,
+    options: { readMetadata?: boolean } = {},
+): Promise<PermissionModel> {
+    if (item.type === 'permissionsetgroup') {
+        return loadOrgGroup(connection, item);
+    }
     const id = assertId(item.id);
 
     // System permissions are the boolean `Permissions*` columns of the PermissionSet row itself
@@ -188,9 +213,17 @@ export async function loadOrgModel(connection: QueryConnection, item: Permission
         sections[resolver.section].push(...keys.map((key) => ({ key, perms: { [resolver.perm]: true } })));
     }
 
-    await loadMetadataOnlySections(connection, isProfile, isProfile ? profileName : str(row.Name), sections);
+    const warning =
+        options.readMetadata === false
+            ? undefined
+            : await loadMetadataOnlySections(connection, isProfile, isProfile ? profileName : str(row.Name), sections);
 
-    return { type: isProfile ? 'profile' : 'permissionset', name, sections };
+    return {
+        type: isProfile ? 'profile' : 'permissionset',
+        name,
+        sections,
+        ...(warning ? { warnings: [warning] } : {}),
+    };
 }
 
 /**
@@ -202,28 +235,37 @@ async function loadMetadataOnlySections(
     isProfile: boolean,
     name: string,
     sections: PermissionModel['sections'],
-): Promise<void> {
+): Promise<string | undefined> {
     if (!connection.metadata || !name) {
-        return;
+        return undefined;
     }
+    const kind = isProfile ? 'profile' : 'permission set';
+    const missing = `Record type visibility${isProfile ? ', page layout assignments and the default app' : ''} of the ${kind} "${name}" could not be read from the org, so they are missing from this side`;
     const candidates = isProfile
         ? [STANDARD_PROFILE_NAMES[name], name, encodeURIComponent(name)].filter((value): value is string => !!value)
         : [name];
+    let failure = '';
     for (const fullName of candidates) {
-        const result = await connection.metadata.read(isProfile ? 'Profile' : 'PermissionSet', fullName);
-        const node = Array.isArray(result) ? result[0] : result;
-        if (typeof node === 'object' && node !== null && 'fullName' in node) {
-            readMetadataOnlySections(node as Record<string, unknown>, sections);
-            const apps = (node as { applicationVisibilities?: unknown }).applicationVisibilities;
-            for (const app of Array.isArray(apps) ? apps : apps ? [apps] : []) {
-                const entry = app as { application?: string; default?: boolean | string };
-                if (entry.application && String(entry.default) === 'true') {
-                    sections.application.push({ key: entry.application, perms: { default: true } });
+        try {
+            const result = await connection.metadata.read(isProfile ? 'Profile' : 'PermissionSet', fullName);
+            const node = Array.isArray(result) ? result[0] : result;
+            if (typeof node === 'object' && node !== null && 'fullName' in node) {
+                readMetadataOnlySections(node as Record<string, unknown>, sections);
+                const apps = (node as { applicationVisibilities?: unknown }).applicationVisibilities;
+                for (const app of Array.isArray(apps) ? apps : apps ? [apps] : []) {
+                    const entry = app as { application?: string; default?: boolean | string };
+                    if (entry.application && String(entry.default) === 'true') {
+                        sections.application.push({ key: entry.application, perms: { default: true } });
+                    }
                 }
+                return undefined;
             }
-            return;
+        } catch (error) {
+            failure = error instanceof Error ? error.message : String(error);
         }
     }
+    // Not fatal: everything SOQL returns is still correct, but the user must know part of the picture is absent
+    return failure ? `${missing} (${failure}).` : `${missing} (the Metadata API did not return it).`;
 }
 
 /** The `Permissions*` columns, queried in chunks so the (GET) SOQL URL stays well under the length limit. */
@@ -433,4 +475,90 @@ async function resolvePrincipalNames(connection: QueryConnection, ids: string[])
         }
     }
     return names;
+}
+
+const GROUP_MEMBER_CONCURRENCY = 3;
+
+/**
+ * A permission set group. Salesforce keeps the calculated (muting already applied) permissions on a hidden
+ * `PermissionSet` row owned by the group, so the same SOQL loader reads them. The member permission sets are loaded
+ * separately to say which of them grants each permission, and to supply what only the Metadata API returns
+ * (record type visibility is not calculated into that row).
+ */
+async function loadOrgGroup(connection: QueryConnection, item: PermissionItemRef): Promise<PermissionModel> {
+    const id = assertId(item.id);
+    const groups = await connection.query<Row>(
+        `SELECT Id, DeveloperName, MasterLabel, Status FROM PermissionSetGroup WHERE Id = '${id}'`,
+    );
+    const group = groups.records[0];
+    if (!group) {
+        throw new Error(
+            'This permission set group no longer exists in the org (it may have been deleted or renamed). Reload the list and pick it again.',
+        );
+    }
+    const label = str(group.MasterLabel) || str(group.DeveloperName);
+    if (str(group.Status) !== 'Updated') {
+        throw new Error(
+            `The permission set group "${label}" is ${str(group.Status).toLowerCase() || 'not calculated'} in the org, so its permissions are not final. Try again once Salesforce has finished updating it.`,
+        );
+    }
+
+    const [owned, members] = await Promise.all([
+        connection.query<Row>(`SELECT Id FROM PermissionSet WHERE PermissionSetGroupId = '${id}'`),
+        all<Row>(
+            connection,
+            'SELECT PermissionSetId, PermissionSet.Name, PermissionSet.Label FROM PermissionSetGroupComponent ' +
+                `WHERE PermissionSetGroupId = '${id}'`,
+        ),
+    ]);
+    const calculatedId = str(owned.records[0]?.Id);
+    if (!isSalesforceId(calculatedId)) {
+        throw new Error(`The permission set group "${label}" has no calculated permissions yet.`);
+    }
+    const calculated = await loadOrgModel(
+        connection,
+        { type: 'permissionset', id: calculatedId },
+        { readMetadata: false },
+    );
+
+    // Muting permission sets have no PermissionSet row (their name is null); only real members are loaded
+    const real = members
+        .map((row) => ({
+            id: str(row.PermissionSetId),
+            name: str((row.PermissionSet as Row | null)?.Label) || str((row.PermissionSet as Row | null)?.Name),
+        }))
+        .filter((member) => member.name && isSalesforceId(member.id));
+    const components: GroupComponent[] = [];
+    const warnings: string[] = [...(calculated.warnings ?? [])];
+    for (let start = 0; start < real.length; start += GROUP_MEMBER_CONCURRENCY) {
+        const batch = real.slice(start, start + GROUP_MEMBER_CONCURRENCY);
+        const loaded = await Promise.all(
+            batch.map(async (member) => {
+                try {
+                    return {
+                        name: member.name,
+                        model: await loadOrgModel(connection, { type: 'permissionset', id: member.id }),
+                    };
+                } catch (error) {
+                    // The calculated row is still right; only the "granted by" for this member is lost
+                    const reason = error instanceof Error ? error.message : String(error);
+                    warnings.push(
+                        `Member "${member.name}" could not be loaded, so it is not shown as a source (${reason}).`,
+                    );
+                    return undefined;
+                }
+            }),
+        );
+        components.push(...loaded.filter((component): component is GroupComponent => !!component));
+    }
+    for (const component of components) {
+        warnings.push(...(component.model.warnings ?? []));
+    }
+
+    // Record types (and anything else only the Metadata API knows) are not part of the calculated row
+    for (const component of components) {
+        calculated.sections.recordType.push(...component.model.sections.recordType);
+    }
+    const attributed = attributeSources({ ...calculated, type: 'permissionsetgroup', name: label }, components);
+    return warnings.length > 0 ? { ...attributed, warnings: [...new Set(warnings)] } : attributed;
 }

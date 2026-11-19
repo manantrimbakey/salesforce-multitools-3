@@ -138,6 +138,15 @@ export default function PermissionCompare() {
             </Stack>
 
             {error && <Alert severity="error">{error}</Alert>}
+            {result && [...(result.data.left.warnings ?? []), ...(result.data.right.warnings ?? [])].length > 0 && (
+                <Alert severity="warning" sx={{ py: 0 }}>
+                    {[...(result.data.left.warnings ?? []), ...(result.data.right.warnings ?? [])].map((warning) => (
+                        <Box key={warning} sx={{ wordBreak: 'break-word' }}>
+                            {warning}
+                        </Box>
+                    ))}
+                </Alert>
+            )}
             {result && (
                 <DiffView
                     key={`${result.leftLabel}|${result.rightLabel}`}

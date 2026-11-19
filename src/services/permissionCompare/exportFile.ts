@@ -37,6 +37,11 @@ export async function saveExport(
     if (!target) {
         return undefined;
     }
-    await fs.promises.writeFile(target.fsPath, formatExport(format, input), 'utf-8');
+    try {
+        await fs.promises.writeFile(target.fsPath, formatExport(format, input), 'utf-8');
+    } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        throw new Error(`Could not save the export to ${target.fsPath}: ${reason}`);
+    }
     return target.fsPath;
 }

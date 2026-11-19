@@ -29,8 +29,8 @@ export interface CompareSide {
 }
 
 export interface CompareResult {
-    left: { name: string; type: PermissionItemType };
-    right: { name: string; type: PermissionItemType };
+    left: { name: string; type: PermissionItemType; warnings?: string[] };
+    right: { name: string; type: PermissionItemType; warnings?: string[] };
     diff: PermissionDiff;
 }
 
@@ -88,8 +88,8 @@ export class PermissionCompareService {
     public static async compare(left: CompareSide, right: CompareSide): Promise<CompareResult> {
         const [leftModel, rightModel] = await Promise.all([this.load(left), this.load(right)]);
         return {
-            left: { name: leftModel.name, type: leftModel.type },
-            right: { name: rightModel.name, type: rightModel.type },
+            left: { name: leftModel.name, type: leftModel.type, warnings: leftModel.warnings },
+            right: { name: rightModel.name, type: rightModel.type, warnings: rightModel.warnings },
             diff: diffPermissionModels(leftModel, rightModel),
         };
     }

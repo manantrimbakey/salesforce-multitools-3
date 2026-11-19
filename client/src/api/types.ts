@@ -98,7 +98,7 @@ export const PERMISSION_SECTIONS = [
     'customEntity',
 ] as const;
 export type PermissionSection = (typeof PERMISSION_SECTIONS)[number];
-export type PermissionItemType = 'permissionset' | 'profile';
+export type PermissionItemType = 'permissionset' | 'profile' | 'permissionsetgroup';
 export type PermissionValue = boolean | string;
 export type DiffStatus = 'added' | 'removed' | 'changed';
 
@@ -152,6 +152,9 @@ export interface DiffEntry {
     status: DiffStatus;
     left?: Record<string, PermissionValue>;
     right?: Record<string, PermissionValue>;
+    /** Permission set groups: which member permission sets grant each permission on that side */
+    leftGrantedBy?: Record<string, string[]>;
+    rightGrantedBy?: Record<string, string[]>;
     changes: PermissionChange[];
 }
 
@@ -167,7 +170,7 @@ export interface SectionSummary {
 
 export interface CompareResponse {
     success: true;
-    left: { name: string; type: PermissionItemType };
-    right: { name: string; type: PermissionItemType };
+    left: { name: string; type: PermissionItemType; warnings?: string[] };
+    right: { name: string; type: PermissionItemType; warnings?: string[] };
     diff: { entries: DiffEntry[]; sections: SectionSummary[] };
 }
