@@ -24,6 +24,8 @@ const SECTION_LABELS: Record<PermissionSection, string> = {
     connectedApp: 'Connected & external client apps',
     recordType: 'Record type visibility',
     layoutAssignment: 'Page layout assignments',
+    groupMember: 'Group members (permission sets)',
+    assignment: 'Assigned users',
     customEntity: 'Custom metadata & settings',
 };
 
@@ -40,6 +42,8 @@ const PERM_LABELS: Record<string, string> = {
     default: 'Default',
     personAccountDefault: 'Person account default',
     layout: 'Layout',
+    member: 'Member',
+    assigned: 'Assigned',
 };
 
 const STATUS_LABELS = { added: 'Added', removed: 'Removed', changed: 'Changed' } as const;

@@ -7,7 +7,10 @@ import { emptySections } from './types';
 
 /** The part of a jsforce / `@salesforce/core` connection this loader needs (keeps it easy to fake in tests). */
 export interface QueryConnection {
-    query<T>(soql: string, options?: { autoFetch?: boolean; maxFetch?: number }): PromiseLike<{ records: T[] }>;
+    query<T>(
+        soql: string,
+        options?: { autoFetch?: boolean; maxFetch?: number },
+    ): PromiseLike<{ records: T[]; totalSize?: number }>;
     tooling: { query<T>(soql: string): PromiseLike<{ records: T[] }> };
     describe(sobject: string): Promise<{ fields: Array<{ name: string; type: string }> }>;
     /** Metadata API; optional so SOQL-only fakes still work. Needed for parts SOQL cannot return. */
@@ -132,7 +135,7 @@ export async function loadOrgModel(
 
     const [header, objects, fields, tabs, setupAccess] = await Promise.all([
         connection.query<Row>(
-            `SELECT Id, Name, Label, IsOwnedByProfile, Profile.Name FROM PermissionSet WHERE Id = '${id}'`,
+            `SELECT Id, Name, NamespacePrefix, Label, IsOwnedByProfile, Profile.Name FROM PermissionSet WHERE Id = '${id}'`,
         ),
         all<Row>(
             connection,
@@ -216,7 +219,13 @@ export async function loadOrgModel(
     const warning =
         options.readMetadata === false
             ? undefined
-            : await loadMetadataOnlySections(connection, isProfile, isProfile ? profileName : str(row.Name), sections);
+            : await loadMetadataOnlySections(
+                  connection,
+                  isProfile,
+                  // the Metadata API knows packaged / standard sets (`force__Name`) only under their namespaced name
+                  isProfile ? profileName : joinNamespace(str(row.NamespacePrefix), str(row.Name)),
+                  sections,
+              );
 
     return {
         type: isProfile ? 'profile' : 'permissionset',
@@ -478,6 +487,21 @@ async function resolvePrincipalNames(connection: QueryConnection, ids: string[])
 }
 
 const GROUP_MEMBER_CONCURRENCY = 3;
+const MAX_ASSIGNEES = 20_000;
+
+/** Active users the group is assigned to (an inactive user does not use the access, so it is left out). */
+async function loadAssignees(
+    connection: QueryConnection,
+    groupId: string,
+): Promise<{ usernames: string[]; truncated: boolean }> {
+    const result = await connection.query<Row>(
+        'SELECT Assignee.Username FROM PermissionSetAssignment ' +
+            `WHERE PermissionSetGroupId = '${groupId}' AND Assignee.IsActive = true ORDER BY Assignee.Username`,
+        { autoFetch: true, maxFetch: MAX_ASSIGNEES },
+    );
+    const usernames = result.records.map((row) => str((row.Assignee as Row | null)?.Username)).filter(Boolean);
+    return { usernames, truncated: (result.totalSize ?? 0) > result.records.length };
+}
 
 /**
  * A permission set group. Salesforce keeps the calculated (muting already applied) permissions on a hidden
@@ -503,13 +527,14 @@ async function loadOrgGroup(connection: QueryConnection, item: PermissionItemRef
         );
     }
 
-    const [owned, members] = await Promise.all([
+    const [owned, members, assignees] = await Promise.all([
         connection.query<Row>(`SELECT Id FROM PermissionSet WHERE PermissionSetGroupId = '${id}'`),
         all<Row>(
             connection,
-            'SELECT PermissionSetId, PermissionSet.Name, PermissionSet.Label FROM PermissionSetGroupComponent ' +
-                `WHERE PermissionSetGroupId = '${id}'`,
+            'SELECT PermissionSetId, PermissionSet.Name, PermissionSet.NamespacePrefix, PermissionSet.Label ' +
+                `FROM PermissionSetGroupComponent WHERE PermissionSetGroupId = '${id}'`,
         ),
+        loadAssignees(connection, id),
     ]);
     const calculatedId = str(owned.records[0]?.Id);
     if (!isSalesforceId(calculatedId)) {
@@ -558,6 +583,23 @@ async function loadOrgGroup(connection: QueryConnection, item: PermissionItemRef
     // Record types (and anything else only the Metadata API knows) are not part of the calculated row
     for (const component of components) {
         calculated.sections.recordType.push(...component.model.sections.recordType);
+    }
+    // Which permission sets make up the group, by API name (what a branch lists), and who the group is assigned to
+    for (const member of members) {
+        const set = member.PermissionSet as Row | null;
+        const apiName = str(set?.Name);
+        if (apiName && isSalesforceId(str(member.PermissionSetId))) {
+            calculated.sections.groupMember.push({
+                key: joinNamespace(str(set?.NamespacePrefix), apiName),
+                perms: { member: true },
+            });
+        }
+    }
+    calculated.sections.assignment.push(...assignees.usernames.map((key) => ({ key, perms: { assigned: true } })));
+    if (assignees.truncated) {
+        warnings.push(
+            `The group is assigned to more than ${MAX_ASSIGNEES} active users; only the first ${MAX_ASSIGNEES} are compared.`,
+        );
     }
     const attributed = attributeSources({ ...calculated, type: 'permissionsetgroup', name: label }, components);
     return warnings.length > 0 ? { ...attributed, warnings: [...new Set(warnings)] } : attributed;

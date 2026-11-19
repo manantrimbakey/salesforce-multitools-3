@@ -36,9 +36,9 @@ The owner tests the extension on real orgs and reports what breaks, so most of t
 
 ## Project state
 
-Public open-source repo, extension on the VS Code Marketplace (0.8.0 shipped with permission compare); Open VSX is behind and waiting on
-Eclipse staff, so do not promise Open VSX releases. Permission compare is the active feature area (types: org / branch / working tree
-sources; permission sets, profiles, permission set groups; export; warnings). Next candidates live in `tasks/todo.md`.
+Public open-source repo. 0.10.0 is released (Marketplace, Open VSX, tag `v0.10.0`, GitHub release): permission sets, profiles and
+permission set groups can be compared (org / branch / working tree sources), with export and warnings. Next candidates live in
+`tasks/todo.md`.
 
 ## Commands
 
@@ -63,9 +63,12 @@ also installs `client/` (postinstall).
 F5 ("Run Extension") runs the `watch` task: `build:client` once, then `watch:tsc` + `watch:esbuild`. Client edits need a
 rebuild (`pnpm run build:client`, or `pnpm run watch:client`) then **Developer: Reload Window** in the dev host.
 Details: `docs/development/building.md`.
-Publishing to the Marketplace (version, PAT, `vsce`): `docs/development/publishing.md`. `vsce` is installed globally
-(`npm i -g @vscode/vsce`), not a project dependency. Claude has no Marketplace
-credentials, so the user runs `vsce publish` themselves.
+Publishing to the Marketplace (version, PAT, `vsce`): `docs/development/publishing.md`. `vsce` and `ovsx` are installed globally
+(`npm i -g @vscode/vsce ovsx`), not project dependencies, and are already logged in on the owner's machine. Releasing is only done
+when the owner asks: version bump + changelog section on a branch off `dev2`, PRs `dev2` -> `dev1` -> `master` (the `master` merge
+needs the owner's admin bypass, ask first), then from a clean `master` run `bash scripts/dev/release.sh` (dry run) and, with the
+owner's go-ahead, `--yes`. It builds, publishes to both stores, tags and creates the GitHub release. Both stores take a few minutes to
+show the new version, so poll `vsce show` / the Open VSX API before calling it failed. Never handle tokens in chat.
 
 ## Architecture (short)
 
