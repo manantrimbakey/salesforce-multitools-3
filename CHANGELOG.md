@@ -4,6 +4,17 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ## [Unreleased]
 
+## [0.10.0]
+
+### Features
+
+- Permission compare: when comparing permission set groups it now also compares which permission sets are in each group and which active users the group is assigned to (org sides; a branch only knows the members)
+
+### Bug fixes
+
+- Permission compare: after switching the org or branch of a side, the item picked on the other side could be carried over by mistake and make the compare fail; it is now only picked from the new side's own list
+- Permission compare: standard and packaged permission sets (for example `force__...`) no longer show a false "could not be read" warning for record types
+
 ## [0.9.0]
 
 ### Features

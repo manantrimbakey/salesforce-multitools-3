@@ -252,6 +252,8 @@ const PERM_ORDER = [
     'viewAll',
     'modifyAll',
     'enabled',
+    'member',
+    'assigned',
     'visible',
     'default',
     'visibility',

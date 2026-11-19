@@ -15,6 +15,8 @@ export const PERMISSION_SECTIONS = [
     'recordType',
     'layoutAssignment',
     'customEntity',
+    'groupMember',
+    'assignment',
 ] as const;
 
 export type PermissionSection = (typeof PERMISSION_SECTIONS)[number];
@@ -59,6 +61,8 @@ export function emptySections(): Record<PermissionSection, PermissionEntry[]> {
         recordType: [],
         layoutAssignment: [],
         customEntity: [],
+        groupMember: [],
+        assignment: [],
     };
 }
 
