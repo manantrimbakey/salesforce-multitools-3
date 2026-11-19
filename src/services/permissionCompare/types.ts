@@ -10,6 +10,10 @@ export const PERMISSION_SECTIONS = [
     'application',
     'flow',
     'externalDataSource',
+    'externalCredentialPrincipal',
+    'connectedApp',
+    'recordType',
+    'layoutAssignment',
     'customEntity',
 ] as const;
 
@@ -46,6 +50,10 @@ export function emptySections(): Record<PermissionSection, PermissionEntry[]> {
         application: [],
         flow: [],
         externalDataSource: [],
+        externalCredentialPrincipal: [],
+        connectedApp: [],
+        recordType: [],
+        layoutAssignment: [],
         customEntity: [],
     };
 }

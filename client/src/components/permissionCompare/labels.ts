@@ -11,6 +11,10 @@ export const SECTION_LABELS: Record<PermissionSection, string> = {
     application: 'App visibility',
     flow: 'Flows',
     externalDataSource: 'External data sources',
+    externalCredentialPrincipal: 'External credential principals',
+    connectedApp: 'Connected & external client apps',
+    recordType: 'Record type visibility',
+    layoutAssignment: 'Page layout assignments',
     customEntity: 'Custom metadata & settings',
 };
 
@@ -24,6 +28,9 @@ const PERM_LABELS: Record<string, string> = {
     enabled: 'Enabled',
     visible: 'Visible',
     visibility: 'Visibility',
+    default: 'Default',
+    personAccountDefault: 'Person account default',
+    layout: 'Layout',
 };
 
 export function permLabel(perm: string): string {

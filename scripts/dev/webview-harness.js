@@ -48,6 +48,7 @@ const answers = (endpoint, data) => {
   if (endpoint === '/api/compare/context') return { success: true, orgs: [{ username: 'ada@example.com', alias: 'dev', isDefault: true, isSandbox: false, isScratchOrg: false }], git: { available: true, refs: [{ name: 'main', kind: 'branch' }, { name: 'feature/x', kind: 'branch' }], workingTreeRef: '@working-tree' } };
   if (endpoint === '/api/compare/items') return { success: true, items: [{ id: '0PS000000000001AAA', name: 'Sales_Team', label: 'Sales Team (Sales_Team)', type: data.type }] };
   if (endpoint === '/api/compare/run') return { success: true, left: { name: 'Sales_Team', type: 'permissionset' }, right: { name: 'Sales_Team', type: 'permissionset' }, diff: { entries: permEntries, sections: [summary('object', { changed: 2, removed: 1, added: 1 }), summary('field', { added: 1, changed: 1 }), summary('system', { removed: 1, added: 1 }), summary('apexClass', { added: 1, oneSided: true }), summary('tab', { changed: 1 }), summary('flow', { added: 1, oneSided: true })] } };
+  if (endpoint === '/api/compare/export') return { success: true, saved: true, path: '/tmp/export.' + (data.format === 'csv' ? 'csv' : 'md') };
   if (endpoint.startsWith('/api/users')) return { success: true, users, currentUser: { display_name: 'Ada Admin', username: 'ada@example.com' } };
   if (endpoint.startsWith('/api/debugLevels')) return { success: true, debugLevels };
   if (endpoint.startsWith('/api/debugLogs')) return { success: true, logs: { records: [] } };
