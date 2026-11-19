@@ -36,6 +36,28 @@ Not compared yet: login hours, login IP ranges, category group visibility, profi
 and the profile user license / custom flags. No SOQL source exists for them and they are rarely what a permission review
 is about.
 
+## Permission set groups
+
+Pick **Set group** next to Permission set / Profile. Groups compare like any other item, org vs org, branch vs org or
+branch vs branch, and each permission shows which member permission set gives it ("Granted by: ..."; the tooltip of a
+permission chip lists them per permission).
+
+| Source                      | How the group's permissions are found                                                                                                                                                                                                                                                                                                               |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Org                         | The group's calculated permissions (Salesforce keeps them, muting already applied, on a hidden `PermissionSet` row owned by the group). The member permission sets are loaded too, only to attribute each permission. The group must be `Updated`; while it is `Updating` / `Outdated` the compare says so instead of showing half-calculated data. |
+| Branch / tag / working tree | `*.permissionsetgroup-meta.xml` lists members; their `*.permissionset-meta.xml` files at the same ref are merged (union) and the `*.mutingpermissionset-meta.xml` files subtract. Members that are not in the repository (standard or managed permission sets) are listed in a warning, because their access is then missing from that side.        |
+
+A permission a muting set removed has no "granted by". Record type visibility is not part of the calculated group row,
+so for an org group it is the union of the members' record types. The Permission set list no longer shows the hidden
+per-group `PermissionSet` rows.
+
+## Warnings and errors
+
+Parts that cannot be read never silently turn into "not granted". If the Metadata API read fails for an org side
+(record types, layouts, default app), a group member cannot be loaded, or a repository file cannot be parsed, the rest
+is still compared and a yellow warning above the results names what is missing. Things that make a side meaningless
+(item deleted, group still updating, not a git repository, unknown ref) stop the compare with a plain message.
+
 ## Semantic diff
 
 The diff compares what is granted, not text. Before comparing, both sides are normalized:

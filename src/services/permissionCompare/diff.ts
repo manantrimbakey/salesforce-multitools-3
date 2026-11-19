@@ -61,12 +61,20 @@ export function diffPermissionModels(left: PermissionModel, right: PermissionMod
     return { entries, sections };
 }
 
+/** `grantedBy` of each side, only when present (keeps ordinary diffs free of empty fields) */
+function sources(left: PermissionEntry | undefined, right: PermissionEntry | undefined) {
+    return {
+        ...(left?.grantedBy ? { leftGrantedBy: left.grantedBy } : {}),
+        ...(right?.grantedBy ? { rightGrantedBy: right.grantedBy } : {}),
+    };
+}
+
 function removed(section: PermissionSection, entry: PermissionEntry): DiffEntry {
-    return { section, key: entry.key, status: 'removed', left: entry.perms, changes: [] };
+    return { section, key: entry.key, status: 'removed', left: entry.perms, ...sources(entry, undefined), changes: [] };
 }
 
 function added(section: PermissionSection, entry: PermissionEntry): DiffEntry {
-    return { section, key: entry.key, status: 'added', right: entry.perms, changes: [] };
+    return { section, key: entry.key, status: 'added', right: entry.perms, ...sources(undefined, entry), changes: [] };
 }
 
 function compareEntry(
@@ -86,7 +94,15 @@ function compareEntry(
     if (changes.length === 0) {
         return undefined;
     }
-    return { section, key: left.key, status: 'changed', left: left.perms, right: right.perms, changes };
+    return {
+        section,
+        key: left.key,
+        status: 'changed',
+        left: left.perms,
+        right: right.perms,
+        ...sources(left, right),
+        changes,
+    };
 }
 
 /** What "not granted" looks like for a permission of the same kind as `sample` */

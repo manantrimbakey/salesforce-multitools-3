@@ -15,3 +15,5 @@
 - SetupEntityAccess `SetupEntityType` values are not the SObject names (`FlowDefinition`, `TabSet`, `CustomEntityDefinition`); verify against a real org, and `EntityDefinition` hides some custom settings.
 - Unit tests compile to a temp dir, so runtime deps need `NODE_PATH` (set in `scripts/dev/run-unit-tests.sh`).
 - vsce applies `!` re-includes over every exclude regardless of order: a blanket `!dist/**` in `.vscodeignore` re-includes stale `*.map` files (dev builds leave them in `dist/`). List shipped files explicitly and check the `.vsix` listing (`release.sh` does).
+- Stop a background dev server by PID (`ps aux | grep [w]ebview-harness`, `kill <pid>`), never `pkill -f <name>`: the pattern also matches the shell running the command and kills it (exit 144) before later steps run.
+- Metadata API muting rules chain (muting Delete needs ModifyAll muted first); when seeding test data in an org, check the deploy report's component failures instead of grepping the CLI table.

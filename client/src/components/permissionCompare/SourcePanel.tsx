@@ -26,6 +26,12 @@ interface Props {
     suggestName?: string;
 }
 
+const ITEM_LABELS: Record<PermissionItemType, string> = {
+    permissionset: 'Permission set',
+    permissionsetgroup: 'Permission set group',
+    profile: 'Profile',
+};
+
 export function SourcePanel({ title, context, value, onChange, suggestName }: Props) {
     const source = toSource(value);
     const { items, loading, error } = useCompareItems(source, value.type);
@@ -63,7 +69,7 @@ export function SourcePanel({ title, context, value, onChange, suggestName }: Pr
             : value.ref === context.git.workingTreeRef
               ? 'the working tree'
               : value.ref;
-    const kindLabel = value.type === 'profile' ? 'profile' : 'permission set';
+    const kindLabel = ITEM_LABELS[value.type].toLowerCase();
     // Tell the user why nothing can be picked instead of leaving an empty / silent field
     const typedText = itemInput.trim().toLowerCase();
     let itemHint: string | undefined;
@@ -145,6 +151,7 @@ export function SourcePanel({ title, context, value, onChange, suggestName }: Pr
                 aria-label={`${title} metadata type`}
             >
                 <ToggleButton value="permissionset">Permission set</ToggleButton>
+                <ToggleButton value="permissionsetgroup">Set group</ToggleButton>
                 <ToggleButton value="profile">Profile</ToggleButton>
             </ToggleButtonGroup>
 
@@ -170,7 +177,7 @@ export function SourcePanel({ title, context, value, onChange, suggestName }: Pr
                 renderInput={(params) => (
                     <TextField
                         {...params}
-                        label={value.type === 'profile' ? 'Profile' : 'Permission set'}
+                        label={ITEM_LABELS[value.type]}
                         error={!!itemHint}
                         helperText={itemHint}
                         slotProps={{

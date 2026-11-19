@@ -58,10 +58,18 @@ function valueLabel(value: PermissionValue | undefined): string {
 }
 
 /** What one side grants, e.g. `Read, Edit` or `Visibility: Visible`; `-` when nothing. */
-function describePerms(perms: Record<string, PermissionValue> | undefined): string {
+function describePerms(
+    perms: Record<string, PermissionValue> | undefined,
+    grantedBy?: Record<string, string[]>,
+): string {
     const parts = Object.entries(perms ?? {})
         .filter(([, value]) => isGranted(value))
-        .map(([name, value]) => (typeof value === 'string' ? `${permLabel(name)}: ${value}` : permLabel(name)));
+        .map(([name, value]) => {
+            const label = typeof value === 'string' ? `${permLabel(name)}: ${value}` : permLabel(name);
+            const via = grantedBy?.[name];
+            // permission set groups: which member permission sets give it
+            return via && via.length > 0 ? `${label} (via ${via.join(' + ')})` : label;
+        });
     return parts.length > 0 ? parts.join(', ') : '(none)';
 }
 
@@ -90,8 +98,8 @@ export function toCsv({ leftLabel, rightLabel, entries }: ExportInput): string {
         SECTION_LABELS[entry.section],
         entry.key,
         STATUS_LABELS[entry.status],
-        describePerms(entry.left),
-        describePerms(entry.right),
+        describePerms(entry.left, entry.leftGrantedBy),
+        describePerms(entry.right, entry.rightGrantedBy),
         describeChanges(entry),
     ]);
     // BOM so Excel opens it as UTF-8
@@ -134,8 +142,8 @@ export function toMarkdown({ leftLabel, rightLabel, entries }: ExportInput): str
                 `| ${[
                     mdCell(entry.key),
                     STATUS_LABELS[entry.status],
-                    mdCell(describePerms(entry.left)),
-                    mdCell(describePerms(entry.right)),
+                    mdCell(describePerms(entry.left, entry.leftGrantedBy)),
+                    mdCell(describePerms(entry.right, entry.rightGrantedBy)),
                     mdCell(describeChanges(entry)),
                 ].join(' | ')} |`,
             );

@@ -6,6 +6,7 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ### Features
 
+- Permission compare can compare permission set groups (org or branch), and for a group shows which member permission set grants each permission
 - Permission compare results can be exported as Markdown or CSV
 - Permission compare now also covers external credential principal access, connected apps and external client apps, record type visibility, the profile default app and profile page layout assignments
 
