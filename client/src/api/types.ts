@@ -91,6 +91,10 @@ export const PERMISSION_SECTIONS = [
     'application',
     'flow',
     'externalDataSource',
+    'externalCredentialPrincipal',
+    'connectedApp',
+    'recordType',
+    'layoutAssignment',
     'customEntity',
 ] as const;
 export type PermissionSection = (typeof PERMISSION_SECTIONS)[number];

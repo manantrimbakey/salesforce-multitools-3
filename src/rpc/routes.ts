@@ -2,9 +2,12 @@ import * as vscode from 'vscode';
 import { getComponentFiles } from '../features/componentFileSwitcher/componentFileSwitcherUtils';
 import { DebugLogProvider } from '../features/debugLogs/debugLogProvider';
 import { DebugLogService, LogFilter } from '../services/debugLogService';
+import { saveExport } from '../services/permissionCompare/exportFile';
+import type { ExportFormat } from '../services/permissionCompare/exportFormat';
 import { PermissionCompareService } from '../services/permissionCompare/permissionCompareService';
 import type { CompareSide } from '../services/permissionCompare/permissionCompareService';
-import type { PermissionItemType, PermissionSource } from '../services/permissionCompare/types';
+import { PERMISSION_SECTIONS } from '../services/permissionCompare/types';
+import type { DiffEntry, PermissionItemType, PermissionSource } from '../services/permissionCompare/types';
 import { WorkspaceFileError, WorkspaceFileService } from '../services/workspaceFileService';
 import { isSalesforceId, parseOptionalSize } from '../utils/validation';
 import { Router, RpcError, RpcRequest, bodyObject } from './router';
@@ -85,6 +88,71 @@ export function parseSide(value: unknown): CompareSide {
         throw new RpcError('BAD_REQUEST', 'A valid permission set / profile Id is required');
     }
     return { source, item: { type: itemType, id } };
+}
+
+const MAX_EXPORT_ENTRIES = 200_000;
+const MAX_LABEL_LENGTH = 500;
+const DIFF_STATUSES = ['added', 'removed', 'changed'];
+
+function parsePerms(value: unknown): Record<string, boolean | string> | undefined {
+    if (value === undefined) {
+        return undefined;
+    }
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        throw new RpcError('BAD_REQUEST', 'Invalid permissions in export');
+    }
+    const perms: Record<string, boolean | string> = {};
+    for (const [name, perm] of Object.entries(value)) {
+        if (typeof perm !== 'boolean' && typeof perm !== 'string') {
+            throw new RpcError('BAD_REQUEST', 'Invalid permission value in export');
+        }
+        perms[name] = perm;
+    }
+    return perms;
+}
+
+/** Shape-check the diff entries the webview wants exported (the formatter trusts the shape). */
+export function parseExportEntries(value: unknown): DiffEntry[] {
+    if (!Array.isArray(value) || value.length > MAX_EXPORT_ENTRIES) {
+        throw new RpcError('BAD_REQUEST', 'entries must be a list');
+    }
+    return value.map((raw): DiffEntry => {
+        const entry = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+        const { section, key, status, changes } = entry;
+        if (
+            !PERMISSION_SECTIONS.includes(section as DiffEntry['section']) ||
+            typeof key !== 'string' ||
+            !DIFF_STATUSES.includes(status as string) ||
+            !Array.isArray(changes)
+        ) {
+            throw new RpcError('BAD_REQUEST', 'Invalid entry in export');
+        }
+        return {
+            section: section as DiffEntry['section'],
+            key,
+            status: status as DiffEntry['status'],
+            left: parsePerms(entry.left),
+            right: parsePerms(entry.right),
+            changes: changes.map((change) => {
+                const { perm, left, right } = (change ?? {}) as Record<string, unknown>;
+                if (
+                    typeof perm !== 'string' ||
+                    !['boolean', 'string'].includes(typeof left) ||
+                    !['boolean', 'string'].includes(typeof right)
+                ) {
+                    throw new RpcError('BAD_REQUEST', 'Invalid change in export');
+                }
+                return { perm, left: left as boolean | string, right: right as boolean | string };
+            }),
+        };
+    });
+}
+
+function parseLabel(value: unknown, name: string): string {
+    if (typeof value !== 'string' || value.length > MAX_LABEL_LENGTH) {
+        throw new RpcError('BAD_REQUEST', `${name} is required`);
+    }
+    return value;
 }
 
 /** Translate expected workspace file errors into RPC errors. */
@@ -200,6 +268,20 @@ function createApiRouter(): Router {
     router.post('/api/compare/run', async ({ body }: RpcRequest) => {
         const { left, right } = bodyObject(body);
         return { success: true, ...(await PermissionCompareService.compare(parseSide(left), parseSide(right))) };
+    });
+
+    router.post('/api/compare/export', async ({ body }: RpcRequest) => {
+        const { format, leftLabel, rightLabel, entries } = bodyObject(body);
+        if (format !== 'markdown' && format !== 'csv') {
+            throw new RpcError('BAD_REQUEST', 'format must be "markdown" or "csv"');
+        }
+        const input = {
+            leftLabel: parseLabel(leftLabel, 'leftLabel'),
+            rightLabel: parseLabel(rightLabel, 'rightLabel'),
+            entries: parseExportEntries(entries),
+        };
+        const path = await saveExport(format as ExportFormat, input, `${input.leftLabel}_vs_${input.rightLabel}`);
+        return path ? { success: true, saved: true, path } : { success: true, saved: false };
     });
 
     // ---- Workspace files / components ----

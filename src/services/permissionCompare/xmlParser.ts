@@ -15,8 +15,11 @@ const ARRAY_TAGS = new Set([
     'applicationVisibilities',
     'flowAccesses',
     'externalDataSourceAccesses',
+    'externalCredentialPrincipalAccesses',
     'customMetadataTypeAccesses',
     'customSettingAccesses',
+    'recordTypeVisibilities',
+    'layoutAssignments',
 ]);
 
 const parser = new XMLParser({
@@ -40,7 +43,8 @@ function text(node: XmlNode, tag: string): string | undefined {
 }
 
 function flag(node: XmlNode, tag: string): boolean {
-    return text(node, tag)?.toLowerCase() === 'true';
+    const value = node[tag];
+    return value === true || (typeof value === 'string' && value.toLowerCase() === 'true');
 }
 
 /**
@@ -94,6 +98,12 @@ export function parsePermissionXml(xml: string, type: PermissionItemType, name: 
 
     pushEnabled(sections.flow, asNodes(node.flowAccesses), 'flow');
     pushEnabled(sections.externalDataSource, asNodes(node.externalDataSourceAccesses), 'externalDataSource');
+    // Key is `<ExternalCredential>-<Principal>`; only permission sets carry it, the Profile metadata type does not
+    pushEnabled(
+        sections.externalCredentialPrincipal,
+        asNodes(node.externalCredentialPrincipalAccesses),
+        'externalCredentialPrincipal',
+    );
     // Custom metadata types (`__mdt`) and custom settings (`__c`) share one section, keyed without the suffix
     for (const item of [...asNodes(node.customMetadataTypeAccesses), ...asNodes(node.customSettingAccesses)]) {
         const key = text(item, 'name');
@@ -107,7 +117,10 @@ export function parsePermissionXml(xml: string, type: PermissionItemType, name: 
     for (const item of asNodes(node.applicationVisibilities)) {
         const key = text(item, 'application');
         if (key) {
-            sections.application.push({ key, perms: { visible: flag(item, 'visible') } });
+            sections.application.push({
+                key,
+                perms: { visible: flag(item, 'visible'), default: flag(item, 'default') },
+            });
         }
     }
 
@@ -120,7 +133,42 @@ export function parsePermissionXml(xml: string, type: PermissionItemType, name: 
         }
     }
 
+    readMetadataOnlySections(node, sections);
+
     return { type, name, sections };
+}
+
+/**
+ * Parts of a permission set / profile that SOQL cannot return: record type visibility and (profiles) page layout
+ * assignments. `node` is a parsed metadata XML document or the result of a Metadata API `read`, both have this shape.
+ */
+export function readMetadataOnlySections(node: Record<string, unknown>, sections: PermissionModel['sections']): void {
+    const asList = (value: unknown): XmlNode[] => {
+        const list = Array.isArray(value) ? value : value ? [value] : [];
+        return list.filter((entry): entry is XmlNode => typeof entry === 'object' && entry !== null);
+    };
+    for (const item of asList(node.recordTypeVisibilities)) {
+        const key = text(item, 'recordType');
+        if (key) {
+            sections.recordType.push({
+                key,
+                perms: {
+                    visible: flag(item, 'visible'),
+                    default: flag(item, 'default'),
+                    personAccountDefault: flag(item, 'personAccountDefault'),
+                },
+            });
+        }
+    }
+    // One entry per (object, record type): the layout assigned to it. Layout names look like `Account-My Layout`.
+    for (const item of asList(node.layoutAssignments)) {
+        const layout = text(item, 'layout');
+        if (layout) {
+            const recordType = text(item, 'recordType');
+            const object = layout.split('-')[0];
+            sections.layoutAssignment.push({ key: recordType ?? `${object} (master)`, perms: { layout } });
+        }
+    }
 }
 
 /** `ns__Thing__mdt` / `Thing__c` -> `ns__Thing` */

@@ -4,6 +4,16 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ## [Unreleased]
 
+### Features
+
+- Permission compare results can be exported as Markdown or CSV
+- Permission compare now also covers external credential principal access, connected apps and external client apps, record type visibility, the profile default app and profile page layout assignments
+
+### Bug fixes
+
+- Permission compare: when a permission set or profile does not exist in the chosen org or branch, the field now says so instead of failing with an unexpected error
+- Permission compare: the permission set / profile field keeps what you type instead of clearing it when you click away, still suggests matching names, and picks the item when the text matches one exactly
+
 ## [0.8.0]
 
 ### Features

@@ -4,7 +4,10 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { RpcError } from '../rpc/router';
-import { parseSide, parseSource } from '../rpc/routes';
+import { apiRouter, parseExportEntries, parseSide, parseSource } from '../rpc/routes';
+import { safeBaseName } from '../services/permissionCompare/exportFile';
+import { toCsv, toMarkdown } from '../services/permissionCompare/exportFormat';
+import type { DiffEntry } from '../services/permissionCompare/types';
 import { diffPermissionModels } from '../services/permissionCompare/diff';
 import {
     assertKnownRef,
@@ -131,6 +134,8 @@ const PERMSET_XML = `<?xml version="1.0" encoding="UTF-8"?>
     <flowAccesses><enabled>true</enabled><flow>My_Flow</flow></flowAccesses>
     <applicationVisibilities><application>standard__Sales</application><visible>true</visible></applicationVisibilities>
     <externalDataSourceAccesses><enabled>true</enabled><externalDataSource>Ext</externalDataSource></externalDataSourceAccesses>
+    <recordTypeVisibilities><recordType>Account.Biz</recordType><visible>true</visible></recordTypeVisibilities>
+    <externalCredentialPrincipalAccesses><enabled>true</enabled><externalCredentialPrincipal>Cred-Principal</externalCredentialPrincipal></externalCredentialPrincipalAccesses>
     <customMetadataTypeAccesses><enabled>true</enabled><name>ns__Cfg__mdt</name></customMetadataTypeAccesses>
     <customSettingAccesses><enabled>true</enabled><name>Setting__c</name></customSettingAccesses>
 </PermissionSet>`;
@@ -151,8 +156,16 @@ suite('permission compare: xml parser', () => {
         assert.deepStrictEqual(parsed.sections.customPermission, [{ key: 'Cp', perms: { enabled: true } }]);
         assert.deepStrictEqual(parsed.sections.tab, [{ key: 'standard-Account', perms: { visibility: 'Visible' } }]);
         assert.deepStrictEqual(parsed.sections.flow, [{ key: 'My_Flow', perms: { enabled: true } }]);
-        assert.deepStrictEqual(parsed.sections.application, [{ key: 'standard__Sales', perms: { visible: true } }]);
+        assert.deepStrictEqual(parsed.sections.application, [
+            { key: 'standard__Sales', perms: { visible: true, default: false } },
+        ]);
         assert.deepStrictEqual(parsed.sections.externalDataSource, [{ key: 'Ext', perms: { enabled: true } }]);
+        assert.deepStrictEqual(parsed.sections.recordType, [
+            { key: 'Account.Biz', perms: { visible: true, default: false, personAccountDefault: false } },
+        ]);
+        assert.deepStrictEqual(parsed.sections.externalCredentialPrincipal, [
+            { key: 'Cred-Principal', perms: { enabled: true } },
+        ]);
         assert.deepStrictEqual(parsed.sections.customEntity, [
             { key: 'ns__Cfg', perms: { enabled: true } },
             { key: 'Setting', perms: { enabled: true } },
@@ -274,11 +287,11 @@ suite('permission compare: git source', () => {
         await assert.rejects(assertKnownRef(root, 'main:../../etc/passwd'), /Unknown branch or tag/);
         await assert.rejects(
             loadBranchModel(root, repo, 'main', { type: 'permissionset', id: '../../etc/passwd' }),
-            /File not found/,
+            /does not exist at/,
         );
         await assert.rejects(
             loadBranchModel(root, repo, 'main', { type: 'permissionset', id: 'other/Hidden.permissionset-meta.xml' }),
-            /File not found/,
+            /does not exist at/,
         );
     });
 });
@@ -289,6 +302,8 @@ const FLOW_ID = '300000000000001AAA';
 const APP_ID = '02u000000000001AAA';
 const ENTITY_ID = '01I000000000001AAA';
 const SETTING_ID = '01I000000000002AAA';
+const PRINCIPAL_ID = '0pu000000000001AAA';
+const PRINCIPAL_VARIANT_ID = '0pu000000000002AAA';
 
 function fakeConnection(): { connection: QueryConnection; queries: string[] } {
     const queries: string[] = [];
@@ -297,6 +312,12 @@ function fakeConnection(): { connection: QueryConnection; queries: string[] } {
         tooling: {
             query: <T>(soql: string) => {
                 queries.push(soql);
+                if (soql.includes('FROM ExternalCredentialParameter')) {
+                    // the real API filters on ParameterType; only the principal comes back
+                    return Promise.resolve({
+                        records: [{ ParameterName: 'Principal', ExternalCredential: { DeveloperName: 'Cred' } }],
+                    }) as Promise<{ records: T[] }>;
+                }
                 return Promise.resolve({
                     records: [{ Id: SETTING_ID, DeveloperName: 'Setting', NamespacePrefix: null }],
                 }) as Promise<{ records: T[] }>;
@@ -350,6 +371,8 @@ function fakeConnection(): { connection: QueryConnection; queries: string[] } {
                     { SetupEntityId: APP_ID, SetupEntityType: 'TabSet' },
                     { SetupEntityId: ENTITY_ID, SetupEntityType: 'CustomEntityDefinition' },
                     { SetupEntityId: SETTING_ID, SetupEntityType: 'CustomEntityDefinition' },
+                    { SetupEntityId: PRINCIPAL_ID, SetupEntityType: 'ExternalCredentialParameter' },
+                    { SetupEntityId: PRINCIPAL_VARIANT_ID, SetupEntityType: 'ExternalCredentialParameter' },
                 ]) as Promise<{ records: T[] }>;
             }
             if (soql.includes('FROM FlowDefinitionView')) {
@@ -388,13 +411,36 @@ suite('permission compare: org loader', () => {
         assert.deepStrictEqual(org.sections.flow, [{ key: 'My_Flow', perms: { enabled: true } }]);
         assert.deepStrictEqual(org.sections.application, [{ key: 'standard__Sales', perms: { visible: true } }]);
         assert.deepStrictEqual(org.sections.customEntity.map((entry) => entry.key).sort(), ['Setting', 'ns__Cfg']);
+        assert.deepStrictEqual(org.sections.externalCredentialPrincipal, [
+            { key: 'Cred-Principal', perms: { enabled: true } },
+        ]);
 
         const xml = PERMSET_XML.replace('<apexClass>Foo', '<apexClass>ns__Foo')
             .replace(/<externalDataSourceAccesses>.*?<\/externalDataSourceAccesses>/s, '')
+            .replace(/<recordTypeVisibilities>.*?<\/recordTypeVisibilities>/s, '')
             .replace(/<pageAccesses>.*?<\/pageAccesses>/s, '')
             .replace(/<customPermissions>.*?<\/customPermissions>/s, '');
         const branch = parsePermissionXml(xml, 'permissionset', 'Sales');
         assert.deepStrictEqual(diffPermissionModels(branch, org).entries, []);
+    });
+
+    test('adds record types, layouts and default app from the Metadata API read', async () => {
+        const { connection } = fakeConnection();
+        const read = async (type: string, fullName: string) => {
+            assert.strictEqual(`${type}:${fullName}`, 'PermissionSet:Sales');
+            return {
+                fullName,
+                recordTypeVisibilities: [{ recordType: 'Account.Biz', visible: true }],
+                layoutAssignments: { layout: 'Account-Big Layout', recordType: 'Account.Biz' },
+            };
+        };
+        const org = await loadOrgModel({ ...connection, metadata: { read } }, { type: 'permissionset', id: PS_ID });
+        assert.deepStrictEqual(org.sections.recordType, [
+            { key: 'Account.Biz', perms: { visible: true, default: false, personAccountDefault: false } },
+        ]);
+        assert.deepStrictEqual(org.sections.layoutAssignment, [
+            { key: 'Account.Biz', perms: { layout: 'Account-Big Layout' } },
+        ]);
     });
 
     test('only issues queries scoped to the validated id', async () => {
@@ -459,5 +505,64 @@ suite('permission compare: route validation', () => {
         badRequest(() => parseSide({ source: branch, item: { type: 'profile' } }));
         badRequest(() => parseSide({ source: branch }));
         badRequest(() => parseSide(undefined));
+    });
+});
+
+suite('permission compare: export', () => {
+    const entries: DiffEntry[] = [
+        {
+            section: 'object',
+            key: 'Account',
+            status: 'changed',
+            left: { read: true, edit: false },
+            right: { read: true, edit: true },
+            changes: [{ perm: 'edit', left: false, right: true }],
+        },
+        { section: 'apexClass', key: '=cmd|x, "y"', status: 'removed', left: { enabled: true }, changes: [] },
+        { section: 'tab', key: 'a|b', status: 'added', right: { visibility: 'Visible' }, changes: [] },
+    ];
+    const input = { leftLabel: 'Sales @ dev', rightLabel: 'Sales @ prod', entries };
+
+    test('csv has a header, one row per entry, quotes fields and defuses formulas', () => {
+        const lines = toCsv(input).replace('﻿', '').trim().split('\r\n');
+        assert.strictEqual(lines.length, 4);
+        assert.strictEqual(lines[0], 'Section,Name,Difference,Base: Sales @ dev,Compare to: Sales @ prod,Changes');
+        assert.strictEqual(lines[1], 'Object permissions,Account,Changed,Read,"Read, Edit",Edit: No -> Yes');
+        assert.ok(lines[2].startsWith('Apex classes,"\'=cmd|x, ""y""",Removed,Enabled,(none),'), lines[2]);
+    });
+
+    test('markdown groups by section, escapes pipes and reports counts', () => {
+        const md = toMarkdown(input);
+        assert.ok(md.includes('- **Differences:** 3 (1 only in compare-to, 1 only in base, 1 changed)'));
+        assert.ok(md.includes('## Object permissions (1)'));
+        assert.ok(md.includes('| Account | Changed | Read | Read, Edit | Edit: No -> Yes |'));
+        assert.ok(md.includes('| a\\|b | Added | (none) | Visibility: Visible |  |'), md);
+        assert.ok(toMarkdown({ ...input, entries: [] }).includes('No differences'));
+    });
+
+    test('file names are made safe', () => {
+        assert.strictEqual(safeBaseName('Sales @ dev/../x: y'), 'Sales_dev_.._x_y');
+        assert.strictEqual(safeBaseName('///'), 'permission-compare');
+    });
+
+    test('route validates the export payload', async () => {
+        assert.strictEqual(parseExportEntries(entries).length, 3);
+        assert.throws(
+            () => parseExportEntries([{ section: 'nope', key: 'x', status: 'added', changes: [] }]),
+            RpcError,
+        );
+        assert.throws(
+            () => parseExportEntries([{ section: 'object', key: 'x', status: 'added', changes: [], left: [] }]),
+            RpcError,
+        );
+        await assert.rejects(
+            apiRouter.dispatch('POST', '/api/compare/export', {
+                format: 'html',
+                leftLabel: 'a',
+                rightLabel: 'b',
+                entries: [],
+            }),
+            (error: unknown) => error instanceof RpcError && error.code === 'BAD_REQUEST',
+        );
     });
 });

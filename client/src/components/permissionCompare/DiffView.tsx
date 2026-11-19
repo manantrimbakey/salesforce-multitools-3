@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { MouseEvent } from 'react';
 import {
     Accordion,
     AccordionDetails,
@@ -8,6 +9,8 @@ import {
     Button,
     Chip,
     FormControlLabel,
+    Menu,
+    MenuItem,
     Stack,
     Switch,
     TextField,
@@ -16,6 +19,7 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material';
+import { api, errorMessage } from '../../api/client';
 import type { CompareResponse, DiffEntry, DiffStatus, PermissionSection, PermissionValue } from '../../api/client';
 import { SECTION_LABELS, permLabel, valueLabel } from './labels';
 
@@ -66,6 +70,18 @@ export function DiffView({ result, leftLabel, rightLabel, mixedSources }: Props)
     const sectionsWithDiffs = sections.filter(
         (s) => s.added + s.removed + s.changed > 0 && !(ignoreOneSided && s.oneSided),
     );
+    const [exportAnchor, setExportAnchor] = useState<HTMLElement | null>(null);
+    const [exportMessage, setExportMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
+    // Exports exactly what the filters currently show
+    const exportAs = async (format: 'markdown' | 'csv') => {
+        setExportAnchor(null);
+        try {
+            const response = await api.exportCompare(format, leftLabel, rightLabel, visible);
+            setExportMessage(response.saved ? { severity: 'success', text: `Saved ${response.path}` } : null);
+        } catch (e) {
+            setExportMessage({ severity: 'error', text: errorMessage(e) });
+        }
+    };
     const toggleSection = (section: PermissionSection) =>
         setHidden((current) =>
             current.includes(section) ? current.filter((s) => s !== section) : [...current, section],
@@ -88,6 +104,20 @@ export function DiffView({ result, leftLabel, rightLabel, mixedSources }: Props)
                 />
                 <Chip size="small" color="warning" variant="outlined" label={`~ ${totals.changed} changed`} />
                 <Box sx={{ flex: 1 }} />
+                <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={visible.length === 0}
+                    onClick={(event: MouseEvent<HTMLElement>) => setExportAnchor(event.currentTarget)}
+                    aria-haspopup="menu"
+                    title="Export the differences currently shown"
+                >
+                    Export
+                </Button>
+                <Menu anchorEl={exportAnchor} open={!!exportAnchor} onClose={() => setExportAnchor(null)}>
+                    <MenuItem onClick={() => void exportAs('markdown')}>Markdown (.md)</MenuItem>
+                    <MenuItem onClick={() => void exportAs('csv')}>CSV (.csv)</MenuItem>
+                </Menu>
                 <TextField
                     size="small"
                     placeholder="Filter by name"
@@ -149,6 +179,12 @@ export function DiffView({ result, leftLabel, rightLabel, mixedSources }: Props)
                 )}
             </Stack>
 
+            {exportMessage && (
+                <Alert severity={exportMessage.severity} onClose={() => setExportMessage(null)} sx={{ py: 0 }}>
+                    <Box sx={{ wordBreak: 'break-all' }}>{exportMessage.text}</Box>
+                </Alert>
+            )}
+
             {entries.length === 0 && (
                 <Alert severity="success">No differences. Both sides grant the same permissions.</Alert>
             )}
@@ -208,7 +244,19 @@ function SectionGroup({ section, entries }: { section: PermissionSection; entrie
     );
 }
 
-const PERM_ORDER = ['create', 'read', 'edit', 'delete', 'viewAll', 'modifyAll', 'enabled', 'visible', 'visibility'];
+const PERM_ORDER = [
+    'create',
+    'read',
+    'edit',
+    'delete',
+    'viewAll',
+    'modifyAll',
+    'enabled',
+    'visible',
+    'default',
+    'visibility',
+    'layout',
+];
 
 function sortedPerms(names: string[]): string[] {
     const rank = (name: string) => (PERM_ORDER.includes(name) ? PERM_ORDER.indexOf(name) : PERM_ORDER.length);
