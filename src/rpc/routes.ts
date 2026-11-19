@@ -43,8 +43,8 @@ const MAX_REF_LENGTH = 255;
 const MAX_ITEM_ID_LENGTH = 1024;
 
 function parseItemType(value: unknown): PermissionItemType {
-    if (value !== 'permissionset' && value !== 'profile') {
-        throw new RpcError('BAD_REQUEST', 'type must be "permissionset" or "profile"');
+    if (value !== 'permissionset' && value !== 'profile' && value !== 'permissionsetgroup') {
+        throw new RpcError('BAD_REQUEST', 'type must be "permissionset", "profile" or "permissionsetgroup"');
     }
     return value;
 }
@@ -111,6 +111,23 @@ function parsePerms(value: unknown): Record<string, boolean | string> | undefine
     return perms;
 }
 
+function parseSources(value: unknown): Record<string, string[]> | undefined {
+    if (value === undefined) {
+        return undefined;
+    }
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        throw new RpcError('BAD_REQUEST', 'Invalid sources in export');
+    }
+    const sources: Record<string, string[]> = {};
+    for (const [perm, names] of Object.entries(value)) {
+        if (!Array.isArray(names) || names.some((name) => typeof name !== 'string')) {
+            throw new RpcError('BAD_REQUEST', 'Invalid sources in export');
+        }
+        sources[perm] = names as string[];
+    }
+    return sources;
+}
+
 /** Shape-check the diff entries the webview wants exported (the formatter trusts the shape). */
 export function parseExportEntries(value: unknown): DiffEntry[] {
     if (!Array.isArray(value) || value.length > MAX_EXPORT_ENTRIES) {
@@ -133,6 +150,8 @@ export function parseExportEntries(value: unknown): DiffEntry[] {
             status: status as DiffEntry['status'],
             left: parsePerms(entry.left),
             right: parsePerms(entry.right),
+            leftGrantedBy: parseSources(entry.leftGrantedBy),
+            rightGrantedBy: parseSources(entry.rightGrantedBy),
             changes: changes.map((change) => {
                 const { perm, left, right } = (change ?? {}) as Record<string, unknown>;
                 if (

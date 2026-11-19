@@ -16,11 +16,12 @@ import {
     listRefs,
     loadBranchModel,
 } from '../services/permissionCompare/gitSource';
+import { mergeGroupModel } from '../services/permissionCompare/permissionGroup';
 import { loadOrgModel, listOrgItems } from '../services/permissionCompare/orgLoader';
 import type { QueryConnection } from '../services/permissionCompare/orgLoader';
 import { emptySections, WORKING_TREE_REF } from '../services/permissionCompare/types';
 import type { PermissionModel } from '../services/permissionCompare/types';
-import { parsePermissionXml } from '../services/permissionCompare/xmlParser';
+import { parsePermissionSetGroupXml, parsePermissionXml } from '../services/permissionCompare/xmlParser';
 
 function model(sections: Partial<PermissionModel['sections']>, name = 'X'): PermissionModel {
     return { type: 'permissionset', name, sections: { ...emptySections(), ...sections } };
@@ -564,5 +565,227 @@ suite('permission compare: export', () => {
             }),
             (error: unknown) => error instanceof RpcError && error.code === 'BAD_REQUEST',
         );
+    });
+});
+
+suite('permission compare: permission set groups', () => {
+    const permSet = (
+        name: string,
+        account: Record<string, boolean>,
+        extra: Partial<PermissionModel['sections']> = {},
+    ) =>
+        ({
+            type: 'permissionset',
+            name,
+            sections: { ...emptySections(), object: [{ key: 'Account', perms: account }], ...extra },
+        }) as PermissionModel;
+
+    const readOnly = permSet('Reader', { read: true });
+    const editor = permSet('Editor', { edit: true }, { system: [{ key: 'ViewSetup', perms: { enabled: true } }] });
+
+    test('merges members, subtracts muting sets and records which member grants what', () => {
+        const mute = permSet('Mute', { delete: true });
+        const withDelete = permSet('Deleter', { delete: true });
+        const merged = mergeGroupModel(
+            'Grp',
+            [readOnly, editor, withDelete].map((m) => ({ name: m.name, model: m })),
+            [mute],
+        );
+        const account = merged.sections.object.find((entry) => entry.key === 'Account');
+        assert.deepStrictEqual(account?.perms, { read: true, edit: true });
+        // edit and delete imply read, so those members "give" read too
+        assert.deepStrictEqual(account?.grantedBy, { read: ['Reader', 'Editor', 'Deleter'], edit: ['Editor'] });
+        assert.deepStrictEqual(merged.sections.system[0].grantedBy, { enabled: ['Editor'] });
+        assert.strictEqual(merged.type, 'permissionsetgroup');
+    });
+
+    test('grantedBy shows up on each side of the diff', () => {
+        const a = mergeGroupModel('A', [{ name: 'Reader', model: readOnly }], []);
+        const b = mergeGroupModel('B', [{ name: 'Editor', model: editor }], []);
+        const entry = diffPermissionModels(a, b).entries.find((e) => e.key === 'Account');
+        assert.deepStrictEqual(entry?.leftGrantedBy, { read: ['Reader'] });
+        assert.deepStrictEqual(entry?.rightGrantedBy, { edit: ['Editor'], read: ['Editor'] });
+    });
+
+    test('parses group and muting files', () => {
+        const group = parsePermissionSetGroupXml(
+            '<PermissionSetGroup xmlns="x"><label>G</label><permissionSets>A</permissionSets><permissionSets>B</permissionSets>' +
+                '<mutingPermissionSets>M</mutingPermissionSets></PermissionSetGroup>',
+        );
+        assert.deepStrictEqual(group, { label: 'G', permissionSets: ['A', 'B'], mutingPermissionSets: ['M'] });
+        const muting = parsePermissionXml(
+            '<MutingPermissionSet xmlns="x"><userPermissions><enabled>true</enabled><name>ViewSetup</name></userPermissions></MutingPermissionSet>',
+            'permissionset',
+            'M',
+            'MutingPermissionSet',
+        );
+        assert.deepStrictEqual(muting.sections.system, [{ key: 'ViewSetup', perms: { enabled: true } }]);
+    });
+
+    test('loads a group from the working tree and warns about members that are not in the repository', async () => {
+        const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'perm-compare-group-'));
+        try {
+            execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: repo });
+            const base = path.join(repo, 'force-app', 'main', 'default');
+            for (const dir of ['permissionsets', 'permissionsetgroups', 'mutingpermissionsets']) {
+                fs.mkdirSync(path.join(base, dir), { recursive: true });
+            }
+            fs.writeFileSync(
+                path.join(repo, 'sfdx-project.json'),
+                JSON.stringify({ packageDirectories: [{ path: 'force-app' }] }),
+            );
+            fs.writeFileSync(path.join(base, 'permissionsets', 'Sales.permissionset-meta.xml'), PERMSET_XML);
+            fs.writeFileSync(
+                path.join(base, 'mutingpermissionsets', 'Mute.mutingpermissionset-meta.xml'),
+                '<MutingPermissionSet xmlns="x"><userPermissions><enabled>true</enabled><name>ViewSetup</name></userPermissions></MutingPermissionSet>',
+            );
+            fs.writeFileSync(
+                path.join(base, 'permissionsetgroups', 'Team.permissionsetgroup-meta.xml'),
+                '<PermissionSetGroup xmlns="x"><label>Team</label><permissionSets>Sales</permissionSets><permissionSets>Standard_Thing</permissionSets><mutingPermissionSets>Mute</mutingPermissionSets></PermissionSetGroup>',
+            );
+            const root = fs.realpathSync(repo);
+            const items = await listBranchItems(root, repo, WORKING_TREE_REF, 'permissionsetgroup');
+            assert.deepStrictEqual(
+                items.map((item) => item.name),
+                ['Team'],
+            );
+            const model = await loadBranchModel(root, repo, WORKING_TREE_REF, items[0]);
+            assert.strictEqual(model.type, 'permissionsetgroup');
+            assert.deepStrictEqual(model.sections.system, [], 'ViewSetup is muted');
+            assert.deepStrictEqual(model.sections.object[0].grantedBy?.create, ['Sales']);
+            assert.strictEqual(model.warnings?.length, 1);
+            assert.ok(model.warnings?.[0].includes('Standard_Thing'));
+        } finally {
+            fs.rmSync(repo, { recursive: true, force: true });
+        }
+    });
+
+    test('org group: calculated row for permissions, members for sources, clear errors', async () => {
+        const GROUP_ID = '0PG000000000001AAA';
+        const MEMBER_ID = '0PS000000000002AAA';
+        const CALC_ID = '0PS000000000003AAA';
+        const object = (id: string) => [
+            id === CALC_ID
+                ? { SobjectType: 'Account', PermissionsRead: true, PermissionsEdit: true }
+                : { SobjectType: 'Account', PermissionsRead: true, PermissionsEdit: true },
+        ];
+        let status = 'Updated';
+        let groupFound = true;
+        const connection: QueryConnection = {
+            tooling: { query: () => Promise.resolve({ records: [] }) },
+            describe: async () => ({ fields: [] }),
+            query: <T>(soql: string) => {
+                const rows = (records: unknown[]) => Promise.resolve({ records }) as Promise<{ records: T[] }>;
+                if (soql.includes('FROM PermissionSetGroup WHERE')) {
+                    return rows(
+                        groupFound
+                            ? [{ Id: GROUP_ID, DeveloperName: 'Team', MasterLabel: 'Team Group', Status: status }]
+                            : [],
+                    );
+                }
+                if (soql.includes("PermissionSetGroupId = '")) {
+                    return soql.includes('FROM PermissionSetGroupComponent')
+                        ? rows([
+                              { PermissionSetId: MEMBER_ID, PermissionSet: { Name: 'Member_PS', Label: 'Member PS' } },
+                          ])
+                        : rows([{ Id: CALC_ID }]);
+                }
+                if (soql.includes('IsOwnedByProfile, Profile.Name')) {
+                    const id = soql.includes(CALC_ID) ? CALC_ID : MEMBER_ID;
+                    return rows([
+                        {
+                            Id: id,
+                            Name: id === CALC_ID ? 'Hidden' : 'Member_PS',
+                            IsOwnedByProfile: false,
+                            Profile: null,
+                        },
+                    ]);
+                }
+                if (soql.includes('FROM ObjectPermissions')) {
+                    return rows(object(soql.includes(CALC_ID) ? CALC_ID : MEMBER_ID));
+                }
+                return rows([]);
+            },
+        };
+        const model = await loadOrgModel(connection, { type: 'permissionsetgroup', id: GROUP_ID });
+        assert.strictEqual(model.name, 'Team Group');
+        assert.strictEqual(model.type, 'permissionsetgroup');
+        assert.deepStrictEqual(model.sections.object[0].grantedBy, { read: ['Member PS'], edit: ['Member PS'] });
+
+        status = 'Outdated';
+        await assert.rejects(loadOrgModel(connection, { type: 'permissionsetgroup', id: GROUP_ID }), /outdated/);
+        groupFound = false;
+        await assert.rejects(
+            loadOrgModel(connection, { type: 'permissionsetgroup', id: GROUP_ID }),
+            /no longer exists/,
+        );
+    });
+});
+
+suite('permission compare: error handling', () => {
+    const PS_ID = '0PS000000000001AAA';
+    const base = (): QueryConnection => ({
+        tooling: { query: () => Promise.resolve({ records: [] }) },
+        describe: async () => ({ fields: [] }),
+        query: <T>(soql: string) =>
+            Promise.resolve({
+                records: soql.includes('IsOwnedByProfile, Profile.Name')
+                    ? [{ Id: PS_ID, Name: 'Sales', IsOwnedByProfile: false, Profile: null }]
+                    : [],
+            }) as Promise<{ records: T[] }>,
+    });
+
+    test('a failing Metadata API read becomes a warning instead of failing the compare', async () => {
+        const connection = {
+            ...base(),
+            metadata: {
+                read: () => Promise.reject(new Error('INSUFFICIENT_ACCESS')),
+            },
+        };
+        const model = await loadOrgModel(connection, { type: 'permissionset', id: PS_ID });
+        assert.strictEqual(model.warnings?.length, 1);
+        assert.ok(model.warnings?.[0].includes('INSUFFICIENT_ACCESS'));
+        assert.ok(model.warnings?.[0].includes('Record type visibility'));
+    });
+
+    test('an empty Metadata API read is reported, not silently treated as "no record types"', async () => {
+        const connection = { ...base(), metadata: { read: async () => ({}) } };
+        const model = await loadOrgModel(connection, { type: 'permissionset', id: PS_ID });
+        assert.ok(model.warnings?.[0].includes('did not return it'));
+    });
+
+    test('no warning when the read works', async () => {
+        const connection = { ...base(), metadata: { read: async () => ({ fullName: 'Sales' }) } };
+        assert.strictEqual((await loadOrgModel(connection, { type: 'permissionset', id: PS_ID })).warnings, undefined);
+    });
+
+    test('an unreadable member XML in a branch group is a warning', async () => {
+        const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'perm-compare-bad-'));
+        try {
+            execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: repo });
+            const base = path.join(repo, 'force-app', 'main', 'default');
+            for (const dir of ['permissionsets', 'permissionsetgroups']) {
+                fs.mkdirSync(path.join(base, dir), { recursive: true });
+            }
+            fs.writeFileSync(
+                path.join(repo, 'sfdx-project.json'),
+                JSON.stringify({ packageDirectories: [{ path: 'force-app' }] }),
+            );
+            fs.writeFileSync(
+                path.join(base, 'permissionsets', 'Broken.permissionset-meta.xml'),
+                '<NotAPermissionSet/>',
+            );
+            fs.writeFileSync(
+                path.join(base, 'permissionsetgroups', 'G.permissionsetgroup-meta.xml'),
+                '<PermissionSetGroup xmlns="x"><label>G</label><permissionSets>Broken</permissionSets></PermissionSetGroup>',
+            );
+            const root = fs.realpathSync(repo);
+            const [item] = await listBranchItems(root, repo, WORKING_TREE_REF, 'permissionsetgroup');
+            const model = await loadBranchModel(root, repo, WORKING_TREE_REF, item);
+            assert.ok(model.warnings?.[0].includes('Broken'));
+            assert.ok(model.warnings?.[0].includes('could not be read'));
+        } finally {
+            fs.rmSync(repo, { recursive: true, force: true });
+        }
     });
 });

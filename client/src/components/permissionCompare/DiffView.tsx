@@ -271,9 +271,12 @@ function isGranted(value: PermissionValue | undefined): boolean {
 function SideCell({
     perms,
     other,
+    grantedBy,
 }: {
     perms: Record<string, PermissionValue> | undefined;
     other: Record<string, PermissionValue> | undefined;
+    /** Permission set groups: member permission sets that grant each permission */
+    grantedBy?: Record<string, string[]>;
 }) {
     const names = sortedPerms([...new Set([...Object.keys(perms ?? {}), ...Object.keys(other ?? {})])]);
     if (!perms || !names.some((name) => isGranted(perms[name]) || isGranted(other?.[name]))) {
@@ -284,40 +287,55 @@ function SideCell({
         );
     }
     return (
-        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-            {names.map((name) => {
-                const mine = perms[name];
-                const theirs = other?.[name];
-                const has = isGranted(mine);
-                const differs = mine !== theirs && (has || isGranted(theirs));
-                const label =
-                    typeof mine === 'string' || typeof theirs === 'string'
-                        ? `${permLabel(name)}: ${has ? valueLabel(mine as PermissionValue) : 'None'}`
-                        : permLabel(name);
-                if (!has) {
-                    // granted on the other side only: show what is missing here
+        <Box>
+            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                {names.map((name) => {
+                    const mine = perms[name];
+                    const theirs = other?.[name];
+                    const has = isGranted(mine);
+                    const differs = mine !== theirs && (has || isGranted(theirs));
+                    const label =
+                        typeof mine === 'string' || typeof theirs === 'string'
+                            ? `${permLabel(name)}: ${has ? valueLabel(mine as PermissionValue) : 'None'}`
+                            : permLabel(name);
+                    if (!has) {
+                        // granted on the other side only: show what is missing here
+                        return (
+                            <Chip
+                                key={name}
+                                size="small"
+                                variant="outlined"
+                                label={label}
+                                sx={{ textDecoration: 'line-through', opacity: 0.55, borderStyle: 'dashed' }}
+                                title={`${permLabel(name)} is not granted on this side`}
+                            />
+                        );
+                    }
                     return (
                         <Chip
                             key={name}
                             size="small"
-                            variant="outlined"
                             label={label}
-                            sx={{ textDecoration: 'line-through', opacity: 0.55, borderStyle: 'dashed' }}
-                            title={`${permLabel(name)} is not granted on this side`}
+                            variant={differs ? 'filled' : 'outlined'}
+                            color={differs ? 'warning' : 'default'}
+                            title={grantedBy?.[name] ? `Granted by ${grantedBy[name].join(', ')}` : undefined}
                         />
                     );
-                }
-                return (
-                    <Chip
-                        key={name}
-                        size="small"
-                        label={label}
-                        variant={differs ? 'filled' : 'outlined'}
-                        color={differs ? 'warning' : 'default'}
-                    />
-                );
-            })}
-        </Stack>
+                })}
+            </Stack>
+            <GrantedBy grantedBy={grantedBy} />
+        </Box>
+    );
+}
+
+/** One line under a side: which member permission sets of a group give this access. */
+function GrantedBy({ grantedBy }: { grantedBy: Record<string, string[]> | undefined }) {
+    const names = [...new Set(Object.values(grantedBy ?? {}).flat())];
+    if (names.length === 0) return null;
+    return (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            Granted by: {names.join(', ')}
+        </Typography>
     );
 }
 
@@ -341,10 +359,10 @@ function EntryRow({ entry }: { entry: DiffEntry }) {
             </Box>
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, px: 1.5, pb: 0.75, pt: 0.5 }}>
                 <Box sx={{ p: 0.75, borderRadius: 0.5, bgcolor: 'action.hover' }}>
-                    <SideCell perms={entry.left} other={entry.right} />
+                    <SideCell perms={entry.left} other={entry.right} grantedBy={entry.leftGrantedBy} />
                 </Box>
                 <Box sx={{ p: 0.75, borderRadius: 0.5, bgcolor: 'action.hover' }}>
-                    <SideCell perms={entry.right} other={entry.left} />
+                    <SideCell perms={entry.right} other={entry.left} grantedBy={entry.rightGrantedBy} />
                 </Box>
             </Box>
         </Box>

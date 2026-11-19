@@ -20,6 +20,8 @@ const ARRAY_TAGS = new Set([
     'customSettingAccesses',
     'recordTypeVisibilities',
     'layoutAssignments',
+    'permissionSets',
+    'mutingPermissionSets',
 ]);
 
 const parser = new XMLParser({
@@ -51,9 +53,13 @@ function flag(node: XmlNode, tag: string): boolean {
  * Parse a `*.permissionset-meta.xml` / `*.profile-meta.xml` document into the shared permission model.
  * @throws Error when the document is not a PermissionSet / Profile
  */
-export function parsePermissionXml(xml: string, type: PermissionItemType, name: string): PermissionModel {
+export function parsePermissionXml(
+    xml: string,
+    type: PermissionItemType,
+    name: string,
+    rootTag: string = type === 'profile' ? 'Profile' : 'PermissionSet',
+): PermissionModel {
     const root = parser.parse(xml) as Record<string, unknown>;
-    const rootTag = type === 'profile' ? 'Profile' : 'PermissionSet';
     const doc = root[rootTag];
     if (typeof doc !== 'object' || doc === null) {
         throw new Error(`Not a valid ${rootTag} metadata file`);
@@ -183,4 +189,28 @@ function pushEnabled(target: PermissionEntry[], nodes: XmlNode[], keyTag: string
             target.push({ key, perms: { enabled: flag(item, 'enabled') } });
         }
     }
+}
+
+export interface PermissionSetGroupFile {
+    label: string;
+    /** API names of the member permission sets */
+    permissionSets: string[];
+    /** API names of the muting permission sets */
+    mutingPermissionSets: string[];
+}
+
+/** Parse a `*.permissionsetgroup-meta.xml` document. */
+export function parsePermissionSetGroupXml(xml: string): PermissionSetGroupFile {
+    const doc = (parser.parse(xml) as Record<string, unknown>).PermissionSetGroup;
+    if (typeof doc !== 'object' || doc === null) {
+        throw new Error('Not a valid PermissionSetGroup metadata file');
+    }
+    const node = doc as XmlNode;
+    const names = (value: unknown): string[] =>
+        Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string' && v.length > 0) : [];
+    return {
+        label: text(node, 'label') ?? '',
+        permissionSets: names(node.permissionSets),
+        mutingPermissionSets: names(node.mutingPermissionSets),
+    };
 }
