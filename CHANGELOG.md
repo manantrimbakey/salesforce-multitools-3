@@ -4,6 +4,8 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ## [Unreleased]
 
+## [0.10.0]
+
 ### Features
 
 - Permission compare: when comparing permission set groups it now also compares which permission sets are in each group and which active users the group is assigned to (org sides; a branch only knows the members)
