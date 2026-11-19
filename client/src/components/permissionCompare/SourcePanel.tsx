@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     Alert,
     Autocomplete,
@@ -26,6 +26,8 @@ interface Props {
     suggestName?: string;
 }
 
+const MAX_SUGGESTIONS = 100;
+
 const ITEM_LABELS: Record<PermissionItemType, string> = {
     permissionset: 'Permission set',
     permissionsetgroup: 'Permission set group',
@@ -37,8 +39,13 @@ export function SourcePanel({ title, context, value, onChange, suggestName }: Pr
     const { items, loading, error } = useCompareItems(source, value.type);
     const gitAvailable = context.git.available;
 
+    // Once the user typed, cleared or picked something in this field, the other side must never change it again:
+    // the suggestion below is only a starting point for a list that was just opened.
+    const userEdited = useRef(false);
+
     // Pre-select the same-named item once the list is there and nothing is selected yet
-    const suggested = !value.item && suggestName ? items.find((item) => item.name === suggestName) : undefined;
+    const suggested =
+        !value.item && !userEdited.current && suggestName ? items.find((item) => item.name === suggestName) : undefined;
     useEffect(() => {
         if (suggested) onChange({ ...value, item: suggested });
         // only when a new suggestion appears
@@ -55,6 +62,7 @@ export function SourcePanel({ title, context, value, onChange, suggestName }: Pr
     const listKey = JSON.stringify([source, value.type]);
     useEffect(() => {
         setItemInput('');
+        userEdited.current = false;
     }, [listKey]);
     const matchItem = (text: string) => {
         const wanted = text.trim().toLowerCase();
@@ -76,7 +84,12 @@ export function SourcePanel({ title, context, value, onChange, suggestName }: Pr
     if (source && !loading && !error && !value.item) {
         if (typedText && !items.some((item) => item.label.toLowerCase().includes(typedText))) {
             itemHint = `No ${kindLabel} matching "${itemInput.trim()}" in ${sourceLabel}`;
-        } else if (!typedText && suggestName && !items.some((item) => item.name === suggestName)) {
+        } else if (
+            !typedText &&
+            !userEdited.current &&
+            suggestName &&
+            !items.some((item) => item.name === suggestName)
+        ) {
             itemHint = `"${suggestName}" does not exist in ${sourceLabel}`;
         }
     }
@@ -165,12 +178,29 @@ export function SourcePanel({ title, context, value, onChange, suggestName }: Pr
                 onInputChange={(_, text, reason) => {
                     // 'reset' is the Autocomplete syncing to the selection; the effect above already handles it
                     if (reason === 'reset') return;
+                    userEdited.current = true;
                     setItemInput(text);
                     if (reason === 'clear') patch({ item: null });
                     else if (!value.item || value.item.label !== text) patch({ item: matchItem(text) ?? null });
                 }}
                 clearOnBlur={false}
-                onChange={(_, item) => patch({ item })}
+                onChange={(_, item) => {
+                    userEdited.current = true;
+                    patch({ item });
+                }}
+                // Typeahead: contains-match on label or API name, capped so a huge list never blocks typing. With the
+                // selected item's own text in the box every option is offered, so the list can be reopened and browsed.
+                filterOptions={(options, state) => {
+                    const wanted = state.inputValue.trim().toLowerCase();
+                    const browsing = !wanted || (!!value.item && wanted === value.item.label.toLowerCase());
+                    const pool = browsing
+                        ? options
+                        : options.filter(
+                              (item) =>
+                                  item.label.toLowerCase().includes(wanted) || item.name.toLowerCase().includes(wanted),
+                          );
+                    return pool.slice(0, MAX_SUGGESTIONS);
+                }}
                 getOptionLabel={(item) => item.label}
                 isOptionEqualToValue={(a, b) => a.id === b.id}
                 noOptionsText={error ? 'Could not load' : 'None found'}

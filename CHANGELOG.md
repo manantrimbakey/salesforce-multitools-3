@@ -4,6 +4,12 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ## [Unreleased]
 
+## [0.10.1]
+
+### Bug fixes
+
+- Permission compare: after picking a permission set / group / profile you can keep typing to search; the text is no longer snapped back to the other side's pick, suggestions match anywhere in the name, and long lists and big results stay responsive while typing
+
 ## [0.10.0]
 
 ### Features
