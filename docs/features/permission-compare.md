@@ -20,10 +20,43 @@ Branch sources need a git repository. When the project is not under git the Bran
 ## Permission types compared
 
 Object (CRUD, View All, Modify All), field (read / edit), system permissions, Apex classes, Visualforce pages, custom
-permissions, tab settings, app visibility, flows, external data sources, custom metadata types and custom settings.
+permissions, tab settings, app visibility (and the profile's default app), flows, external data sources, external
+credential principals, connected apps and external client apps, record type visibility (visible / default), page layout
+assignments (profiles), custom metadata types and custom settings.
 
-Not compared yet: record type visibility, page layout assignments, login hours / IP ranges, external credential
-principals, and the profile "default" app / record type flags. There is no complete SOQL source for them.
+- External credential principals are stored as `<ExternalCredential>-<Principal>` (`externalCredentialPrincipalAccesses`
+  in permission set XML, `SetupEntityAccess` type `ExternalCredentialParameter` in the org). Profile metadata files do not
+  contain them.
+- Connected apps / external client apps are `SetupEntityAccess` rows in the org and have no element in permission set or
+  profile XML, so a branch side never lists them (the "skip sections only one side has" filter hides that).
+- Record type visibility, layout assignments and the default app have no SOQL table. For an org side they come from the
+  Metadata API `read`. Standard profiles are read under their API name (`System Administrator` is `Admin`).
+
+Not compared yet: login hours, login IP ranges, category group visibility, profile action overrides, data space scopes,
+and the profile user license / custom flags. No SOQL source exists for them and they are rarely what a permission review
+is about.
+
+## Permission set groups
+
+Pick **Set group** next to Permission set / Profile. Groups compare like any other item, org vs org, branch vs org or
+branch vs branch, and each permission shows which member permission set gives it ("Granted by: ..."; the tooltip of a
+permission chip lists them per permission).
+
+| Source                      | How the group's permissions are found                                                                                                                                                                                                                                                                                                               |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Org                         | The group's calculated permissions (Salesforce keeps them, muting already applied, on a hidden `PermissionSet` row owned by the group). The member permission sets are loaded too, only to attribute each permission. The group must be `Updated`; while it is `Updating` / `Outdated` the compare says so instead of showing half-calculated data. |
+| Branch / tag / working tree | `*.permissionsetgroup-meta.xml` lists members; their `*.permissionset-meta.xml` files at the same ref are merged (union) and the `*.mutingpermissionset-meta.xml` files subtract. Members that are not in the repository (standard or managed permission sets) are listed in a warning, because their access is then missing from that side.        |
+
+A permission a muting set removed has no "granted by". Record type visibility is not part of the calculated group row,
+so for an org group it is the union of the members' record types. The Permission set list no longer shows the hidden
+per-group `PermissionSet` rows.
+
+## Warnings and errors
+
+Parts that cannot be read never silently turn into "not granted". If the Metadata API read fails for an org side
+(record types, layouts, default app), a group member cannot be loaded, or a repository file cannot be parsed, the rest
+is still compared and a yellow warning above the results names what is missing. Things that make a side meaningless
+(item deleted, group still updating, not a git repository, unknown ref) stop the compare with a plain message.
 
 ## Semantic diff
 
@@ -42,6 +75,18 @@ Changed entries list only the permissions that differ.
 Difference kind (**All** / Added / Removed / Changed, one at a time), permission type chips, name search, and **Skip sections only one side
 has** (on by default for branch-vs-org): a repository file that simply lacks a section would otherwise look like a
 wall of "only in org".
+
+## Export
+
+**Export** (above the results) saves what the filters currently show as **Markdown** (one table per permission type) or
+**CSV** (one row per difference: section, name, difference, what each side grants, changes). A save dialog asks where.
+CSV values that start with `=`, `+`, `-` or `@` are prefixed with a quote so a spreadsheet never runs them as formulas.
+
+## Missing permission sets
+
+When the item you typed or the one suggested from the other side does not exist in the chosen org, branch or tag, the
+field says so ("`X` does not exist in dev", "No permission set matching ..."). If it disappears after the list was loaded
+(deleted or renamed), Compare reports that in plain words instead of a raw error.
 
 ## Code
 

@@ -2,7 +2,9 @@ import { execFile } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
-import { parsePermissionXml } from './xmlParser';
+import { mergeGroupModel } from './permissionGroup';
+import type { GroupComponent } from './permissionGroup';
+import { parsePermissionSetGroupXml, parsePermissionXml } from './xmlParser';
 import type { PermissionItemOption, PermissionItemRef, PermissionItemType, PermissionModel } from './types';
 import { WORKING_TREE_REF } from './types';
 
@@ -14,7 +16,9 @@ const GIT_TIMEOUT_MS = 30_000;
 const SUFFIX: Record<PermissionItemType, string> = {
     permissionset: '.permissionset-meta.xml',
     profile: '.profile-meta.xml',
+    permissionsetgroup: '.permissionsetgroup-meta.xml',
 };
+const MUTING_SUFFIX = '.mutingpermissionset-meta.xml';
 
 /** Profile files use API names that differ from the display name Salesforce reports for standard profiles. */
 export const STANDARD_PROFILE_NAMES: Record<string, string> = {
@@ -28,6 +32,10 @@ export const STANDARD_PROFILE_NAMES: Record<string, string> = {
 };
 
 export class GitSourceError extends Error {}
+
+function errorText(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
 
 async function git(cwd: string, args: string[]): Promise<string> {
     try {
@@ -107,8 +115,8 @@ function toPosix(value: string): string {
     return value.split(path.sep).join('/');
 }
 
-function nameFromFile(filePath: string, type: PermissionItemType): string {
-    const base = path.posix.basename(filePath, SUFFIX[type]);
+function nameFromFile(filePath: string, suffix: string): string {
+    const base = path.posix.basename(filePath, suffix);
     try {
         return decodeURIComponent(base);
     } catch {
@@ -117,18 +125,13 @@ function nameFromFile(filePath: string, type: PermissionItemType): string {
 }
 
 function toOption(filePath: string, type: PermissionItemType): PermissionItemOption {
-    const name = nameFromFile(filePath, type);
+    const name = nameFromFile(filePath, SUFFIX[type]);
     const display = type === 'profile' ? (STANDARD_PROFILE_NAMES[name] ?? name) : name;
     return { id: filePath, name: display, label: display, type };
 }
 
 /** Repository-relative paths of the metadata files of a kind at `ref`, limited to the sfdx package directories. */
-async function listFiles(
-    repoRoot: string,
-    projectDir: string,
-    ref: string,
-    type: PermissionItemType,
-): Promise<string[]> {
+async function listFiles(repoRoot: string, projectDir: string, ref: string, suffix: string): Promise<string[]> {
     let files: string[];
     if (ref === WORKING_TREE_REF) {
         // tracked + untracked (not ignored) files, so freshly retrieved metadata shows up
@@ -137,7 +140,7 @@ async function listFiles(
     } else {
         files = (await git(repoRoot, ['ls-tree', '-r', '--name-only', ref])).split('\n').filter(Boolean);
     }
-    files = files.filter((file) => file.endsWith(SUFFIX[type]));
+    files = files.filter((file) => file.endsWith(suffix));
 
     const packageDirs = await readPackageDirectories(projectDir);
     if (packageDirs) {
@@ -171,10 +174,16 @@ export async function listBranchItems(
     type: PermissionItemType,
 ): Promise<PermissionItemOption[]> {
     await assertKnownRef(repoRoot, ref);
-    return (await listFiles(repoRoot, projectDir, ref, type)).map((file) => toOption(file, type));
+    return (await listFiles(repoRoot, projectDir, ref, SUFFIX[type])).map((file) => toOption(file, type));
 }
 
-/** Load one permission set / profile file from a ref (or the working tree) into the permission model. */
+async function readFileAt(repoRoot: string, ref: string, file: string): Promise<string> {
+    return ref === WORKING_TREE_REF
+        ? fs.promises.readFile(path.join(repoRoot, file), 'utf8')
+        : git(repoRoot, ['show', `${ref}:${file}`]);
+}
+
+/** Load one permission set / profile / permission set group file from a ref (or the working tree). */
 export async function loadBranchModel(
     repoRoot: string,
     projectDir: string,
@@ -183,15 +192,91 @@ export async function loadBranchModel(
 ): Promise<PermissionModel> {
     await assertKnownRef(repoRoot, ref);
     // The path must be one of the files we would list ourselves (no traversal, right kind, inside the package dirs)
-    const allowed = await listFiles(repoRoot, projectDir, ref, item.type);
+    const allowed = await listFiles(repoRoot, projectDir, ref, SUFFIX[item.type]);
     if (!allowed.includes(item.id)) {
-        throw new GitSourceError(`File not found at ${ref}: ${item.id}`);
+        throw new GitSourceError(
+            `This ${LABELS[item.type]} does not exist at ${ref} (file ${item.id}). It may have been added or removed on that branch.`,
+        );
     }
 
-    const xml =
-        ref === WORKING_TREE_REF
-            ? await fs.promises.readFile(path.join(repoRoot, item.id), 'utf8')
-            : await git(repoRoot, ['show', `${ref}:${item.id}`]);
+    const xml = await readFileAt(repoRoot, ref, item.id);
     const option = toOption(item.id, item.type);
+    if (item.type === 'permissionsetgroup') {
+        return loadBranchGroup(repoRoot, projectDir, ref, xml, option.name);
+    }
     return parsePermissionXml(xml, item.type, option.name);
+}
+
+const LABELS: Record<PermissionItemType, string> = {
+    permissionset: 'permission set',
+    profile: 'profile',
+    permissionsetgroup: 'permission set group',
+};
+
+/**
+ * A group file only lists its members. The effective permissions are the union of the member permission sets found
+ * next to it at the same ref, minus the muting permission sets. Members that are not in the repository (standard
+ * or managed permission sets) cannot be read, so they are reported as warnings instead of being silently ignored.
+ */
+async function loadBranchGroup(
+    repoRoot: string,
+    projectDir: string,
+    ref: string,
+    groupXml: string,
+    name: string,
+): Promise<PermissionModel> {
+    const group = parsePermissionSetGroupXml(groupXml);
+    const [setFiles, muteFiles] = await Promise.all([
+        listFiles(repoRoot, projectDir, ref, SUFFIX.permissionset),
+        listFiles(repoRoot, projectDir, ref, MUTING_SUFFIX),
+    ]);
+    const find = (files: string[], suffix: string, wanted: string) =>
+        files.find((file) => nameFromFile(file, suffix) === wanted);
+
+    const warnings: string[] = [];
+    const components: GroupComponent[] = [];
+    for (const member of group.permissionSets) {
+        const file = find(setFiles, SUFFIX.permissionset, member);
+        if (!file) {
+            warnings.push(
+                `Permission set "${member}" is not in the repository at ${ref}, so its access is missing here.`,
+            );
+            continue;
+        }
+        try {
+            components.push({
+                name: member,
+                model: parsePermissionXml(await readFileAt(repoRoot, ref, file), 'permissionset', member),
+            });
+        } catch (error) {
+            warnings.push(
+                `Permission set "${member}" could not be read (${errorText(error)}), so its access is missing here.`,
+            );
+        }
+    }
+    const muting: PermissionModel[] = [];
+    for (const member of group.mutingPermissionSets) {
+        const file = find(muteFiles, MUTING_SUFFIX, member);
+        if (!file) {
+            warnings.push(
+                `Muting permission set "${member}" is not in the repository at ${ref}, so it is not applied.`,
+            );
+            continue;
+        }
+        try {
+            muting.push(
+                parsePermissionXml(
+                    await readFileAt(repoRoot, ref, file),
+                    'permissionset',
+                    member,
+                    'MutingPermissionSet',
+                ),
+            );
+        } catch (error) {
+            warnings.push(
+                `Muting permission set "${member}" could not be read (${errorText(error)}), so it is not applied.`,
+            );
+        }
+    }
+    return mergeGroupModel(name, components, muting, warnings);
 }

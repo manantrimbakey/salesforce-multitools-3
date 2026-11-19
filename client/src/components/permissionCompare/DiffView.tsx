@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { MouseEvent } from 'react';
 import {
     Accordion,
     AccordionDetails,
@@ -8,6 +9,8 @@ import {
     Button,
     Chip,
     FormControlLabel,
+    Menu,
+    MenuItem,
     Stack,
     Switch,
     TextField,
@@ -16,6 +19,7 @@ import {
     Tooltip,
     Typography,
 } from '@mui/material';
+import { api, errorMessage } from '../../api/client';
 import type { CompareResponse, DiffEntry, DiffStatus, PermissionSection, PermissionValue } from '../../api/client';
 import { SECTION_LABELS, permLabel, valueLabel } from './labels';
 
@@ -66,6 +70,18 @@ export function DiffView({ result, leftLabel, rightLabel, mixedSources }: Props)
     const sectionsWithDiffs = sections.filter(
         (s) => s.added + s.removed + s.changed > 0 && !(ignoreOneSided && s.oneSided),
     );
+    const [exportAnchor, setExportAnchor] = useState<HTMLElement | null>(null);
+    const [exportMessage, setExportMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
+    // Exports exactly what the filters currently show
+    const exportAs = async (format: 'markdown' | 'csv') => {
+        setExportAnchor(null);
+        try {
+            const response = await api.exportCompare(format, leftLabel, rightLabel, visible);
+            setExportMessage(response.saved ? { severity: 'success', text: `Saved ${response.path}` } : null);
+        } catch (e) {
+            setExportMessage({ severity: 'error', text: errorMessage(e) });
+        }
+    };
     const toggleSection = (section: PermissionSection) =>
         setHidden((current) =>
             current.includes(section) ? current.filter((s) => s !== section) : [...current, section],
@@ -88,6 +104,20 @@ export function DiffView({ result, leftLabel, rightLabel, mixedSources }: Props)
                 />
                 <Chip size="small" color="warning" variant="outlined" label={`~ ${totals.changed} changed`} />
                 <Box sx={{ flex: 1 }} />
+                <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={visible.length === 0}
+                    onClick={(event: MouseEvent<HTMLElement>) => setExportAnchor(event.currentTarget)}
+                    aria-haspopup="menu"
+                    title="Export the differences currently shown"
+                >
+                    Export
+                </Button>
+                <Menu anchorEl={exportAnchor} open={!!exportAnchor} onClose={() => setExportAnchor(null)}>
+                    <MenuItem onClick={() => void exportAs('markdown')}>Markdown (.md)</MenuItem>
+                    <MenuItem onClick={() => void exportAs('csv')}>CSV (.csv)</MenuItem>
+                </Menu>
                 <TextField
                     size="small"
                     placeholder="Filter by name"
@@ -149,6 +179,12 @@ export function DiffView({ result, leftLabel, rightLabel, mixedSources }: Props)
                 )}
             </Stack>
 
+            {exportMessage && (
+                <Alert severity={exportMessage.severity} onClose={() => setExportMessage(null)} sx={{ py: 0 }}>
+                    <Box sx={{ wordBreak: 'break-all' }}>{exportMessage.text}</Box>
+                </Alert>
+            )}
+
             {entries.length === 0 && (
                 <Alert severity="success">No differences. Both sides grant the same permissions.</Alert>
             )}
@@ -208,7 +244,19 @@ function SectionGroup({ section, entries }: { section: PermissionSection; entrie
     );
 }
 
-const PERM_ORDER = ['create', 'read', 'edit', 'delete', 'viewAll', 'modifyAll', 'enabled', 'visible', 'visibility'];
+const PERM_ORDER = [
+    'create',
+    'read',
+    'edit',
+    'delete',
+    'viewAll',
+    'modifyAll',
+    'enabled',
+    'visible',
+    'default',
+    'visibility',
+    'layout',
+];
 
 function sortedPerms(names: string[]): string[] {
     const rank = (name: string) => (PERM_ORDER.includes(name) ? PERM_ORDER.indexOf(name) : PERM_ORDER.length);
@@ -223,9 +271,12 @@ function isGranted(value: PermissionValue | undefined): boolean {
 function SideCell({
     perms,
     other,
+    grantedBy,
 }: {
     perms: Record<string, PermissionValue> | undefined;
     other: Record<string, PermissionValue> | undefined;
+    /** Permission set groups: member permission sets that grant each permission */
+    grantedBy?: Record<string, string[]>;
 }) {
     const names = sortedPerms([...new Set([...Object.keys(perms ?? {}), ...Object.keys(other ?? {})])]);
     if (!perms || !names.some((name) => isGranted(perms[name]) || isGranted(other?.[name]))) {
@@ -236,40 +287,55 @@ function SideCell({
         );
     }
     return (
-        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-            {names.map((name) => {
-                const mine = perms[name];
-                const theirs = other?.[name];
-                const has = isGranted(mine);
-                const differs = mine !== theirs && (has || isGranted(theirs));
-                const label =
-                    typeof mine === 'string' || typeof theirs === 'string'
-                        ? `${permLabel(name)}: ${has ? valueLabel(mine as PermissionValue) : 'None'}`
-                        : permLabel(name);
-                if (!has) {
-                    // granted on the other side only: show what is missing here
+        <Box>
+            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                {names.map((name) => {
+                    const mine = perms[name];
+                    const theirs = other?.[name];
+                    const has = isGranted(mine);
+                    const differs = mine !== theirs && (has || isGranted(theirs));
+                    const label =
+                        typeof mine === 'string' || typeof theirs === 'string'
+                            ? `${permLabel(name)}: ${has ? valueLabel(mine as PermissionValue) : 'None'}`
+                            : permLabel(name);
+                    if (!has) {
+                        // granted on the other side only: show what is missing here
+                        return (
+                            <Chip
+                                key={name}
+                                size="small"
+                                variant="outlined"
+                                label={label}
+                                sx={{ textDecoration: 'line-through', opacity: 0.55, borderStyle: 'dashed' }}
+                                title={`${permLabel(name)} is not granted on this side`}
+                            />
+                        );
+                    }
                     return (
                         <Chip
                             key={name}
                             size="small"
-                            variant="outlined"
                             label={label}
-                            sx={{ textDecoration: 'line-through', opacity: 0.55, borderStyle: 'dashed' }}
-                            title={`${permLabel(name)} is not granted on this side`}
+                            variant={differs ? 'filled' : 'outlined'}
+                            color={differs ? 'warning' : 'default'}
+                            title={grantedBy?.[name] ? `Granted by ${grantedBy[name].join(', ')}` : undefined}
                         />
                     );
-                }
-                return (
-                    <Chip
-                        key={name}
-                        size="small"
-                        label={label}
-                        variant={differs ? 'filled' : 'outlined'}
-                        color={differs ? 'warning' : 'default'}
-                    />
-                );
-            })}
-        </Stack>
+                })}
+            </Stack>
+            <GrantedBy grantedBy={grantedBy} />
+        </Box>
+    );
+}
+
+/** One line under a side: which member permission sets of a group give this access. */
+function GrantedBy({ grantedBy }: { grantedBy: Record<string, string[]> | undefined }) {
+    const names = [...new Set(Object.values(grantedBy ?? {}).flat())];
+    if (names.length === 0) return null;
+    return (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            Granted by: {names.join(', ')}
+        </Typography>
     );
 }
 
@@ -293,10 +359,10 @@ function EntryRow({ entry }: { entry: DiffEntry }) {
             </Box>
             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, px: 1.5, pb: 0.75, pt: 0.5 }}>
                 <Box sx={{ p: 0.75, borderRadius: 0.5, bgcolor: 'action.hover' }}>
-                    <SideCell perms={entry.left} other={entry.right} />
+                    <SideCell perms={entry.left} other={entry.right} grantedBy={entry.leftGrantedBy} />
                 </Box>
                 <Box sx={{ p: 0.75, borderRadius: 0.5, bgcolor: 'action.hover' }}>
-                    <SideCell perms={entry.right} other={entry.left} />
+                    <SideCell perms={entry.right} other={entry.left} grantedBy={entry.rightGrantedBy} />
                 </Box>
             </Box>
         </Box>

@@ -10,12 +10,16 @@ export const PERMISSION_SECTIONS = [
     'application',
     'flow',
     'externalDataSource',
+    'externalCredentialPrincipal',
+    'connectedApp',
+    'recordType',
+    'layoutAssignment',
     'customEntity',
 ] as const;
 
 export type PermissionSection = (typeof PERMISSION_SECTIONS)[number];
 
-export type PermissionItemType = 'permissionset' | 'profile';
+export type PermissionItemType = 'permissionset' | 'profile' | 'permissionsetgroup';
 
 /** A single permission value: a flag (`true`), or a named level such as tab visibility. */
 export type PermissionValue = boolean | string;
@@ -25,6 +29,8 @@ export interface PermissionEntry {
     /** API name, e.g. `Account`, `Account.Name`, `MyClass`, `ViewSetup`, `standard-Account` */
     key: string;
     perms: Record<string, PermissionValue>;
+    /** Permission sets of a group that grant each permission (only filled for permission set groups) */
+    grantedBy?: Record<string, string[]>;
 }
 
 /** Everything a permission set / profile grants, independent of where it was loaded from. */
@@ -32,6 +38,8 @@ export interface PermissionModel {
     type: PermissionItemType;
     name: string;
     sections: Record<PermissionSection, PermissionEntry[]>;
+    /** Things the user should know about this side (e.g. group members that could not be loaded) */
+    warnings?: string[];
 }
 
 export function emptySections(): Record<PermissionSection, PermissionEntry[]> {
@@ -46,6 +54,10 @@ export function emptySections(): Record<PermissionSection, PermissionEntry[]> {
         application: [],
         flow: [],
         externalDataSource: [],
+        externalCredentialPrincipal: [],
+        connectedApp: [],
+        recordType: [],
+        layoutAssignment: [],
         customEntity: [],
     };
 }
@@ -66,6 +78,9 @@ export interface DiffEntry {
     status: DiffStatus;
     left?: Record<string, PermissionValue>;
     right?: Record<string, PermissionValue>;
+    /** For permission set groups: which member permission sets grant each permission on that side */
+    leftGrantedBy?: Record<string, string[]>;
+    rightGrantedBy?: Record<string, string[]>;
     /** Only the permissions whose value differs (for `changed`) */
     changes: PermissionChange[];
 }

@@ -15,8 +15,13 @@ const ARRAY_TAGS = new Set([
     'applicationVisibilities',
     'flowAccesses',
     'externalDataSourceAccesses',
+    'externalCredentialPrincipalAccesses',
     'customMetadataTypeAccesses',
     'customSettingAccesses',
+    'recordTypeVisibilities',
+    'layoutAssignments',
+    'permissionSets',
+    'mutingPermissionSets',
 ]);
 
 const parser = new XMLParser({
@@ -40,16 +45,21 @@ function text(node: XmlNode, tag: string): string | undefined {
 }
 
 function flag(node: XmlNode, tag: string): boolean {
-    return text(node, tag)?.toLowerCase() === 'true';
+    const value = node[tag];
+    return value === true || (typeof value === 'string' && value.toLowerCase() === 'true');
 }
 
 /**
  * Parse a `*.permissionset-meta.xml` / `*.profile-meta.xml` document into the shared permission model.
  * @throws Error when the document is not a PermissionSet / Profile
  */
-export function parsePermissionXml(xml: string, type: PermissionItemType, name: string): PermissionModel {
+export function parsePermissionXml(
+    xml: string,
+    type: PermissionItemType,
+    name: string,
+    rootTag: string = type === 'profile' ? 'Profile' : 'PermissionSet',
+): PermissionModel {
     const root = parser.parse(xml) as Record<string, unknown>;
-    const rootTag = type === 'profile' ? 'Profile' : 'PermissionSet';
     const doc = root[rootTag];
     if (typeof doc !== 'object' || doc === null) {
         throw new Error(`Not a valid ${rootTag} metadata file`);
@@ -94,6 +104,12 @@ export function parsePermissionXml(xml: string, type: PermissionItemType, name: 
 
     pushEnabled(sections.flow, asNodes(node.flowAccesses), 'flow');
     pushEnabled(sections.externalDataSource, asNodes(node.externalDataSourceAccesses), 'externalDataSource');
+    // Key is `<ExternalCredential>-<Principal>`; only permission sets carry it, the Profile metadata type does not
+    pushEnabled(
+        sections.externalCredentialPrincipal,
+        asNodes(node.externalCredentialPrincipalAccesses),
+        'externalCredentialPrincipal',
+    );
     // Custom metadata types (`__mdt`) and custom settings (`__c`) share one section, keyed without the suffix
     for (const item of [...asNodes(node.customMetadataTypeAccesses), ...asNodes(node.customSettingAccesses)]) {
         const key = text(item, 'name');
@@ -107,7 +123,10 @@ export function parsePermissionXml(xml: string, type: PermissionItemType, name: 
     for (const item of asNodes(node.applicationVisibilities)) {
         const key = text(item, 'application');
         if (key) {
-            sections.application.push({ key, perms: { visible: flag(item, 'visible') } });
+            sections.application.push({
+                key,
+                perms: { visible: flag(item, 'visible'), default: flag(item, 'default') },
+            });
         }
     }
 
@@ -120,7 +139,42 @@ export function parsePermissionXml(xml: string, type: PermissionItemType, name: 
         }
     }
 
+    readMetadataOnlySections(node, sections);
+
     return { type, name, sections };
+}
+
+/**
+ * Parts of a permission set / profile that SOQL cannot return: record type visibility and (profiles) page layout
+ * assignments. `node` is a parsed metadata XML document or the result of a Metadata API `read`, both have this shape.
+ */
+export function readMetadataOnlySections(node: Record<string, unknown>, sections: PermissionModel['sections']): void {
+    const asList = (value: unknown): XmlNode[] => {
+        const list = Array.isArray(value) ? value : value ? [value] : [];
+        return list.filter((entry): entry is XmlNode => typeof entry === 'object' && entry !== null);
+    };
+    for (const item of asList(node.recordTypeVisibilities)) {
+        const key = text(item, 'recordType');
+        if (key) {
+            sections.recordType.push({
+                key,
+                perms: {
+                    visible: flag(item, 'visible'),
+                    default: flag(item, 'default'),
+                    personAccountDefault: flag(item, 'personAccountDefault'),
+                },
+            });
+        }
+    }
+    // One entry per (object, record type): the layout assigned to it. Layout names look like `Account-My Layout`.
+    for (const item of asList(node.layoutAssignments)) {
+        const layout = text(item, 'layout');
+        if (layout) {
+            const recordType = text(item, 'recordType');
+            const object = layout.split('-')[0];
+            sections.layoutAssignment.push({ key: recordType ?? `${object} (master)`, perms: { layout } });
+        }
+    }
 }
 
 /** `ns__Thing__mdt` / `Thing__c` -> `ns__Thing` */
@@ -135,4 +189,28 @@ function pushEnabled(target: PermissionEntry[], nodes: XmlNode[], keyTag: string
             target.push({ key, perms: { enabled: flag(item, 'enabled') } });
         }
     }
+}
+
+export interface PermissionSetGroupFile {
+    label: string;
+    /** API names of the member permission sets */
+    permissionSets: string[];
+    /** API names of the muting permission sets */
+    mutingPermissionSets: string[];
+}
+
+/** Parse a `*.permissionsetgroup-meta.xml` document. */
+export function parsePermissionSetGroupXml(xml: string): PermissionSetGroupFile {
+    const doc = (parser.parse(xml) as Record<string, unknown>).PermissionSetGroup;
+    if (typeof doc !== 'object' || doc === null) {
+        throw new Error('Not a valid PermissionSetGroup metadata file');
+    }
+    const node = doc as XmlNode;
+    const names = (value: unknown): string[] =>
+        Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string' && v.length > 0) : [];
+    return {
+        label: text(node, 'label') ?? '',
+        permissionSets: names(node.permissionSets),
+        mutingPermissionSets: names(node.mutingPermissionSets),
+    };
 }

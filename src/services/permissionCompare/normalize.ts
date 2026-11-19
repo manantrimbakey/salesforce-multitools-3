@@ -29,14 +29,44 @@ function normalizeSection(section: PermissionSection, entries: PermissionEntry[]
         const existing = merged.get(id);
         if (existing) {
             existing.perms = normalizePerms(section, mergePerms(existing.perms, perms));
+            existing.grantedBy = mergeSources(existing.grantedBy, entry.grantedBy);
         } else {
-            merged.set(id, { key: entry.key, perms });
+            merged.set(id, {
+                key: entry.key,
+                perms,
+                ...(entry.grantedBy ? { grantedBy: { ...entry.grantedBy } } : {}),
+            });
+        }
+    }
+    for (const entry of merged.values()) {
+        if (entry.grantedBy) {
+            // keep sources only for permissions that survived normalization
+            const kept = Object.fromEntries(Object.entries(entry.grantedBy).filter(([perm]) => perm in entry.perms));
+            if (Object.keys(kept).length > 0) {
+                entry.grantedBy = kept;
+            } else {
+                delete entry.grantedBy;
+            }
         }
     }
     return [...merged.values()].sort((a, b) => a.key.localeCompare(b.key));
 }
 
-function mergePerms(
+function mergeSources(
+    a: Record<string, string[]> | undefined,
+    b: Record<string, string[]> | undefined,
+): Record<string, string[]> | undefined {
+    if (!a || !b) {
+        return a ?? b;
+    }
+    const result: Record<string, string[]> = { ...a };
+    for (const [perm, names] of Object.entries(b)) {
+        result[perm] = [...new Set([...(result[perm] ?? []), ...names])];
+    }
+    return result;
+}
+
+export function mergePerms(
     a: Record<string, PermissionValue>,
     b: Record<string, PermissionValue>,
 ): Record<string, PermissionValue> {
@@ -58,6 +88,9 @@ function normalizePerms(
 ): Record<string, PermissionValue> {
     if (section === 'tab') {
         return normalizeTab(perms);
+    }
+    if (section === 'layoutAssignment') {
+        return typeof perms.layout === 'string' && perms.layout ? { layout: perms.layout } : {};
     }
 
     const result: Record<string, PermissionValue> = {};
