@@ -85,7 +85,10 @@ export function parseSide(value: unknown): CompareSide {
         throw new RpcError('BAD_REQUEST', 'A valid item id is required');
     }
     if (source.kind === 'org' && !isSalesforceId(id)) {
-        throw new RpcError('BAD_REQUEST', 'A valid permission set / profile Id is required');
+        throw new RpcError(
+            'BAD_REQUEST',
+            'The selected item does not belong to this org. Pick it again from the list.',
+        );
     }
     return { source, item: { type: itemType, id } };
 }

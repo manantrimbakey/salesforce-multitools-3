@@ -31,6 +31,8 @@ const debugLevels = [
   { Id: '7dl000000000002AAA', DeveloperName: 'Finest_All', MasterLabel: 'Finest All' },
 ];
 const permEntries = [
+  { section: 'groupMember', key: 'Sales_Read', status: 'removed', left: { member: true }, changes: [] },
+  { section: 'assignment', key: 'a@x.com', status: 'added', right: { assigned: true }, changes: [] },
   { section: 'object', key: 'Account', status: 'changed', left: { read: true, edit: true }, right: { read: true, edit: true, delete: true }, changes: [{ perm: 'delete', left: false, right: true }], leftGrantedBy: { read: ['Sales_Base'], edit: ['Sales_Base'] }, rightGrantedBy: { read: ['Sales_Base'], edit: ['Sales_Base'], delete: ['Sales_Admin'] } },
   { section: 'object', key: 'Contact', status: 'changed', left: { read: true }, right: { read: true, create: true, edit: true }, changes: [{ perm: 'create', left: false, right: true }, { perm: 'edit', left: false, right: true }] },
   { section: 'object', key: 'Lead', status: 'removed', left: { read: true, edit: true }, changes: [] },
@@ -47,7 +49,7 @@ const summary = (section, o) => ({ section, leftCount: 1, rightCount: 1, oneSide
 const answers = (endpoint, data) => {
   if (endpoint === '/api/compare/context') return { success: true, orgs: [{ username: 'ada@example.com', alias: 'dev', isDefault: true, isSandbox: false, isScratchOrg: false }], git: { available: true, refs: [{ name: 'main', kind: 'branch' }, { name: 'feature/x', kind: 'branch' }], workingTreeRef: '@working-tree' } };
   if (endpoint === '/api/compare/items') return { success: true, items: [{ id: '0PS000000000001AAA', name: 'Sales_Team', label: 'Sales Team (Sales_Team)', type: data.type }] };
-  if (endpoint === '/api/compare/run') return { success: true, left: { name: 'Sales_Team', type: data.left.item.type, warnings: data.left.item.type === 'permissionsetgroup' ? ['Permission set "Standard_Thing" is not in the repository at the working tree, so its access is missing here.'] : undefined }, right: { name: 'Sales_Team', type: 'permissionset' }, diff: { entries: permEntries, sections: [summary('object', { changed: 2, removed: 1, added: 1 }), summary('field', { added: 1, changed: 1 }), summary('system', { removed: 1, added: 1 }), summary('apexClass', { added: 1, oneSided: true }), summary('tab', { changed: 1 }), summary('flow', { added: 1, oneSided: true })] } };
+  if (endpoint === '/api/compare/run') return { success: true, left: { name: 'Sales_Team', type: data.left.item.type, warnings: data.left.item.type === 'permissionsetgroup' ? ['Permission set "Standard_Thing" is not in the repository at the working tree, so its access is missing here.'] : undefined }, right: { name: 'Sales_Team', type: 'permissionset' }, diff: { entries: permEntries, sections: [summary('object', { changed: 2, removed: 1, added: 1 }), summary('groupMember', { removed: 1 }), summary('assignment', { added: 1 }), summary('field', { added: 1, changed: 1 }), summary('system', { removed: 1, added: 1 }), summary('apexClass', { added: 1, oneSided: true }), summary('tab', { changed: 1 }), summary('flow', { added: 1, oneSided: true })] } };
   if (endpoint === '/api/compare/export') return { success: true, saved: true, path: '/tmp/export.' + (data.format === 'csv' ? 'csv' : 'md') };
   if (endpoint.startsWith('/api/users')) return { success: true, users, currentUser: { display_name: 'Ada Admin', username: 'ada@example.com' } };
   if (endpoint.startsWith('/api/debugLevels')) return { success: true, debugLevels };

@@ -278,5 +278,10 @@ async function loadBranchGroup(
             );
         }
     }
-    return mergeGroupModel(name, components, muting, warnings);
+    const merged = mergeGroupModel(name, components, muting, warnings);
+    // Members are listed by API name, whether or not their files could be read
+    merged.sections.groupMember.push(
+        ...group.permissionSets.map((member) => ({ key: member, perms: { member: true } })),
+    );
+    return merged;
 }
