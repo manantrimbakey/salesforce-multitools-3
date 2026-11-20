@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Profile xmlns="http://soap.sforce.com/2006/04/metadata">
+    <applicationVisibilities><application>standard__Sales</application><default>1</default><visible>1</visible></applicationVisibilities>
+    <applicationVisibilities><application>standard__Service</application><default>0</default><visible>0</visible></applicationVisibilities>
+    <classAccesses><apexClass>SiteLoginController</apexClass><enabled>true</enabled></classAccesses>
+    <fieldPermissions><editable>true</editable><field>Account.Industry</field><readable>true</readable></fieldPermissions>
+    <layoutAssignments><layout>Account-Account %28Marketing%29 Layout</layout></layoutAssignments>
+    <layoutAssignments><layout>Account-Account %28Support%29 Layout</layout><recordType>Account.Compare_Test_RT</recordType></layoutAssignments>
+    <layoutAssignments><layout>Contact-Contact %28Sales%29 Layout</layout></layoutAssignments>
+    <objectPermissions><allowCreate>false</allowCreate><allowDelete>false</allowDelete><allowEdit>false</allowEdit><allowRead>true</allowRead><modifyAllRecords>false</modifyAllRecords><object>Account</object><viewAllFields>true</viewAllFields><viewAllRecords>false</viewAllRecords></objectPermissions>
+    <recordTypeVisibilities><default>1</default><recordType>Account.Compare_Test_RT</recordType><visible>true</visible></recordTypeVisibilities>
+    <tabVisibilities><tab>standard-Account</tab><visibility>DefaultOn</visibility></tabVisibilities>
+    <tabVisibilities><tab>standard-Contact</tab><visibility>DefaultOff</visibility></tabVisibilities>
+    <tabVisibilities><tab>standard-Lead</tab><visibility>Hidden</visibility></tabVisibilities>
+    <custom>true</custom>
+    <userLicense>Salesforce</userLicense>
+</Profile>

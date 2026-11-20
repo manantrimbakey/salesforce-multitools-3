@@ -64,6 +64,59 @@ suite('permission compare: semantic diff', () => {
         assert.deepStrictEqual(diffPermissionModels(explicit, implied).entries, []);
     });
 
+    test('View All Fields makes read-only field rows of that object redundant', () => {
+        const viewAllFields = model({
+            object: [{ key: 'Account', perms: { viewAllFields: true } }],
+            field: [
+                { key: 'Account.Industry', perms: { read: true } },
+                { key: 'Account.Phone', perms: { read: true, edit: false } },
+            ],
+        });
+        const plain = model({ object: [{ key: 'Account', perms: { read: true } }] });
+        const diff = diffPermissionModels(viewAllFields, plain);
+        assert.deepStrictEqual(
+            diff.entries.map((e) => `${e.section}:${e.key}`),
+            ['object:Account'],
+        );
+        assert.deepStrictEqual(diff.entries[0].changes, [{ perm: 'viewAllFields', left: true, right: false }]);
+    });
+
+    test('View All Fields side still reads a field the other side lists explicitly', () => {
+        const viewAllFields = model({ object: [{ key: 'Account', perms: { viewAllFields: true } }] });
+        const explicit = model({
+            object: [{ key: 'Account', perms: { viewAllFields: true } }],
+            field: [{ key: 'Account.Industry', perms: { read: true } }],
+        });
+        assert.deepStrictEqual(diffPermissionModels(viewAllFields, explicit).entries, []);
+        assert.deepStrictEqual(diffPermissionModels(explicit, viewAllFields).entries, []);
+        // the other side has only an explicit read: no "only on the right" noise for Industry, just the flag
+        const onlyRead = model({
+            object: [{ key: 'Account', perms: { read: true } }],
+            field: [{ key: 'Account.Industry', perms: { read: true } }],
+        });
+        assert.deepStrictEqual(
+            diffPermissionModels(viewAllFields, onlyRead).entries.map((e) => `${e.section}:${e.key}`),
+            ['object:Account'],
+        );
+    });
+
+    test('View All Fields does not hide field Edit', () => {
+        const viewAllFields = model({ object: [{ key: 'Account', perms: { viewAllFields: true } }] });
+        const editable = model({ field: [{ key: 'Account.Industry', perms: { edit: true } }] });
+        const entries = diffPermissionModels(viewAllFields, editable).entries.filter((e) => e.section === 'field');
+        assert.strictEqual(entries.length, 1);
+        assert.deepStrictEqual(entries[0].changes, [{ perm: 'edit', left: false, right: true }]);
+    });
+
+    test('View All Records and Modify All Records are reported as separate differences', () => {
+        const viewAll = model({ object: [{ key: 'Account', perms: { read: true, viewAll: true } }] });
+        const modifyAll = model({
+            object: [{ key: 'Account', perms: { read: true, viewAll: true, modifyAll: true } }],
+        });
+        const changes = diffPermissionModels(viewAll, modifyAll).entries[0].changes;
+        assert.deepStrictEqual(changes, [{ perm: 'modifyAll', left: false, right: true }]);
+    });
+
     test('tab visibility vocabularies of profiles and permission sets match; hidden equals absent', () => {
         const profile = model({
             tab: [
@@ -147,7 +200,15 @@ suite('permission compare: xml parser', () => {
         assert.deepStrictEqual(parsed.sections.object, [
             {
                 key: 'Account',
-                perms: { create: true, read: true, edit: true, delete: false, viewAll: false, modifyAll: false },
+                perms: {
+                    create: true,
+                    read: true,
+                    edit: true,
+                    delete: false,
+                    viewAll: false,
+                    modifyAll: false,
+                    viewAllFields: false,
+                },
             },
         ]);
         assert.deepStrictEqual(parsed.sections.field, [{ key: 'Account.Name', perms: { read: true, edit: true } }]);
@@ -171,6 +232,38 @@ suite('permission compare: xml parser', () => {
             { key: 'ns__Cfg', perms: { enabled: true } },
             { key: 'Setting', perms: { enabled: true } },
         ]);
+    });
+
+    test('accepts xsd boolean 1 / 0 as well as true / false', () => {
+        const xml = `<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+            <objectPermissions><allowCreate>1</allowCreate><allowRead>true</allowRead><allowEdit>0</allowEdit><object>Account</object></objectPermissions>
+        </PermissionSet>`;
+        const perms = parsePermissionXml(xml, 'permissionset', 'x').sections.object[0].perms;
+        assert.deepStrictEqual([perms.create, perms.read, perms.edit], [true, true, false]);
+    });
+
+    test('reads profile login hours (minutes since midnight) and login IP ranges, one or many', () => {
+        const xml = `<Profile xmlns="http://soap.sforce.com/2006/04/metadata">
+            <loginHours><mondayStart>480</mondayStart><mondayEnd>1020</mondayEnd><fridayStart>0</fridayStart><fridayEnd>1440</fridayEnd><sundayStart>600</sundayStart></loginHours>
+            <loginIpRanges><description>x</description><endAddress>10.0.0.9</endAddress><startAddress>10.0.0.1</startAddress></loginIpRanges>
+        </Profile>`;
+        const { sections } = parsePermissionXml(xml, 'profile', 'P');
+        assert.deepStrictEqual(sections.loginHours, [
+            { key: 'Monday', perms: { hours: '08:00 - 17:00' } },
+            { key: 'Friday', perms: { hours: '00:00 - 24:00' } },
+        ]);
+        assert.deepStrictEqual(sections.loginIpRange, [{ key: '10.0.0.1 - 10.0.0.9', perms: { allowed: true } }]);
+    });
+
+    test('login hours and IP ranges are compared', () => {
+        const a = model({
+            loginHours: [{ key: 'Monday', perms: { hours: '08:00 - 17:00' } }],
+            loginIpRange: [{ key: '10.0.0.1 - 10.0.0.9', perms: { allowed: true } }],
+        });
+        const b = model({ loginHours: [{ key: 'Monday', perms: { hours: '09:00 - 17:00' } }] });
+        const entries = diffPermissionModels(a, b).entries.map((e) => `${e.status[0]} ${e.section}:${e.key}`);
+        assert.deepStrictEqual(entries, ['c loginHours:Monday', 'r loginIpRange:10.0.0.1 - 10.0.0.9']);
+        assert.deepStrictEqual(diffPermissionModels(a, a).entries, []);
     });
 
     test('profiles use tabVisibilities', () => {
@@ -636,6 +729,26 @@ suite('permission compare: permission set groups', () => {
         const entry = diffPermissionModels(a, b).entries.find((e) => e.key === 'Account');
         assert.deepStrictEqual(entry?.leftGrantedBy, { read: ['Reader'] });
         assert.deepStrictEqual(entry?.rightGrantedBy, { edit: ['Editor'], read: ['Editor'] });
+    });
+
+    test('muting one permission does not mute the ones it would imply', () => {
+        const member = model({
+            object: [{ key: 'Account', perms: { read: true, edit: true, viewAllFields: true } }],
+            field: [{ key: 'Account.Industry', perms: { read: true, edit: true } }],
+        });
+        const mute = model({
+            object: [{ key: 'Account', perms: { edit: true, viewAllFields: true } }],
+            field: [{ key: 'Account.Industry', perms: { edit: true } }],
+        });
+        const merged = mergeGroupModel('G', [{ name: 'A', model: member }], [mute]);
+        assert.deepStrictEqual(
+            merged.sections.object.map((e) => e.perms),
+            [{ read: true }],
+        );
+        assert.deepStrictEqual(
+            merged.sections.field.map((e) => e.perms),
+            [{ read: true }],
+        );
     });
 
     test('parses group and muting files', () => {

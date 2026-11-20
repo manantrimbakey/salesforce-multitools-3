@@ -4,6 +4,18 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ## [Unreleased]
 
+### Features
+
+- Permission compare: profiles are now also compared by their login hours (per day) and login IP ranges
+- Permission compare: clicking a permission type chip now shows only that type; clicking more chips adds them, and removing the last one shows everything again (before, a click hid that type)
+
+### Bug fixes
+
+- Permission compare: an object with "View All Fields" no longer lists every one of its fields as a difference; View All Fields is now compared as its own permission and fields it already makes readable are not repeated (a field Edit still shows)
+- Permission compare: a permission set group with a muting permission set no longer loses read access it should keep in a branch / working-tree comparison (muting Edit or View All Fields is no longer treated as muting Read too)
+- Permission compare: working-tree / branch XML written with `1` / `0` instead of `true` / `false` is read correctly
+- Permission compare: "View All" / "Modify All" are now named "View All Records" / "Modify All Records" to tell them from "View All Fields"
+
 ## [0.10.1]
 
 ### Bug fixes

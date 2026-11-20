@@ -95,6 +95,8 @@ export const PERMISSION_SECTIONS = [
     'connectedApp',
     'recordType',
     'layoutAssignment',
+    'loginHours',
+    'loginIpRange',
     'customEntity',
     'groupMember',
     'assignment',

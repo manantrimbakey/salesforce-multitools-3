@@ -9,13 +9,32 @@ import { PERMISSION_SECTIONS } from './types';
  * - implied permissions are made explicit (Edit implies Read, Modify All implies View All implies Read ...)
  * - tab visibility values of profiles and permission sets are mapped to one vocabulary, hidden tabs are dropped
  * - duplicate entries (case-insensitive API names) are merged
+ * - read-only field rows of an object with View All Fields are dropped: the object already grants them (the org even
+ *   materializes one `FieldPermissions` row per field for it, which would bury the real differences)
  */
 export function normalizeModel(model: PermissionModel): PermissionModel {
     const sections = {} as PermissionModel['sections'];
     for (const section of PERMISSION_SECTIONS) {
         sections[section] = normalizeSection(section, model.sections[section] ?? []);
     }
+    const viewAllFields = objectsWithViewAllFields(sections.object);
+    if (viewAllFields.size > 0) {
+        sections.field = sections.field.filter(
+            (entry) => entry.perms.edit === true || !viewAllFields.has(objectOfField(entry.key)),
+        );
+    }
     return { ...model, sections };
+}
+
+/** Lower-cased API names of the objects whose View All Fields is on (expects a normalized object section) */
+export function objectsWithViewAllFields(objects: PermissionEntry[]): Set<string> {
+    return new Set(objects.filter((entry) => entry.perms.viewAllFields === true).map((e) => e.key.toLowerCase()));
+}
+
+/** `Account.Industry` -> `account` (objects keep their own name, so `Ns__Obj__c.Field__c` is split at the first dot) */
+export function objectOfField(fieldKey: string): string {
+    const dot = fieldKey.indexOf('.');
+    return (dot < 0 ? fieldKey : fieldKey.slice(0, dot)).toLowerCase();
 }
 
 function normalizeSection(section: PermissionSection, entries: PermissionEntry[]): PermissionEntry[] {
@@ -89,6 +108,9 @@ function normalizePerms(
     if (section === 'tab') {
         return normalizeTab(perms);
     }
+    if (section === 'loginHours') {
+        return typeof perms.hours === 'string' && perms.hours ? { hours: perms.hours } : {};
+    }
     if (section === 'layoutAssignment') {
         return typeof perms.layout === 'string' && perms.layout ? { layout: perms.layout } : {};
     }
@@ -103,7 +125,7 @@ function normalizePerms(
         if (result.modifyAll) {
             result.viewAll = true;
         }
-        if (result.viewAll || result.edit || result.create || result.delete) {
+        if (result.viewAll || result.viewAllFields || result.edit || result.create || result.delete) {
             result.read = true;
         }
     } else if (section === 'field' && result.edit) {

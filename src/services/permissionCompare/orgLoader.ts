@@ -140,7 +140,7 @@ export async function loadOrgModel(
         all<Row>(
             connection,
             'SELECT SobjectType, PermissionsCreate, PermissionsRead, PermissionsEdit, PermissionsDelete, ' +
-                `PermissionsViewAllRecords, PermissionsModifyAllRecords FROM ObjectPermissions WHERE ParentId = '${id}'`,
+                `PermissionsViewAllRecords, PermissionsModifyAllRecords, PermissionsViewAllFields FROM ObjectPermissions WHERE ParentId = '${id}'`,
         ),
         all<Row>(
             connection,
@@ -183,6 +183,7 @@ export async function loadOrgModel(
                 delete: bool(record.PermissionsDelete),
                 viewAll: bool(record.PermissionsViewAllRecords),
                 modifyAll: bool(record.PermissionsModifyAllRecords),
+                viewAllFields: bool(record.PermissionsViewAllFields),
             },
         });
     }
@@ -249,7 +250,7 @@ async function loadMetadataOnlySections(
         return undefined;
     }
     const kind = isProfile ? 'profile' : 'permission set';
-    const missing = `Record type visibility${isProfile ? ', page layout assignments and the default app' : ''} of the ${kind} "${name}" could not be read from the org, so they are missing from this side`;
+    const missing = `Record type visibility${isProfile ? ', page layout assignments, login hours / IP ranges and the default app' : ''} of the ${kind} "${name}" could not be read from the org, so they are missing from this side`;
     const candidates = isProfile
         ? [STANDARD_PROFILE_NAMES[name], name, encodeURIComponent(name)].filter((value): value is string => !!value)
         : [name];
