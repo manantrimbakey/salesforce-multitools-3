@@ -19,10 +19,10 @@ Branch sources need a git repository. When the project is not under git the Bran
 
 ## Permission types compared
 
-Object (CRUD, View All, Modify All), field (read / edit), system permissions, Apex classes, Visualforce pages, custom
+Object (CRUD, View All Records, Modify All Records, View All Fields), field (read / edit), system permissions, Apex classes, Visualforce pages, custom
 permissions, tab settings, app visibility (and the profile's default app), flows, external data sources, external
 credential principals, connected apps and external client apps, record type visibility (visible / default), page layout
-assignments (profiles), custom metadata types and custom settings.
+assignments (profiles), login hours and login IP ranges (profiles), custom metadata types and custom settings.
 
 - External credential principals are stored as `<ExternalCredential>-<Principal>` (`externalCredentialPrincipalAccesses`
   in permission set XML, `SetupEntityAccess` type `ExternalCredentialParameter` in the org). Profile metadata files do not
@@ -32,9 +32,10 @@ assignments (profiles), custom metadata types and custom settings.
 - Record type visibility, layout assignments and the default app have no SOQL table. For an org side they come from the
   Metadata API `read`. Standard profiles are read under their API name (`System Administrator` is `Admin`).
 
-Not compared yet: login hours, login IP ranges, category group visibility, profile action overrides, data space scopes,
-and the profile user license / custom flags. No SOQL source exists for them and they are rarely what a permission review
-is about.
+Login hours (shown as `HH:MM - HH:MM` per day, a profile without them has no restriction) and login IP ranges come from the
+Metadata API `read` of the profile, like layouts. Not compared yet: category group visibility (needs Knowledge data
+categories, not verifiable in the test org), profile action overrides (legacy, defined on the app since API 45), and the
+profile user license / custom flags.
 
 ## Permission set groups
 
@@ -70,7 +71,7 @@ The diff compares what is granted, not text. Before comparing, both sides are no
 
 - order, case of API names and XML formatting are ignored
 - `false` / missing are the same (all-false entries are dropped)
-- implied permissions are made explicit (Edit implies Read, Modify All implies View All implies Read, field Edit implies Read)
+- implied permissions are made explicit (Edit implies Read, Modify All implies View All implies Read, field Edit implies Read, View All Fields implies Read on every field of the object)
 - tab visibility vocabularies are unified (`DefaultOn` = `Visible`, `DefaultOff` = `Available`, `Hidden` = `None` = not set)
 - custom metadata types and settings are keyed without the `__mdt` / `__c` suffix
 
@@ -78,7 +79,9 @@ Changed entries list only the permissions that differ.
 
 ## Filters
 
-Difference kind (**All** / Added / Removed / Changed, one at a time), permission type chips, name search, and **Skip sections only one side
+Difference kind (**All** / Added / Removed / Changed, one at a time), permission type chips (with every type showing, the first click
+selects just that type, further clicks add more types, clicking a selected one removes it, and **Show all** or removing the last
+one shows everything again), name search, and **Skip sections only one side
 has** (on by default for branch-vs-org): a repository file that simply lacks a section would otherwise look like a
 wall of "only in org".
 

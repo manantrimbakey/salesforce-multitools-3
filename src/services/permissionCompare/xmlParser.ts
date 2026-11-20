@@ -20,6 +20,7 @@ const ARRAY_TAGS = new Set([
     'customSettingAccesses',
     'recordTypeVisibilities',
     'layoutAssignments',
+    'loginIpRanges',
     'permissionSets',
     'mutingPermissionSets',
 ]);
@@ -44,9 +45,14 @@ function text(node: XmlNode, tag: string): string | undefined {
     return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
+/** xsd:boolean: `true` / `1` are on, `false` / `0` (or a missing tag) are off. Salesforce writes `true` / `false`, hand-edited files may use `1` / `0`. */
 function flag(node: XmlNode, tag: string): boolean {
     const value = node[tag];
-    return value === true || (typeof value === 'string' && value.toLowerCase() === 'true');
+    return (
+        value === true ||
+        value === 1 ||
+        (typeof value === 'string' && ['true', '1'].includes(value.trim().toLowerCase()))
+    );
 }
 
 /**
@@ -79,6 +85,7 @@ export function parsePermissionXml(
                     delete: flag(item, 'allowDelete'),
                     viewAll: flag(item, 'viewAllRecords'),
                     modifyAll: flag(item, 'modifyAllRecords'),
+                    viewAllFields: flag(item, 'viewAllFields'),
                 },
             });
         }
@@ -175,6 +182,37 @@ export function readMetadataOnlySections(node: Record<string, unknown>, sections
             sections.layoutAssignment.push({ key: recordType ?? `${object} (master)`, perms: { layout } });
         }
     }
+    // Profiles only. A day without both times is not restricted individually, so it gets no entry.
+    const hours = asList(node.loginHours)[0];
+    if (hours) {
+        for (const day of LOGIN_DAYS) {
+            const start = minutes(hours[`${day.toLowerCase()}Start`]);
+            const end = minutes(hours[`${day.toLowerCase()}End`]);
+            if (start !== undefined && end !== undefined) {
+                sections.loginHours.push({ key: day, perms: { hours: `${clock(start)} - ${clock(end)}` } });
+            }
+        }
+    }
+    for (const item of asList(node.loginIpRanges)) {
+        const start = text(item, 'startAddress');
+        const end = text(item, 'endAddress');
+        if (start && end) {
+            sections.loginIpRange.push({ key: `${start} - ${end}`, perms: { allowed: true } });
+        }
+    }
+}
+
+const LOGIN_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/** Login hours are stored as minutes since midnight */
+function minutes(value: unknown): number | undefined {
+    const parsed = typeof value === 'string' || typeof value === 'number' ? Number(value) : NaN;
+    return Number.isInteger(parsed) && parsed >= 0 && parsed <= 1440 ? parsed : undefined;
+}
+
+function clock(totalMinutes: number): string {
+    const pad = (value: number) => String(value).padStart(2, '0');
+    return `${pad(Math.floor(totalMinutes / 60))}:${pad(totalMinutes % 60)}`;
 }
 
 /** `ns__Thing__mdt` / `Thing__c` -> `ns__Thing` */
