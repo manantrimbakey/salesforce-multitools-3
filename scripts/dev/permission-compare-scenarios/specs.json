@@ -1,0 +1,3436 @@
+{
+    "Cx_H01_A": {
+        "objects": {
+            "Account": {
+                "viewAllFields": true,
+                "read": true
+            },
+            "Contact": {
+                "read": true
+            },
+            "Cx_Obj1__c": {
+                "viewAllFields": true,
+                "modifyAll": true,
+                "viewAll": true,
+                "edit": true,
+                "delete": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Contact.Email": {
+                "read": 1,
+                "edit": 1
+            },
+            "Contact.Phone": {
+                "read": 1,
+                "edit": 0
+            },
+            "Cx_Obj1__c.Cx_F1__c": {
+                "read": 1,
+                "edit": 1
+            }
+        }
+    },
+    "Cx_H01_B": {
+        "objects": {
+            "Account": {
+                "read": true
+            },
+            "Contact": {
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj1__c": {
+                "read": true,
+                "edit": true
+            }
+        },
+        "fields": {
+            "Account.Industry": {
+                "read": 1,
+                "edit": 0
+            },
+            "Account.Phone": {
+                "read": 1,
+                "edit": 1
+            },
+            "Cx_Obj1__c.Cx_F1__c": {
+                "read": 1,
+                "edit": 0
+            }
+        }
+    },
+    "Cx_H02_A": {
+        "objects": {
+            "Account": {
+                "viewAllFields": true,
+                "viewAll": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Account.Industry": {
+                "read": 1,
+                "edit": 1
+            }
+        }
+    },
+    "Cx_H02_B": {
+        "objects": {
+            "Account": {
+                "read": true
+            }
+        },
+        "fields": {
+            "Account.Industry": {
+                "read": 1,
+                "edit": 0
+            },
+            "Account.Phone": {
+                "read": 1,
+                "edit": 0
+            }
+        }
+    },
+    "Cx_H03_A": {
+        "objects": {
+            "Account": {
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {}
+    },
+    "Cx_H03_B": {
+        "objects": {
+            "Account": {
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Account.Industry": {
+                "read": 1,
+                "edit": 0
+            },
+            "Account.Phone": {
+                "read": 1,
+                "edit": 0
+            }
+        }
+    },
+    "Cx_H04_A": {
+        "objects": {
+            "Account": {
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {}
+    },
+    "Cx_H04_B": {
+        "objects": {
+            "Account": {
+                "read": true
+            }
+        },
+        "fields": {
+            "Account.Cxs_F1__c": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Cxs_F2__c": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Cxs_F3__c": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Cxs_F4__c": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Cxs_F5__c": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Cxs_F6__c": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Cxs_F7__c": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Cxs_F8__c": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Cxs_F9__c": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Cxs_F10__c": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Cxs_F11__c": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Cxs_F12__c": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Type": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Phone": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Fax": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.AccountNumber": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Website": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Sic": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Industry": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.AnnualRevenue": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.NumberOfEmployees": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Ownership": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.TickerSymbol": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Description": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Rating": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Site": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.AccountSource": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.Tradestyle": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.NaicsCode": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.NaicsDesc": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.YearStarted": {
+                "read": 1,
+                "edit": 1
+            },
+            "Account.SicDesc": {
+                "read": 1,
+                "edit": 1
+            }
+        }
+    },
+    "Cx_F01_A": {
+        "objects": {
+            "Cx_Obj3__c": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj5__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj2__c": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj1__c": {
+                "create": false,
+                "edit": true,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj3__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F14__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F15__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F10__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F6__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F8__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F13__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F7__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F1__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F2__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F15__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F7__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F4__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F12__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F13__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F8__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F13__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F6__c": {
+                "read": true,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F01_B": {
+        "objects": {
+            "Contact": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj5__c": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj1__c": {
+                "create": true,
+                "edit": true,
+                "delete": false,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Account": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Contact.Cxs_F2__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Title": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F4__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Email": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F11__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F3__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F13__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F14__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F2__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F15__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F10__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F11__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F15__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Rating": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F5__c": {
+                "read": false,
+                "edit": false
+            },
+            "Account.Cxs_F6__c": {
+                "read": true,
+                "edit": true
+            }
+        }
+    },
+    "Cx_F02_A": {
+        "objects": {
+            "Cx_Obj2__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj5__c": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj4__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Contact": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj1__c": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj2__c.Cx_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F11__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F15__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F14__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F7__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F15__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F13__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F15__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F11__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F4__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F10__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F3__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F13__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F14__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F13__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F4__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F12__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F3__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F10__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F14__c": {
+                "read": true,
+                "edit": true
+            }
+        }
+    },
+    "Cx_F02_B": {
+        "objects": {
+            "Cx_Obj2__c": {
+                "create": false,
+                "edit": true,
+                "delete": false,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Account": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj3__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj2__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F3__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F2__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F1__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F14__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F2__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F12__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Rating": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F11__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Industry": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Website": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Type": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F2__c": {
+                "read": true,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F03_A": {
+        "objects": {
+            "Cx_Obj4__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {}
+    },
+    "Cx_F03_B": {
+        "objects": {
+            "Cx_Obj5__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj5__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F15__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F4__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F8__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F13__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F7__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            }
+        }
+    },
+    "Cx_F04_A": {
+        "objects": {
+            "Account": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj1__c": {
+                "create": true,
+                "edit": true,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj1__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F4__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F1__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F2__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F13__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F8__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F15__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            }
+        }
+    },
+    "Cx_F04_B": {
+        "objects": {
+            "Contact": {
+                "create": true,
+                "edit": true,
+                "delete": false,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {}
+    },
+    "Cx_F05_A": {
+        "objects": {
+            "Cx_Obj5__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Account": {
+                "create": false,
+                "edit": true,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj4__c": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj5__c.Cx_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F2__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F8__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Rating": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F4__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F8__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F11__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F12__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Industry": {
+                "read": true,
+                "edit": true
+            }
+        }
+    },
+    "Cx_F05_B": {
+        "objects": {
+            "Cx_Obj3__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj2__c": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj4__c": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj1__c": {
+                "create": true,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj5__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj3__c.Cx_F2__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F15__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F6__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F13__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F3__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F13__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F11__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F1__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F11__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F14__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F12__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F14__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F10__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F4__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F15__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F2__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F11__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F13__c": {
+                "read": true,
+                "edit": true
+            }
+        }
+    },
+    "Cx_F06_A": {
+        "objects": {
+            "Cx_Obj5__c": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj2__c": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj4__c": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj3__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Contact": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj5__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F1__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F3__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F8__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F1__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F2__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F13__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F15__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F1__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F14__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F13__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F12__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F13__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F7__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Email": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F4__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Phone": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F7__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F8__c": {
+                "read": false,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F06_B": {
+        "objects": {
+            "Cx_Obj2__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Contact": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj2__c.Cx_F1__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F14__c": {
+                "read": false,
+                "edit": false
+            },
+            "Contact.Cxs_F3__c": {
+                "read": true,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F07_A": {
+        "objects": {
+            "Cx_Obj4__c": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj4__c.Cx_F4__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F10__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F14__c": {
+                "read": true,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F07_B": {
+        "objects": {
+            "Cx_Obj1__c": {
+                "create": true,
+                "edit": true,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj2__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj3__c": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj4__c": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Contact": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj1__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F14__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F3__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F13__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F4__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F15__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F2__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F7__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F4__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F15__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F10__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F5__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F13__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F2__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F7__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F2__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F3__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F10__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Email": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Phone": {
+                "read": true,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F08_A": {
+        "objects": {
+            "Cx_Obj1__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Account": {
+                "create": true,
+                "edit": false,
+                "delete": false,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj1__c.Cx_F3__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F12__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F6__c": {
+                "read": true,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F08_B": {
+        "objects": {
+            "Account": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Account.Website": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Industry": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F12__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Type": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Phone": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F10__c": {
+                "read": false,
+                "edit": false
+            },
+            "Account.Cxs_F8__c": {
+                "read": false,
+                "edit": false
+            },
+            "Account.Cxs_F11__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F3__c": {
+                "read": true,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F09_A": {
+        "objects": {
+            "Cx_Obj4__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj5__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj1__c": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Account": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj4__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F14__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F15__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F8__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F2__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F7__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F12__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Phone": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F4__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F2__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F6__c": {
+                "read": true,
+                "edit": true
+            }
+        }
+    },
+    "Cx_F09_B": {
+        "objects": {
+            "Account": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Account.Website": {
+                "read": false,
+                "edit": false
+            },
+            "Account.Rating": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F6__c": {
+                "read": true,
+                "edit": true
+            }
+        }
+    },
+    "Cx_F10_A": {
+        "objects": {
+            "Cx_Obj3__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj1__c": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj4__c": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Contact": {
+                "create": true,
+                "edit": false,
+                "delete": false,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj5__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj3__c.Cx_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F12__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F3__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F4__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F13__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F14__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F2__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Email": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F10__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F8__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F13__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F10_B": {
+        "objects": {
+            "Cx_Obj1__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Contact": {
+                "create": false,
+                "edit": true,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj4__c": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj2__c": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj1__c.Cx_F14__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F12__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F2__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F1__c": {
+                "read": false,
+                "edit": false
+            },
+            "Contact.Cxs_F4__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F10__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F1__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F11__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F2__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F15__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F3__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F11_A": {
+        "objects": {
+            "Account": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Account.Rating": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F2__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Website": {
+                "read": false,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F11_B": {
+        "objects": {
+            "Cx_Obj5__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj4__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj3__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Contact": {
+                "create": true,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj2__c": {
+                "create": false,
+                "edit": true,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj5__c.Cx_F1__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F2__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F11__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F13__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Email": {
+                "read": true,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F12_A": {
+        "objects": {
+            "Cx_Obj2__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj4__c": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj3__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj1__c": {
+                "create": true,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj2__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F12__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F8__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F14__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F11__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F15__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F4__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F2__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F12_B": {
+        "objects": {
+            "Contact": {
+                "create": false,
+                "edit": true,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj4__c": {
+                "create": true,
+                "edit": false,
+                "delete": false,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Contact.Cxs_F4__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Phone": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F2__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F11__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F3__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F8__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F14__c": {
+                "read": true,
+                "edit": true
+            }
+        }
+    },
+    "Cx_F13_A": {
+        "objects": {
+            "Cx_Obj5__c": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Account": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj5__c.Cx_F4__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F8__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F2__c": {
+                "read": true,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F13_B": {
+        "objects": {
+            "Cx_Obj5__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj3__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj2__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Account": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj5__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F14__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F15__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F3__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F14__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F1__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F13__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F3__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Industry": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F10__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F11__c": {
+                "read": true,
+                "edit": true
+            }
+        }
+    },
+    "Cx_F14_A": {
+        "objects": {
+            "Cx_Obj2__c": {
+                "create": false,
+                "edit": true,
+                "delete": false,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj5__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj1__c": {
+                "create": true,
+                "edit": true,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Account": {
+                "create": false,
+                "edit": true,
+                "delete": false,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj2__c.Cx_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F13__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F7__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F3__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F8__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F14__c": {
+                "read": false,
+                "edit": false
+            },
+            "Account.Cxs_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F8__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F2__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Phone": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Industry": {
+                "read": true,
+                "edit": true
+            }
+        }
+    },
+    "Cx_F14_B": {
+        "objects": {
+            "Cx_Obj3__c": {
+                "create": false,
+                "edit": true,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj4__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Account": {
+                "create": true,
+                "edit": true,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj3__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F7__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F4__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F7__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F15__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F1__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F1__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Phone": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Account.Cxs_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Website": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F4__c": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Rating": {
+                "read": true,
+                "edit": false
+            },
+            "Account.Cxs_F2__c": {
+                "read": true,
+                "edit": true
+            }
+        }
+    },
+    "Cx_F15_A": {
+        "objects": {
+            "Cx_Obj5__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj5__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F15__c": {
+                "read": true,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F15_B": {
+        "objects": {
+            "Cx_Obj3__c": {
+                "create": true,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj2__c": {
+                "create": false,
+                "edit": true,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj4__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj3__c.Cx_F13__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F14__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F7__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F13__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F4__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F2__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F12__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F14__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F10__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F15__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F5__c": {
+                "read": false,
+                "edit": false
+            }
+        }
+    },
+    "Cx_F16_A": {
+        "objects": {
+            "Contact": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj2__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj4__c": {
+                "create": false,
+                "edit": true,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj1__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Cx_Obj3__c": {
+                "create": true,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Contact.Cxs_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F8__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F4__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F7__c": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Email": {
+                "read": true,
+                "edit": true
+            },
+            "Contact.Cxs_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F2__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Cxs_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Contact.Phone": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F4__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F15__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F13__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F2__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F2__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F13__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F10__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F12__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj4__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj4__c.Cx_F11__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F13__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F4__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F14__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F7__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F6__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F11__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F10__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F12__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F3__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F15__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj3__c.Cx_F8__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj3__c.Cx_F4__c": {
+                "read": true,
+                "edit": true
+            }
+        }
+    },
+    "Cx_F16_B": {
+        "objects": {
+            "Cx_Obj1__c": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": true,
+                "modifyAll": false,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj2__c": {
+                "create": false,
+                "edit": true,
+                "delete": true,
+                "viewAll": true,
+                "modifyAll": true,
+                "viewAllFields": true,
+                "read": true
+            },
+            "Cx_Obj5__c": {
+                "create": true,
+                "edit": true,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            },
+            "Contact": {
+                "create": false,
+                "edit": false,
+                "delete": false,
+                "viewAll": false,
+                "modifyAll": false,
+                "viewAllFields": false,
+                "read": true
+            }
+        },
+        "fields": {
+            "Cx_Obj1__c.Cx_F2__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj1__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F6__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F12__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj1__c.Cx_F9__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj2__c.Cx_F5__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj2__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F5__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F1__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F7__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F10__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F14__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F12__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F8__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F3__c": {
+                "read": true,
+                "edit": true
+            },
+            "Cx_Obj5__c.Cx_F9__c": {
+                "read": true,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F11__c": {
+                "read": false,
+                "edit": false
+            },
+            "Cx_Obj5__c.Cx_F4__c": {
+                "read": false,
+                "edit": false
+            }
+        }
+    }
+}

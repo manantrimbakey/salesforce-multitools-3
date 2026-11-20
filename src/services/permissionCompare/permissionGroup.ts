@@ -78,7 +78,9 @@ export function mergeGroupModel(
             }
         }
         for (const mute of muting) {
-            for (const entry of normalizeModel(mute).sections[section]) {
+            // A muting set lists what is taken away: its flags must not be "completed" with implied permissions
+            // (muting Edit does not mute Read), so it is read as written
+            for (const entry of mute.sections[section] ?? []) {
                 const target = union.get(entry.key.toLowerCase());
                 if (!target) {
                     continue;

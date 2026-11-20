@@ -39,22 +39,34 @@ interface Props {
 export const DiffView = memo(function DiffView({ result, leftLabel, rightLabel, mixedSources }: Props) {
     const { entries, sections } = result.diff;
     const [statusFilter, setStatusFilter] = useState<'all' | DiffStatus>('all');
-    const [hidden, setHidden] = useState<PermissionSection[]>([]);
+    // Permission-type chips: none selected = every type is shown. The first click selects just that type, further
+    // clicks add (or remove) types, and removing the last one shows everything again.
+    const [selected, setSelected] = useState<PermissionSection[]>([]);
     const [query, setQuery] = useState('');
     const [ignoreOneSided, setIgnoreOneSided] = useState(mixedSources);
 
     const oneSided = useMemo(() => new Set(sections.filter((s) => s.oneSided).map((s) => s.section)), [sections]);
+
+    const sectionsWithDiffs = useMemo(
+        () => sections.filter((s) => s.added + s.removed + s.changed > 0 && !(ignoreOneSided && s.oneSided)),
+        [sections, ignoreOneSided],
+    );
+    // A selected type that no longer has differences (new result, one-sided toggle) must not leave an empty view
+    const chosen = useMemo(
+        () => selected.filter((section) => sectionsWithDiffs.some((s) => s.section === section)),
+        [selected, sectionsWithDiffs],
+    );
 
     const visible = useMemo(() => {
         const needle = query.trim().toLowerCase();
         return entries.filter(
             (entry) =>
                 (statusFilter === 'all' || entry.status === statusFilter) &&
-                !hidden.includes(entry.section) &&
+                (chosen.length === 0 || chosen.includes(entry.section)) &&
                 !(ignoreOneSided && oneSided.has(entry.section)) &&
                 (!needle || entry.key.toLowerCase().includes(needle)),
         );
-    }, [entries, statusFilter, hidden, query, ignoreOneSided, oneSided]);
+    }, [entries, statusFilter, chosen, query, ignoreOneSided, oneSided]);
 
     const bySection = useMemo(() => {
         const groups = new Map<PermissionSection, DiffEntry[]>();
@@ -68,9 +80,6 @@ export const DiffView = memo(function DiffView({ result, leftLabel, rightLabel, 
         return count;
     }, [visible]);
 
-    const sectionsWithDiffs = sections.filter(
-        (s) => s.added + s.removed + s.changed > 0 && !(ignoreOneSided && s.oneSided),
-    );
     const [exportAnchor, setExportAnchor] = useState<HTMLElement | null>(null);
     const [exportMessage, setExportMessage] = useState<{ severity: 'success' | 'error'; text: string } | null>(null);
     // Exports exactly what the filters currently show
@@ -84,9 +93,7 @@ export const DiffView = memo(function DiffView({ result, leftLabel, rightLabel, 
         }
     };
     const toggleSection = (section: PermissionSection) =>
-        setHidden((current) =>
-            current.includes(section) ? current.filter((s) => s !== section) : [...current, section],
-        );
+        setSelected(chosen.includes(section) ? chosen.filter((s) => s !== section) : [...chosen, section]);
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, minHeight: 0 }}>
@@ -145,7 +152,7 @@ export const DiffView = memo(function DiffView({ result, leftLabel, rightLabel, 
                     Permission types:
                 </Typography>
                 {sectionsWithDiffs.map((summary) => {
-                    const active = !hidden.includes(summary.section);
+                    const active = chosen.length === 0 || chosen.includes(summary.section);
                     return (
                         <Chip
                             key={summary.section}
@@ -158,8 +165,8 @@ export const DiffView = memo(function DiffView({ result, leftLabel, rightLabel, 
                         />
                     );
                 })}
-                {hidden.length > 0 && (
-                    <Button size="small" onClick={() => setHidden([])}>
+                {chosen.length > 0 && (
+                    <Button size="small" onClick={() => setSelected([])}>
                         Show all
                     </Button>
                 )}
@@ -252,6 +259,7 @@ const PERM_ORDER = [
     'delete',
     'viewAll',
     'modifyAll',
+    'viewAllFields',
     'enabled',
     'member',
     'assigned',
@@ -259,6 +267,8 @@ const PERM_ORDER = [
     'default',
     'visibility',
     'layout',
+    'hours',
+    'allowed',
 ];
 
 function sortedPerms(names: string[]): string[] {

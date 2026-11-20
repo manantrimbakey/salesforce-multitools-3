@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Profile xmlns="http://soap.sforce.com/2006/04/metadata">
+    <applicationVisibilities><application>standard__Sales</application><default>0</default><visible>1</visible></applicationVisibilities>
+    <applicationVisibilities><application>standard__Service</application><default>1</default><visible>1</visible></applicationVisibilities>
+    <layoutAssignments><layout>Account-Account %28Sales%29 Layout</layout></layoutAssignments>
+    <layoutAssignments><layout>Contact-Contact %28Sales%29 Layout</layout></layoutAssignments>
+    <tabVisibilities><tab>standard-Account</tab><visibility>DefaultOff</visibility></tabVisibilities>
+    <tabVisibilities><tab>standard-Contact</tab><visibility>DefaultOff</visibility></tabVisibilities>
+    <tabVisibilities><tab>standard-Lead</tab><visibility>DefaultOn</visibility></tabVisibilities>
+    <custom>true</custom>
+    <userLicense>Salesforce</userLicense>
+</Profile>

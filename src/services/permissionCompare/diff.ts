@@ -1,4 +1,4 @@
-import { normalizeModel } from './normalize';
+import { normalizeModel, objectOfField, objectsWithViewAllFields } from './normalize';
 import type {
     DiffEntry,
     PermissionChange,
@@ -20,6 +20,8 @@ export function diffPermissionModels(left: PermissionModel, right: PermissionMod
     const a = normalizeModel(left);
     const b = normalizeModel(right);
 
+    const leftViewAll = objectsWithViewAllFields(a.sections.object);
+    const rightViewAll = objectsWithViewAllFields(b.sections.object);
     const entries: DiffEntry[] = [];
     const sections: SectionSummary[] = [];
 
@@ -42,7 +44,7 @@ export function diffPermissionModels(left: PermissionModel, right: PermissionMod
         for (const entry of leftEntries) {
             const id = entry.key.toLowerCase();
             seen.add(id);
-            const other = rightByKey.get(id);
+            const other = rightByKey.get(id) ?? impliedField(section, entry, rightViewAll);
             const diff = other ? compareEntry(section, entry, other) : removed(section, entry);
             if (diff) {
                 entries.push(diff);
@@ -51,8 +53,12 @@ export function diffPermissionModels(left: PermissionModel, right: PermissionMod
         }
         for (const entry of rightEntries) {
             if (!seen.has(entry.key.toLowerCase())) {
-                entries.push(added(section, entry));
-                summary.added += 1;
+                const other = impliedField(section, entry, leftViewAll);
+                const diff = other ? compareEntry(section, other, entry) : added(section, entry);
+                if (diff) {
+                    entries.push(diff);
+                    summary[diff.status] += 1;
+                }
             }
         }
         sections.push(summary);
@@ -75,6 +81,20 @@ function removed(section: PermissionSection, entry: PermissionEntry): DiffEntry 
 
 function added(section: PermissionSection, entry: PermissionEntry): DiffEntry {
     return { section, key: entry.key, status: 'added', right: entry.perms, ...sources(undefined, entry), changes: [] };
+}
+
+/**
+ * A field that one side does not list but whose object has View All Fields on that side still is readable there:
+ * the missing side then holds an implied read-only entry, so only a real difference (e.g. Edit) is reported.
+ */
+function impliedField(
+    section: PermissionSection,
+    entry: PermissionEntry,
+    otherViewAll: Set<string>,
+): PermissionEntry | undefined {
+    return section === 'field' && otherViewAll.has(objectOfField(entry.key))
+        ? { key: entry.key, perms: { read: true } }
+        : undefined;
 }
 
 function compareEntry(

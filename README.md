@@ -58,9 +58,9 @@ Compare a permission set or profile between two sources, side by side:
 
 - **Command**: `Salesforce Multitool: Compare Permission Sets / Profiles`
 - Compare **org vs org**, **branch vs org** or **branch vs branch** (also tags and your uncommitted files). Branch sources need the project to be under git
-- Org data is read with SOQL, so it is complete (a CLI retrieve of a profile or permission set is not)
+- Org data is read with SOQL and the Metadata API, so it is complete (a CLI retrieve of a profile or permission set is not). Profiles also compare login hours and login IP ranges
 - Smart diff: compares the permissions actually granted, ignoring ordering, formatting and implied permissions (for example Edit implies Read)
-- Two columns, one per side, with differences highlighted. Filter by permission type, added / removed / changed, or name
+- Two columns, one per side, with differences highlighted. Filter by permission type (click one chip to show only that type, click more to add them), added / removed / changed, or name
 
 ![Permission Compare](./asset/Permission_Compare.gif)
 

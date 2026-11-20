@@ -6,6 +6,8 @@ Publisher `manantrimbakey`, extension id `salesforce-multitools-3`, VS Code `^1.
 
 Read before working: `tasks/lessons.md` (mistakes already made once), `tasks/todo.md` (open items, current plan).
 
+# VERY VERY IMPORTANT, Only Salesfoce ORG 4rst needs to be used for all work. No Other orgs should be used.
+
 ## How the owner wants work done
 
 The owner tests the extension on real orgs and reports what breaks, so most of the value is in catching those cases first.
@@ -36,7 +38,7 @@ The owner tests the extension on real orgs and reports what breaks, so most of t
 
 ## Project state
 
-Public open-source repo. 0.10.1 is released (Marketplace, Open VSX, tag `v0.10.1`, GitHub release): permission sets, profiles and
+Public open-source repo. 0.11.0 is released (Marketplace, Open VSX, tag `v0.11.0`, GitHub release): permission sets, profiles and
 permission set groups can be compared (org / branch / working tree sources), with export and warnings. Next candidates live in
 `tasks/todo.md`.
 
@@ -58,6 +60,8 @@ also installs `client/` (postinstall).
 | Webview in a browser                                    | `node scripts/dev/webview-harness.js` then open `/harness.html`                      |
 | Real-org check (writes!)                                | `node scripts/dev/org-check.js <alias> <projectDir> --yes`                           |
 | Permission compare vs a real org (read-only SOQL)       | `pnpm run compile-tests` then `node scripts/dev/permission-compare-check.js ...`     |
+| Compare scenarios on 4rst (fuzz, groups, profiles)      | `scripts/dev/permission-compare-scenarios/README.md`                                 |
+| Real webview against a real org (Chrome)                | `node scripts/dev/webview-live-harness.js <projectDir> 8768` (needs `compile-tests`) |
 | Move Dependabot PRs to `dev2`                           | `bash scripts/dev/retarget-dependabot-prs.sh --apply` (omit `--apply` for a dry run) |
 
 F5 ("Run Extension") runs the `watch` task: `build:client` once, then `watch:tsc` + `watch:esbuild`. Client edits need a
@@ -96,6 +100,14 @@ show the new version, so poll `vsce show` / the Open VSX API before calling it f
       the `*.mutingpermissionset-meta.xml` files (`permissionGroup.ts`). `grantedBy` says which member grants each permission.
     - Typed text in the item picker must survive blur (`clearOnBlur={false}` + own `inputValue`); say when the item does not exist
       in the chosen org / ref instead of failing.
+    - View All Fields: the org materializes one read-only `FieldPermissions` row per field for it, so those rows are dropped when
+      the object has `viewAllFields` (diff compares it as its own permission; a field Edit still shows). It is not implied by
+      View All / Modify All Records, and those do not imply each other's fields either.
+    - A muting permission set lists what is taken away: never run it through `normalizeModel` (that would make muting Edit mute
+      Read too). Muting is chained (muting Edit needs Delete and Modify All muted first) when seeding.
+    - Login hours (minutes since midnight, shown `HH:MM - HH:MM` per day) and login IP ranges are profile fields read with the
+      Metadata API `read`, like layouts. Category group visibility needs Knowledge data categories (not in 4rst), action
+      overrides are legacy: both are not compared.
     - Exports are built on the host (`exportFormat.ts`, pure and tested), the webview only sends the shown entries; CSV cells that
       start with `= + - @` are defused.
 
