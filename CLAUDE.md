@@ -38,7 +38,7 @@ The owner tests the extension on real orgs and reports what breaks, so most of t
 
 ## Project state
 
-Public open-source repo. 0.10.1 is released (Marketplace, Open VSX, tag `v0.10.1`, GitHub release): permission sets, profiles and
+Public open-source repo. 0.11.0 is released (Marketplace, Open VSX, tag `v0.11.0`, GitHub release): permission sets, profiles and
 permission set groups can be compared (org / branch / working tree sources), with export and warnings. Next candidates live in
 `tasks/todo.md`.
 

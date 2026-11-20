@@ -4,6 +4,8 @@ All notable changes to the "salesforce-multitools-3" extension will be documente
 
 ## [Unreleased]
 
+## [0.11.0]
+
 ### Features
 
 - Permission compare: profiles are now also compared by their login hours (per day) and login IP ranges
